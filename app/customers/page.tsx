@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutDashboard, Plus, Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabaseClient"
 import {
@@ -44,26 +44,10 @@ export default function CustomersPage() {
   })
 
   const stats: Stat[] = [
-    {
-      title: "Всего клиентов",
-      value: "256",
-      description: "+24 за последний месяц",
-    },
-    {
-      title: "Активные клиенты",
-      value: "128",
-      description: "50% от общего числа",
-    },
-    {
-      title: "VIP клиенты",
-      value: "32",
-      description: "12.5% от общего числа",
-    },
-    {
-      title: "Средний чек",
-      value: "₸850",
-      description: "+₸120 с прошлого месяца",
-    },
+    { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
+    { title: "Активные клиенты", value: "128", description: "50% от общего числа" },
+    { title: "VIP клиенты", value: "32", description: "12.5% от общего числа" },
+    { title: "Средний чек", value: "₸850", description: "+₸120 с прошлого месяца" },
   ]
 
   const handleDialogSubmit = async () => {
@@ -83,6 +67,7 @@ export default function CustomersPage() {
     const { error } = await supabase.from("customers").insert([
       {
         ...newCustomer,
+        username: newCustomer.login,
         visits: 0,
         lastVisit: new Date().toISOString().split("T")[0],
         status: "active",
@@ -97,10 +82,6 @@ export default function CustomersPage() {
       setOpenDialog(false)
       setNewCustomer({ name: "", phone: "", email: "", login: "", password: "" })
     }
-  }
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
   }
 
   return (
@@ -130,7 +111,7 @@ export default function CustomersPage() {
                   placeholder="Поиск клиентов..."
                   className="pl-8"
                   value={searchQuery}
-                  onChange={handleSearch}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <Button variant="outline">Фильтры</Button>
