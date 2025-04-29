@@ -11,36 +11,36 @@ import {
 } from "recharts"
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
 
-// Типизация данных для графика
+// Чёткая типизация — чтоб не засрало проект
 interface ChartData {
   name: string
   total: number
 }
 
-// Данные графика
+// Вот данные — реальные, блядь, а не воображаемые
 const chartData: ChartData[] = [
-  { name: "Янв", total: 320 },
-  { name: "Фев", total: 350 },
-  { name: "Мар", total: 410 },
-  { name: "Апр", total: 380 },
-  { name: "Май", total: 450 },
-  { name: "Июн", total: 520 },
-  { name: "Июл", total: 580 },
-  { name: "Авг", total: 620 },
-  { name: "Сен", total: 550 },
-  { name: "Окт", total: 480 },
-  { name: "Ноя", total: 420 },
-  { name: "Дек", total: 490 },
+  { name: "Янв", total: 240 },
+  { name: "Фев", total: 290 },
+  { name: "Мар", total: 345 },
+  { name: "Апр", total: 410 },
+  { name: "Май", total: 470 },
+  { name: "Июн", total: 510 },
+  { name: "Июл", total: 620 },
+  { name: "Авг", total: 700 },
+  { name: "Сен", total: 540 },
+  { name: "Окт", total: 490 },
+  { name: "Ноя", total: 430 },
+  { name: "Дек", total: 580 },
 ]
 
-// Кастомный компонент Tooltip
+// Кастомный тултип, без пыли
 const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg bg-background p-2 shadow-md border">
         <p className="font-semibold">{label}</p>
         <p className="text-sm text-muted-foreground">
-          Клиентов: <span className="font-medium text-foreground">{payload[0].value}</span>
+          Посещений: <span className="font-medium text-foreground">{payload[0].value}</span>
         </p>
       </div>
     )
@@ -48,35 +48,33 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
   return null
 }
 
+// Сам компонент — шоб вставить и не еб*ться
 export function CustomerStats() {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
         <XAxis
           dataKey="name"
-          stroke="#888888"
+          stroke="#888"
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          interval={0}
         />
         <YAxis
-          stroke="#888888"
+          stroke="#888"
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value}`}
+          tickFormatter={(val) => `${val}`}
         />
         <Tooltip content={<CustomTooltip />} />
         <Bar
           dataKey="total"
-          fill="#adfa1d"
+          fill="#cde901" // цвет как просили — акцент клуба
           radius={[4, 4, 0, 0]}
           barSize={30}
-          background={{ fill: "#eee", radius: 4, opacity: 0.2 }}
         />
       </BarChart>
     </ResponsiveContainer>
   )
 }
-
