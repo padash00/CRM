@@ -1,0 +1,199 @@
+"use client"; // <-- СТРОГО первой строкой
+
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LayoutDashboard, Plus, Search } from "lucide-react"
+import Link from "next/link"
+import { CustomerTable } from "./customer-table"
+import { CustomerStats } from "./customer-stats"
+import { useState } from "react"
+import { toast } from "@/components/ui/use-toast"
+
+// Типизация для статистики
+interface Stat {
+  title: string
+  value: string
+  description: string
+}
+
+export default function CustomersPage() {
+  const [searchQuery, setSearchQuery] = useState<string>("")
+
+  // Данные статистики
+  const stats: Stat[] = [
+    {
+      title: "Всего клиентов",
+      value: "256",
+      description: "+24 за последний месяц",
+    },
+    {
+      title: "Активные клиенты",
+      value: "128",
+      description: "50% от общего числа",
+    },
+    {
+      title: "VIP клиенты",
+      value: "32",
+      description: "12.5% от общего числа",
+    },
+    {
+      title: "Средний чек",
+      value: "₽850",
+      description: "+₽120 с прошлого месяца",
+    },
+  ]
+
+  // Обработчик создания нового клиента
+  const handleNewCustomer = () => {
+    toast({
+      title: "Новый клиент",
+      description: "Функционал создания нового клиента будет доступен в следующей версии.",
+    })
+  }
+
+  // Обработчик поиска (заглушка)
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+    // Здесь можно добавить логику фильтрации клиентов по запросу
+  }
+
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      {/* Шапка */}
+      <header className="border-b bg-background">
+        <div className="flex h-16 items-center px-4 md:px-6">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard className="h-6 w-6" />
+            <span className="text-lg font-semibold">GameZone CRM</span>
+          </div>
+          <nav className="ml-auto flex items-center gap-4 sm:gap-6">
+            {[
+              { href: "/", label: "Панель" },
+              { href: "/bookings", label: "Бронирования" },
+              { href: "/customers", label: "Клиенты" },
+              { href: "/staff", label: "Персонал" },
+              { href: "/pos", label: "Касса" },
+              { href: "/games", label: "Игры" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline underline-offset-4"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* Основной контент */}
+      <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Управление клиентами</h2>
+          <Button onClick={handleNewCustomer}>
+            <Plus className="mr-2 h-4 w-4" /> Новый клиент
+          </Button>
+        </div>
+
+        <Tabs defaultValue="all" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all">Все клиенты</TabsTrigger>
+            <TabsTrigger value="active">Активные</TabsTrigger>
+            <TabsTrigger value="vip">VIP</TabsTrigger>
+            <TabsTrigger value="stats">Статистика</TabsTrigger>
+          </TabsList>
+
+          {/* Вкладка "Все клиенты" */}
+          <TabsContent value="all" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Поиск клиентов..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+              <Button variant="outline">Фильтры</Button>
+            </div>
+            <CustomerTable />
+          </TabsContent>
+
+          {/* Вкладка "Активные" */}
+          <TabsContent value="active" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Поиск активных клиентов..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+              <Button variant="outline">Фильтры</Button>
+            </div>
+            <CustomerTable filterActive={true} />
+          </TabsContent>
+
+          {/* Вкладка "VIP" */}
+          <TabsContent value="vip" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Поиск VIP клиентов..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+              <Button variant="outline">Фильтры</Button>
+            </div>
+            <CustomerTable filterVip={true} />
+          </TabsContent>
+
+          {/* Вкладка "Статистика" */}
+          <TabsContent value="stats" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {stats.map((stat) => (
+                <Card key={stat.title} className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <p className="text-xs text-muted-foreground">{stat.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Статистика посещений</CardTitle>
+                <CardDescription>Количество посещений по месяцам</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CustomerStats />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  )
+}
+
