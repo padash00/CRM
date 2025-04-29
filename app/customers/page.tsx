@@ -33,14 +33,14 @@ interface Stat {
 }
 
 export default function CustomersPage() {
-  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [openDialog, setOpenDialog] = useState(false)
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
     email: "",
-    login: "",
-    password: ""
+    username: "", // ИСПРАВЛЕНО: сразу username
+    password: "",
   })
 
   const stats: Stat[] = [
@@ -54,8 +54,8 @@ export default function CustomersPage() {
     const loginRegex = /^[a-zA-Z0-9_]+$/
     const passwordRegex = /^\d{6}$/
 
-    if (!loginRegex.test(newCustomer.login)) {
-      toast({ title: "Неверный логин", description: "Логин должен содержать только латинские буквы и цифры" })
+    if (!loginRegex.test(newCustomer.username)) {
+      toast({ title: "Неверный логин", description: "Логин должен содержать только латиницу и цифры" })
       return
     }
 
@@ -65,26 +65,29 @@ export default function CustomersPage() {
     }
 
     const { error } = await supabase.from("customers").insert([
-  {
-    name: newCustomer.name,
-    phone: newCustomer.phone,
-    email: newCustomer.email,
-    username: newCustomer.login, // 💥 тут — логин идёт в username
-    password: newCustomer.password,
-    visits: 0,
-    lastVisit: new Date().toISOString().split("T")[0],
-    status: "active",
-    vip: false,
-  },
-])
-
+      {
+        name: newCustomer.name,
+        phone: newCustomer.phone,
+        email: newCustomer.email,
+        username: newCustomer.username,
+        password: newCustomer.password,
+        visits: 0,
+        lastVisit: new Date().toISOString().split("T")[0],
+        status: "active",
+        vip: false,
+      },
+    ])
 
     if (error) {
-      toast({ title: "Ошибка", description: error.message, variant: "destructive" })
+      if (error.message.includes("duplicate key value")) {
+        toast({ title: "Логин уже занят", description: "Выберите другой логин", variant: "destructive" })
+      } else {
+        toast({ title: "Ошибка", description: error.message, variant: "destructive" })
+      }
     } else {
       toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
       setOpenDialog(false)
-      setNewCustomer({ name: "", phone: "", email: "", login: "", password: "" })
+      setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" })
     }
   }
 
@@ -178,8 +181,8 @@ export default function CustomersPage() {
               <Input id="email" value={newCustomer.email} onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="login">Логин (только латиница)</Label>
-              <Input id="login" value={newCustomer.login} onChange={(e) => setNewCustomer((prev) => ({ ...prev, login: e.target.value }))} />
+              <Label htmlFor="username">Логин (только латиница)</Label>
+              <Input id="username" value={newCustomer.username} onChange={(e) => setNewCustomer((prev) => ({ ...prev, username: e.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Пароль (6 цифр)</Label>
