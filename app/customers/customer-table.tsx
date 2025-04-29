@@ -65,18 +65,18 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
       <TableCell>{customer.phone || "-"}</TableCell>
       <TableCell>{customer.email || "-"}</TableCell>
       <TableCell>{customer.username || "-"}</TableCell>
-      <TableCell className="w-[160px]">
-        <div className="flex items-center gap-1">
-          <span>{showPassword ? customer.password : "****"}</span>
+      <TableCell className="min-w-[120px] max-w-[120px]">
+        <div className="flex flex-col items-start gap-1">
+          <span className="whitespace-nowrap">{showPassword ? customer.password : "****"}</span>
           <Button
             variant="link"
             size="sm"
             className="p-0 h-auto text-xs"
             onClick={() => setShowPassword((prev) => !prev)}
-          >
-            {showPassword ? "Скрыть" : "Показать"}
+            >
+              {showPassword ? "Скрыть" : "Показать"}
           </Button>
-        </div>
+         </div>
       </TableCell>
       <TableCell>{customer.visits ?? 0}</TableCell>
       <TableCell>{customer.lastVisit || "-"}</TableCell>
