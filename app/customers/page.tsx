@@ -65,15 +65,19 @@ export default function CustomersPage() {
     }
 
     const { error } = await supabase.from("customers").insert([
-      {
-        ...newCustomer,
-        username: newCustomer.login,
-        visits: 0,
-        lastVisit: new Date().toISOString().split("T")[0],
-        status: "active",
-        vip: false,
-      },
-    ])
+  {
+    name: newCustomer.name,
+    phone: newCustomer.phone,
+    email: newCustomer.email,
+    username: newCustomer.login, // 💥 тут — логин идёт в username
+    password: newCustomer.password,
+    visits: 0,
+    lastVisit: new Date().toISOString().split("T")[0],
+    status: "active",
+    vip: false,
+  },
+])
+
 
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
