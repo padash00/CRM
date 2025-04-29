@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,10 +13,9 @@ import Link from "next/link"
 import { BookingTable } from "./booking-table"
 import { BookingCalendar } from "./booking-calendar"
 import { CreateBookingModal } from "@/components/create-booking-modal"
-import { type FormEvent, useState } from "react"
 import { toast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabaseClient" // ← ЭТО ДОБАВИЛ
 
-// Типизация данных формы быстрого бронирования
 interface QuickBookingForm {
   customer: string
   station: string
@@ -33,18 +33,37 @@ export default function BookingsPage() {
     duration: "2",
   })
 
-  // Обработчик отправки формы
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    toast({
-      title: "Бронирование создано",
-      description: `Бронирование для ${formData.customer} на ${formData.date} в ${formData.time} успешно создано.`,
-    })
-    // Здесь можно добавить логику отправки данных на сервер
-    setFormData({ customer: "", station: "", date: "", time: "", duration: "2" })
+
+    const { customer, station, date, time, duration } = formData
+
+    const { error } = await supabase.from("bookings").insert([
+      {
+        customer,
+        station,
+        date,
+        time,
+        duration,
+        status: "active",
+      },
+    ])
+
+    if (error) {
+      toast({
+        title: "Ошибка при бронировании",
+        description: error.message,
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Бронирование создано",
+        description: `Клиент: ${customer}, Время: ${time}`,
+      })
+      setFormData({ customer: "", station: "", date: "", time: "", duration: "2" })
+    }
   }
 
-  // Обработчик изменения полей формы
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
     setFormData((prev) => ({ ...prev, [id]: value }))
@@ -52,7 +71,6 @@ export default function BookingsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Шапка */}
       <header className="border-b bg-background">
         <div className="flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2">
@@ -80,7 +98,6 @@ export default function BookingsPage() {
         </div>
       </header>
 
-      {/* Основной контент */}
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление бронированиями</h2>
@@ -88,7 +105,6 @@ export default function BookingsPage() {
         </div>
 
         <div className="flex flex-col gap-6 md:flex-row md:gap-6">
-          {/* Быстрое бронирование */}
           <div className="md:w-1/3">
             <Card className="shadow-sm">
               <CardHeader>
@@ -146,7 +162,6 @@ export default function BookingsPage() {
             </Card>
           </div>
 
-          {/* Таблица и календарь */}
           <div className="md:w-2/3">
             <Tabs defaultValue="list" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2">
@@ -173,4 +188,3 @@ export default function BookingsPage() {
     </div>
   )
 }
-
