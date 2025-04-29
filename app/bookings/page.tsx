@@ -16,6 +16,7 @@ import { BookingCalendar } from "./booking-calendar"
 import { CreateBookingModal } from "@/components/create-booking-modal"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabaseClient"
+import { CustomerCombobox } from "@/components/customer-combobox"
 
 interface QuickBookingForm {
   customer: string
@@ -91,12 +92,9 @@ export default function BookingsPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer">Клиент</Label>
-                    <Input
-                      id="customer"
-                      placeholder="Выберите клиента"
+                    <CustomerCombobox
                       value={formData.customer}
-                      onChange={handleInputChange}
-                      required
+                      onSelect={(value) => setFormData((prev) => ({ ...prev, customer: value }))}
                     />
                   </div>
                   <div className="space-y-2">
