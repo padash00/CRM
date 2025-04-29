@@ -40,6 +40,8 @@ export default function CustomersPage() {
     name: "",
     phone: "",
     email: "",
+    username: "",
+    password: "",
   })
 
   const stats: Stat[] = [
@@ -49,26 +51,10 @@ export default function CustomersPage() {
     { title: "Средний чек", value: "₸850", description: "+₸120 с прошлого месяца" },
   ]
 
-  // 👇 Генераторы
-  const generateUsername = (name: string) => {
-    const suffix = Math.random().toString(36).substring(2, 5)
-    return `${name.toLowerCase().replace(/\s+/g, "_")}_${suffix}`
-  }
-
-  const generatePassword = () => {
-    return String(Math.floor(1000 + Math.random() * 9000)) // 4 цифры
-  }
-
-  // 👇 Создание клиента
   const handleDialogSubmit = async () => {
-    const username = generateUsername(newCustomer.name)
-    const password = generatePassword()
-
     const { error } = await supabase.from("customers").insert([
       {
         ...newCustomer,
-        username,
-        password,
         visits: 0,
         lastVisit: new Date().toISOString().split("T")[0],
         status: "active",
@@ -81,10 +67,10 @@ export default function CustomersPage() {
     } else {
       toast({
         title: "Клиент добавлен",
-        description: `Логин: ${username} | Пароль: ${password}`,
+        description: `Логин: ${newCustomer.username} | Пароль: ${newCustomer.password}`,
       })
       setOpenDialog(false)
-      setNewCustomer({ name: "", phone: "", email: "" })
+      setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" })
     }
   }
 
@@ -193,6 +179,22 @@ export default function CustomersPage() {
                 id="email"
                 value={newCustomer.email}
                 onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">Логин</Label>
+              <Input
+                id="username"
+                value={newCustomer.username}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, username: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                value={newCustomer.password}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, password: e.target.value }))}
               />
             </div>
           </div>
