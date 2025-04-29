@@ -31,18 +31,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 
 interface Customer {
   id: string
   name: string
-  phone: string | null
-  email: string | null
-  username: string
-  password: string
+  phone: string
+  email: string
   visits: number
-  lastVisit: string | null
+  lastVisit: string
   status: "active" | "inactive"
   vip: boolean
 }
@@ -53,23 +49,15 @@ interface CustomerTableProps {
 }
 
 const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
-  const [showPassword, setShowPassword] = useState(false)
   return (
     <TableRow>
       <TableCell><Checkbox /></TableCell>
       <TableCell>{customer.id}</TableCell>
-      <TableCell>{customer.name || "-"}</TableCell>
-      <TableCell>{customer.phone || "-"}</TableCell>
-      <TableCell>{customer.email || "-"}</TableCell>
-      <TableCell>{customer.username || "-"}</TableCell>
-      <TableCell>
-        {showPassword ? customer.password : "****"}
-        <Button variant="ghost" size="sm" className="ml-2" onClick={() => setShowPassword((prev) => !prev)}>
-          {showPassword ? "Скрыть" : "Показать"}
-        </Button>
-      </TableCell>
+      <TableCell>{customer.name}</TableCell>
+      <TableCell>{customer.phone}</TableCell>
+      <TableCell>{customer.email}</TableCell>
       <TableCell>{customer.visits}</TableCell>
-      <TableCell>{customer.lastVisit || "-"}</TableCell>
+      <TableCell>{customer.lastVisit}</TableCell>
       <TableCell>
         <Badge variant={customer.status === "active" ? "default" : "secondary"}>
           {customer.status === "active" ? "Активен" : "Неактивен"}
@@ -121,7 +109,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
       if (error) {
         toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" })
       } else {
-        setCustomers((data || []) as Customer[])
+        setCustomers(data as Customer[])
       }
     }
 
@@ -130,14 +118,12 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     const channel = supabase
       .channel("realtime:customers")
       .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (payload) => {
-        const newRow = payload.new as Customer
-        const oldRow = payload.old as Customer
         if (payload.eventType === "INSERT") {
-          setCustomers((prev) => [...prev, newRow])
+          setCustomers((prev) => [...prev, payload.new as Customer])
         } else if (payload.eventType === "UPDATE") {
-          setCustomers((prev) => prev.map((c) => c.id === newRow.id ? newRow : c))
+          setCustomers((prev) => prev.map((c) => c.id === payload.new.id ? payload.new : c))
         } else if (payload.eventType === "DELETE") {
-          setCustomers((prev) => prev.filter((c) => c.id !== oldRow.id))
+          setCustomers((prev) => prev.filter((c) => c.id !== payload.old.id))
         }
       })
       .subscribe()
@@ -148,9 +134,9 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   }, [])
 
   const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch = customer.name?.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone?.includes(search) ||
-      customer.email?.toLowerCase().includes(search)
+    const matchesSearch = customer.name.toLowerCase().includes(search.toLowerCase()) ||
+      customer.phone.includes(search) ||
+      customer.email.toLowerCase().includes(search.toLowerCase())
 
     if (filterActive && customer.status !== "active") return false
     if (filterVip && !customer.vip) return false
@@ -208,8 +194,6 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               <TableHead>Имя</TableHead>
               <TableHead>Телефон</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Логин</TableHead>
-              <TableHead>Пароль</TableHead>
               <TableHead>Посещения</TableHead>
               <TableHead>Последний визит</TableHead>
               <TableHead>Статус</TableHead>
@@ -261,24 +245,6 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               value={customerToEdit?.email || ""}
               onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, email: e.target.value } : null)}
             />
-            <Input
-              placeholder="Логин"
-              value={customerToEdit?.username || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, username: e.target.value } : null)}
-            />
-            <Input
-              placeholder="Пароль"
-              value={customerToEdit?.password || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, password: e.target.value } : null)}
-            />
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="vip">VIP</Label>
-              <Switch
-                id="vip"
-                checked={!!customerToEdit?.vip}
-                onCheckedChange={(checked) => setCustomerToEdit((prev) => prev ? { ...prev, vip: checked } : null)}
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Отмена</Button>
