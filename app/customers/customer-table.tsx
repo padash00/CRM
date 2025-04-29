@@ -49,9 +49,6 @@ interface CustomerTableProps {
 }
 
 const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
-  const handleEditClick = () => onEdit(customer)
-  const handleDeleteClick = () => onDelete(customer)
-
   return (
     <TableRow>
       <TableCell><Checkbox /></TableCell>
@@ -80,16 +77,15 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Открыть меню</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Действия</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleEditClick}>
+            <DropdownMenuItem onClick={() => onEdit(customer)}>
               <Pencil className="mr-2 h-4 w-4" /> Редактировать
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={handleDeleteClick}>
+            <DropdownMenuItem className="text-destructive" onClick={() => onDelete(customer)}>
               <Trash className="mr-2 h-4 w-4" /> Удалить
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -116,49 +112,26 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
         setCustomers(data as Customer[])
       }
     }
+
     fetchCustomers()
-  }, [])
 
-  const handleDelete = useCallback((customer: Customer) => {
-    setCustomerToDelete(customer)
-    setDeleteDialogOpen(true)
-  }, [])
+    const channel = supabase
+      .channel("realtime:customers")
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setCustomers((prev) => [...prev, payload.new as Customer])
+        } else if (payload.eventType === "UPDATE") {
+          setCustomers((prev) => prev.map((c) => c.id === payload.new.id ? payload.new : c))
+        } else if (payload.eventType === "DELETE") {
+          setCustomers((prev) => prev.filter((c) => c.id !== payload.old.id))
+        }
+      })
+      .subscribe()
 
-  const confirmDelete = async () => {
-    if (!customerToDelete) return
-
-    const { error } = await supabase.from("customers").delete().eq("id", customerToDelete.id)
-
-    if (error) {
-      toast({ title: "Ошибка удаления", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Удалено", description: `Клиент ${customerToDelete.name} удалён.` })
-      setCustomers((prev) => prev.filter((c) => c.id !== customerToDelete.id))
+    return () => {
+      supabase.removeChannel(channel)
     }
-
-    setDeleteDialogOpen(false)
-    setCustomerToDelete(null)
-  }
-
-  const handleEdit = useCallback((customer: Customer) => {
-    setCustomerToEdit(customer)
-    setEditDialogOpen(true)
   }, [])
-
-  const confirmEdit = async () => {
-    if (!customerToEdit) return
-
-    const { error } = await supabase.from("customers").update(customerToEdit).eq("id", customerToEdit.id)
-
-    if (error) {
-      toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Обновлено", description: `Клиент ${customerToEdit.name} обновлён.` })
-    }
-
-    setEditDialogOpen(false)
-    setCustomerToEdit(null)
-  }
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch = customer.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -169,6 +142,42 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     if (filterVip && !customer.vip) return false
     return matchesSearch
   })
+
+  const handleDelete = (customer: Customer) => {
+    setCustomerToDelete(customer)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return
+
+    const { error } = await supabase.from("customers").delete().eq("id", customerToDelete.id)
+    if (error) {
+      toast({ title: "Ошибка удаления", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Удалено", description: `Клиент ${customerToDelete.name} удалён.` })
+    }
+    setDeleteDialogOpen(false)
+    setCustomerToDelete(null)
+  }
+
+  const handleEdit = (customer: Customer) => {
+    setCustomerToEdit(customer)
+    setEditDialogOpen(true)
+  }
+
+  const confirmEdit = async () => {
+    if (!customerToEdit) return
+
+    const { error } = await supabase.from("customers").update(customerToEdit).eq("id", customerToEdit.id)
+    if (error) {
+      toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Обновлено", description: `Клиент ${customerToEdit.name} обновлён.` })
+    }
+    setEditDialogOpen(false)
+    setCustomerToEdit(null)
+  }
 
   return (
     <>
@@ -189,7 +198,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               <TableHead>Последний визит</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>VIP</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-[50px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
