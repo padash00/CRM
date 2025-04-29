@@ -8,14 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutDashboard, Search } from "lucide-react"
+import { Search, Plus } from "lucide-react"
+
 import { MainNav } from "@/components/main-nav"
-import Link from "next/link"
 import { BookingTable } from "./booking-table"
 import { BookingCalendar } from "./booking-calendar"
 import { CreateBookingModal } from "@/components/create-booking-modal"
 import { toast } from "@/components/ui/use-toast"
-import { supabase } from "@/lib/supabaseClient" // ← ЭТО ДОБАВИЛ
+import { supabase } from "@/lib/supabaseClient"
 
 interface QuickBookingForm {
   customer: string
@@ -72,33 +72,7 @@ export default function BookingsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <header className="border-b bg-background">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="h-6 w-6" />
-            <span className="text-lg font-semibold">GameZone CRM</span>
-          </div>
-          <nav className="ml-auto flex items-center gap-4 sm:gap-6">
-            {[
-              { href: "/", label: "Панель" },
-              { href: "/bookings", label: "Бронирования" },
-              { href: "/customers", label: "Клиенты" },
-              { href: "/staff", label: "Персонал" },
-              { href: "/pos", label: "Касса" },
-              { href: "/games", label: "Игры" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline underline-offset-4"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
-
+      <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление бронированиями</h2>
@@ -106,6 +80,7 @@ export default function BookingsPage() {
         </div>
 
         <div className="flex flex-col gap-6 md:flex-row md:gap-6">
+          {/* Быстрое бронирование */}
           <div className="md:w-1/3">
             <Card className="shadow-sm">
               <CardHeader>
@@ -137,11 +112,23 @@ export default function BookingsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="date">Дата</Label>
-                      <Input id="date" type="date" value={formData.date} onChange={handleInputChange} required />
+                      <Input
+                        id="date"
+                        type="date"
+                        value={formData.date}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="time">Время</Label>
-                      <Input id="time" type="time" value={formData.time} onChange={handleInputChange} required />
+                      <Input
+                        id="time"
+                        type="time"
+                        value={formData.time}
+                        onChange={handleInputChange}
+                        required
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -163,9 +150,10 @@ export default function BookingsPage() {
             </Card>
           </div>
 
+          {/* Таблица и Календарь */}
           <div className="md:w-2/3">
             <Tabs defaultValue="list" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 bg-background p-1 rounded-md shadow-sm">
                 <TabsTrigger value="list">Список</TabsTrigger>
                 <TabsTrigger value="calendar">Календарь</TabsTrigger>
               </TabsList>
