@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -22,6 +22,7 @@ import {
 import { MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabaseClient"
 
 // Типизация клиента
 interface Customer {
@@ -40,7 +41,6 @@ interface CustomerTableProps {
   filterVip?: boolean
 }
 
-// Компонент строки таблицы
 const CustomerRow = ({ customer }: { customer: Customer }) => {
   const handleEdit = useCallback(() => {
     toast({
@@ -59,9 +59,7 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
 
   return (
     <TableRow>
-      <TableCell>
-        <Checkbox />
-      </TableCell>
+      <TableCell><Checkbox /></TableCell>
       <TableCell>{customer.id}</TableCell>
       <TableCell>{customer.name}</TableCell>
       <TableCell>{customer.phone}</TableCell>
@@ -75,10 +73,7 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
       </TableCell>
       <TableCell>
         {customer.vip ? (
-          <Badge
-            variant="outline"
-            className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-          >
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
             VIP
           </Badge>
         ) : (
@@ -110,47 +105,35 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
 }
 
 export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
-  const customers: Customer[] = [
-    {
-      id: "C001",
-      name: "Алексей Кузнецов",
-      phone: "+7 (999) 123-45-67",
-      email: "alexey@example.com",
-      visits: 42,
-      lastVisit: "30.03.2025",
-      status: "active",
-      vip: true,
-    },
-    // ... остальные данные остаются без изменений
-    {
-      id: "C010",
-      name: "Владимир Новиков",
-      phone: "+7 (999) 012-34-56",
-      email: "vladimir@example.com",
-      visits: 25,
-      lastVisit: "27.03.2025",
-      status: "inactive",
-      vip: true,
-    },
-  ]
+  const [customers, setCustomers] = useState<Customer[]>([])
 
-  // Мемоизация фильтрации клиентов
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data, error } = await supabase.from("customers").select("*")
+      if (error) {
+        toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" })
+      } else {
+        setCustomers(data as Customer[])
+      }
+    }
+
+    fetchCustomers()
+  }, [])
+
   const filteredCustomers = useCallback(() => {
     return customers.filter((customer) => {
       if (filterActive && customer.status !== "active") return false
       if (filterVip && !customer.vip) return false
       return true
     })
-  }, [filterActive, filterVip])()
+  }, [customers, filterActive, filterVip])()
 
   return (
     <div className="rounded-md border shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox />
-            </TableHead>
+            <TableHead className="w-[50px]"><Checkbox /></TableHead>
             <TableHead>ID</TableHead>
             <TableHead>Имя</TableHead>
             <TableHead>Телефон</TableHead>
@@ -171,4 +154,3 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     </div>
   )
 }
-
