@@ -1,4 +1,4 @@
-"use client"; // <-- СТРОГО первой строкой
+"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,8 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutDashboard, Plus, Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import { MainNav } from "@/components/main-nav"
-import Link from "next/link"
 import { CustomerTable } from "./customer-table"
 import { CustomerStats } from "./customer-stats"
 import { toast } from "@/components/ui/use-toast"
@@ -35,7 +34,7 @@ interface Stat {
 }
 
 export default function CustomersPage() {
-  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [openDialog, setOpenDialog] = useState(false)
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -44,32 +43,32 @@ export default function CustomersPage() {
   })
 
   const stats: Stat[] = [
-    {
-      title: "Всего клиентов",
-      value: "256",
-      description: "+24 за последний месяц",
-    },
-    {
-      title: "Активные клиенты",
-      value: "128",
-      description: "50% от общего числа",
-    },
-    {
-      title: "VIP клиенты",
-      value: "32",
-      description: "12.5% от общего числа",
-    },
-    {
-      title: "Средний чек",
-      value: "₽850",
-      description: "+₽120 с прошлого месяца",
-    },
+    { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
+    { title: "Активные клиенты", value: "128", description: "50% от общего числа" },
+    { title: "VIP клиенты", value: "32", description: "12.5% от общего числа" },
+    { title: "Средний чек", value: "₸850", description: "+₸120 с прошлого месяца" },
   ]
 
+  // 👇 Генераторы
+  const generateUsername = (name: string) => {
+    const suffix = Math.random().toString(36).substring(2, 5)
+    return `${name.toLowerCase().replace(/\s+/g, "_")}_${suffix}`
+  }
+
+  const generatePassword = () => {
+    return String(Math.floor(1000 + Math.random() * 9000)) // 4 цифры
+  }
+
+  // 👇 Создание клиента
   const handleDialogSubmit = async () => {
+    const username = generateUsername(newCustomer.name)
+    const password = generatePassword()
+
     const { error } = await supabase.from("customers").insert([
       {
         ...newCustomer,
+        username,
+        password,
         visits: 0,
         lastVisit: new Date().toISOString().split("T")[0],
         status: "active",
@@ -80,7 +79,10 @@ export default function CustomersPage() {
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
     } else {
-      toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
+      toast({
+        title: "Клиент добавлен",
+        description: `Логин: ${username} | Пароль: ${password}`,
+      })
       setOpenDialog(false)
       setNewCustomer({ name: "", phone: "", email: "" })
     }
@@ -92,7 +94,7 @@ export default function CustomersPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-       <MainNav />
+      <MainNav />
 
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
@@ -128,11 +130,11 @@ export default function CustomersPage() {
           </TabsContent>
 
           <TabsContent value="active" className="space-y-4">
-            <CustomerTable filterActive={true} />
+            <CustomerTable filterActive />
           </TabsContent>
 
           <TabsContent value="vip" className="space-y-4">
-            <CustomerTable filterVip={true} />
+            <CustomerTable filterVip />
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-4">
@@ -171,15 +173,27 @@ export default function CustomersPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Имя</Label>
-              <Input id="name" value={newCustomer.name} onChange={(e) => setNewCustomer((prev) => ({ ...prev, name: e.target.value }))} />
+              <Input
+                id="name"
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, name: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Телефон</Label>
-              <Input id="phone" value={newCustomer.phone} onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))} />
+              <Input
+                id="phone"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" value={newCustomer.email} onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))} />
+              <Input
+                id="email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))}
+              />
             </div>
           </div>
           <DialogFooter>
