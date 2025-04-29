@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 interface Customer {
   id: string
@@ -47,14 +48,8 @@ interface CustomerTableProps {
   filterVip?: boolean
 }
 
-const CustomerRow = ({ customer, onDelete }: { customer: Customer, onDelete: (customer: Customer) => void }) => {
-  const handleEdit = useCallback(() => {
-    toast({
-      title: "Редактирование клиента",
-      description: `Редактирование клиента ${customer.id} будет доступно в следующей версии.`,
-    })
-  }, [customer.id])
-
+const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
+  const handleEditClick = () => onEdit(customer)
   const handleDeleteClick = () => onDelete(customer)
 
   return (
@@ -91,7 +86,7 @@ const CustomerRow = ({ customer, onDelete }: { customer: Customer, onDelete: (cu
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Действия</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleEdit}>
+            <DropdownMenuItem onClick={handleEditClick}>
               <Pencil className="mr-2 h-4 w-4" /> Редактировать
             </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={handleDeleteClick}>
@@ -107,7 +102,10 @@ const CustomerRow = ({ customer, onDelete }: { customer: Customer, onDelete: (cu
 export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
+  const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -142,16 +140,42 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     setCustomerToDelete(null)
   }
 
-  const filteredCustomers = useCallback(() => {
-    return customers.filter((customer) => {
-      if (filterActive && customer.status !== "active") return false
-      if (filterVip && !customer.vip) return false
-      return true
-    })
-  }, [customers, filterActive, filterVip])()
+  const handleEdit = useCallback((customer: Customer) => {
+    setCustomerToEdit(customer)
+    setEditDialogOpen(true)
+  }, [])
+
+  const confirmEdit = async () => {
+    if (!customerToEdit) return
+
+    const { error } = await supabase.from("customers").update(customerToEdit).eq("id", customerToEdit.id)
+
+    if (error) {
+      toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Обновлено", description: `Клиент ${customerToEdit.name} обновлён.` })
+    }
+
+    setEditDialogOpen(false)
+    setCustomerToEdit(null)
+  }
+
+  const filteredCustomers = customers.filter((customer) => {
+    const matchesSearch = customer.name.toLowerCase().includes(search.toLowerCase()) ||
+      customer.phone.includes(search) ||
+      customer.email.toLowerCase().includes(search.toLowerCase())
+
+    if (filterActive && customer.status !== "active") return false
+    if (filterVip && !customer.vip) return false
+    return matchesSearch
+  })
 
   return (
     <>
+      <div className="flex justify-between mb-4">
+        <Input placeholder="Поиск клиента..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
       <div className="rounded-md border shadow-sm">
         <Table>
           <TableHeader>
@@ -170,7 +194,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
           </TableHeader>
           <TableBody>
             {filteredCustomers.map((customer) => (
-              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} />
+              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
             ))}
           </TableBody>
         </Table>
@@ -187,6 +211,35 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Отмена</Button>
             <Button variant="destructive" onClick={confirmDelete}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать клиента</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Имя"
+              value={customerToEdit?.name || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, name: e.target.value } : null)}
+            />
+            <Input
+              placeholder="Телефон"
+              value={customerToEdit?.phone || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, phone: e.target.value } : null)}
+            />
+            <Input
+              placeholder="Email"
+              value={customerToEdit?.email || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, email: e.target.value } : null)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Отмена</Button>
+            <Button onClick={confirmEdit}>Сохранить</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
