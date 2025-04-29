@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { MoreHorizontal, Pencil, Trash } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash, Eye } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabaseClient"
@@ -37,6 +37,8 @@ interface Customer {
   name: string
   phone: string
   email: string
+  login: string
+  password: string
   visits: number
   lastVisit: string
   status: "active" | "inactive"
@@ -48,7 +50,7 @@ interface CustomerTableProps {
   filterVip?: boolean
 }
 
-const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
+const CustomerRow = ({ customer, onDelete, onEdit, visiblePasswords, togglePassword }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void, visiblePasswords: Record<string, boolean>, togglePassword: (id: string) => void }) => {
   return (
     <TableRow>
       <TableCell><Checkbox /></TableCell>
@@ -56,6 +58,13 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
       <TableCell>{customer.name}</TableCell>
       <TableCell>{customer.phone}</TableCell>
       <TableCell>{customer.email}</TableCell>
+      <TableCell>{customer.login}</TableCell>
+      <TableCell>
+        {visiblePasswords[customer.id] ? customer.password : "****"}
+        <Button variant="ghost" size="icon" onClick={() => togglePassword(customer.id)}>
+          <Eye className="w-4 h-4 ml-2" />
+        </Button>
+      </TableCell>
       <TableCell>{customer.visits}</TableCell>
       <TableCell>{customer.lastVisit}</TableCell>
       <TableCell>
@@ -97,6 +106,7 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
 
 export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
@@ -142,6 +152,10 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     if (filterVip && !customer.vip) return false
     return matchesSearch
   })
+
+  const togglePassword = (id: string) => {
+    setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
 
   const handleDelete = (customer: Customer) => {
     setCustomerToDelete(customer)
@@ -194,6 +208,8 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               <TableHead>Имя</TableHead>
               <TableHead>Телефон</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Логин</TableHead>
+              <TableHead>Пароль</TableHead>
               <TableHead>Посещения</TableHead>
               <TableHead>Последний визит</TableHead>
               <TableHead>Статус</TableHead>
@@ -203,7 +219,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
           </TableHeader>
           <TableBody>
             {filteredCustomers.map((customer) => (
-              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
+              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} visiblePasswords={visiblePasswords} togglePassword={togglePassword} />
             ))}
           </TableBody>
         </Table>
@@ -244,6 +260,16 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               placeholder="Email"
               value={customerToEdit?.email || ""}
               onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, email: e.target.value } : null)}
+            />
+            <Input
+              placeholder="Логин"
+              value={customerToEdit?.login || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, login: e.target.value } : null)}
+            />
+            <Input
+              placeholder="Пароль"
+              value={customerToEdit?.password || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, password: e.target.value } : null)}
             />
           </div>
           <DialogFooter>
