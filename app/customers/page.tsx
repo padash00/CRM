@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LayoutDashboard, Plus, Search } from "lucide-react"
+import { MainNav } from "@/components/main-nav"
 import Link from "next/link"
 import { CustomerTable } from "./customer-table"
 import { CustomerStats } from "./customer-stats"
@@ -91,25 +92,7 @@ export default function CustomersPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <header className="border-b bg-background">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="h-6 w-6" />
-            <span className="text-lg font-semibold">GameZone CRM</span>
-          </div>
-          <nav className="ml-auto flex items-center gap-4 sm:gap-6">
-            {[{ href: "/", label: "Панель" }, { href: "/bookings", label: "Бронирования" }, { href: "/customers", label: "Клиенты" }, { href: "/staff", label: "Персонал" }, { href: "/pos", label: "Касса" }, { href: "/games", label: "Игры" }].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline underline-offset-4"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
+      
 
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
