@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 interface Customer {
   id: string
@@ -265,6 +266,14 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               value={customerToEdit?.password || ""}
               onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, password: e.target.value } : null)}
             />
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="vip">VIP</Label>
+              <Switch
+                id="vip"
+                checked={customerToEdit?.vip || false}
+                onCheckedChange={(checked) => setCustomerToEdit((prev) => prev ? { ...prev, vip: checked } : null)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Отмена</Button>
