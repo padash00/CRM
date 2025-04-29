@@ -143,9 +143,9 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   }, [])
 
   const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch = customer.name.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone.includes(search) ||
-      customer.email.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = customer.name?.toLowerCase().includes(search.toLowerCase()) ||
+      customer.phone?.includes(search) ||
+      customer.email?.toLowerCase().includes(search)
 
     if (filterActive && customer.status !== "active") return false
     if (filterVip && !customer.vip) return false
@@ -270,7 +270,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
               <Label htmlFor="vip">VIP</Label>
               <Switch
                 id="vip"
-                checked={customerToEdit?.vip || false}
+                checked={!!customerToEdit?.vip}
                 onCheckedChange={(checked) => setCustomerToEdit((prev) => prev ? { ...prev, vip: checked } : null)}
               />
             </div>
