@@ -58,28 +58,30 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
     <TableRow>
       <TableCell><Checkbox /></TableCell>
       <TableCell>{customer.id}</TableCell>
-      <TableCell>{customer.name}</TableCell>
-      <TableCell>{customer.phone}</TableCell>
-      <TableCell>{customer.email}</TableCell>
-      <TableCell>{customer.username}</TableCell>
+      <TableCell>{customer.name || "-"}</TableCell>
+      <TableCell>{customer.phone || "-"}</TableCell>
+      <TableCell>{customer.email || "-"}</TableCell>
+      <TableCell>{customer.username || "-"}</TableCell>
       <TableCell>
         {showPassword ? customer.password : "****"} <Button variant="link" onClick={() => setShowPassword((prev) => !prev)}>{showPassword ? "Скрыть" : "Показать"}</Button>
       </TableCell>
-      <TableCell>{customer.visits}</TableCell>
-      <TableCell>{customer.lastVisit}</TableCell>
+      <TableCell>{customer.visits ?? 0}</TableCell>
+      <TableCell>{customer.lastVisit || "-"}</TableCell>
       <TableCell>
         <Badge variant={customer.status === "active" ? "default" : "secondary"}>
           {customer.status === "active" ? "Активен" : "Неактивен"}
         </Badge>
       </TableCell>
       <TableCell>
-        {customer.vip ? (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-            VIP
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        )}
+        {typeof customer.vip === "boolean" ? (
+          customer.vip ? (
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+              VIP
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )
+        ) : "-"}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -118,7 +120,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
       if (error) {
         toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" })
       } else {
-        setCustomers(data as Customer[])
+        setCustomers((data as any[]).filter((c) => c?.id))
       }
     }
 
@@ -127,12 +129,17 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     const channel = supabase
       .channel("realtime:customers")
       .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (payload) => {
+        const newRow = payload.new as Partial<Customer>
+        const oldRow = payload.old as Partial<Customer>
+
+        if (!newRow?.id && payload.eventType !== "DELETE") return
+
         if (payload.eventType === "INSERT") {
-          setCustomers((prev) => [...prev, payload.new as Customer])
+          setCustomers((prev) => [...prev, newRow as Customer])
         } else if (payload.eventType === "UPDATE") {
-          setCustomers((prev) => prev.map((c) => c.id === payload.new.id ? payload.new : c))
+          setCustomers((prev) => prev.map((c) => c.id === newRow.id ? newRow as Customer : c))
         } else if (payload.eventType === "DELETE") {
-          setCustomers((prev) => prev.filter((c) => c.id !== payload.old.id))
+          setCustomers((prev) => prev.filter((c) => c.id !== oldRow.id))
         }
       })
       .subscribe()
@@ -213,9 +220,12 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.map((customer) => (
-              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
-            ))}
+            {filteredCustomers.map((customer) => {
+              if (!customer?.id) return null
+              return (
+                <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
+              )
+            })}
           </TableBody>
         </Table>
       </div>
