@@ -92,7 +92,7 @@ export default function CustomersPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      
+       <MainNav />
 
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
