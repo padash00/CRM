@@ -42,7 +42,6 @@ export function BookingTable() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null)
 
-  // Загрузка данных
   useEffect(() => {
     const fetchBookings = async () => {
       const { data, error } = await supabase.from("bookings").select("*")
@@ -52,7 +51,25 @@ export function BookingTable() {
         setBookings(data || [])
       }
     }
+
     fetchBookings()
+
+    const subscription = supabase
+      .channel('public:bookings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+        console.log('Реалтайм событие (таблица):', payload)
+
+        if (payload.eventType === 'INSERT') {
+          setBookings((prev) => [...prev, payload.new as Booking])
+        } else if (payload.eventType === 'DELETE') {
+          setBookings((prev) => prev.filter((b) => b.id !== (payload.old as Booking).id))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
   }, [])
 
   const getStatusBadge = (status: Booking["status"]) => {
@@ -94,7 +111,7 @@ export function BookingTable() {
         variant: "destructive",
       })
     } else {
-      setBookings((prev) => prev.filter((booking) => booking.id !== bookingToDelete))
+      setBookings((prev) => prev.filter((b) => b.id !== bookingToDelete))
       toast({
         title: language === "ru" ? "Бронирование удалено" : "Брондау жойылды",
         description:
