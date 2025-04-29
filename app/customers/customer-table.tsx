@@ -53,7 +53,6 @@ interface CustomerTableProps {
 }
 
 type SortKey = keyof Pick<Customer, "name" | "visits" | "lastVisit">
-
 type SortOrder = "asc" | "desc"
 
 const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
@@ -67,19 +66,18 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
       <TableCell>{customer.email || "-"}</TableCell>
       <TableCell>{customer.username || "-"}</TableCell>
       <TableCell className="w-[160px]">
-  <div className="flex items-center gap-1">
-    <span>{showPassword ? customer.password : "****"}</span>
-    <Button
-      variant="link"
-      size="sm"
-      className="p-0 h-auto text-xs"
-      onClick={() => setShowPassword((prev) => !prev)}
-    >
-      {showPassword ? "Скрыть" : "Показать"}
-    </Button>
-  </div>
-</TableCell>
-
+        <div className="flex items-center gap-1">
+          <span>{showPassword ? customer.password : "****"}</span>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 h-auto text-xs"
+            onClick={() => setShowPassword((prev) => !prev)}
+          >
+            {showPassword ? "Скрыть" : "Показать"}
+          </Button>
+        </div>
+      </TableCell>
       <TableCell>{customer.visits ?? 0}</TableCell>
       <TableCell>{customer.lastVisit || "-"}</TableCell>
       <TableCell>
@@ -88,15 +86,13 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
         </Badge>
       </TableCell>
       <TableCell>
-        {typeof customer.vip === "boolean" ? (
-          customer.vip ? (
-            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-              VIP
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          )
-        ) : "-"}
+        {customer.vip ? (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            VIP
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -236,12 +232,12 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]"><Checkbox /></TableHead>
+              <TableHead className="w-[50px]"> <Checkbox /> </TableHead>
               <TableHead onClick={() => handleSort("name")} className="cursor-pointer">Имя</TableHead>
               <TableHead>Телефон</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Логин</TableHead>
-              <TableHead>Пароль</TableHead>
+              <TableHead className="w-[160px]">Пароль</TableHead>
               <TableHead onClick={() => handleSort("visits")} className="cursor-pointer">Посещения</TableHead>
               <TableHead onClick={() => handleSort("lastVisit")} className="cursor-pointer">Последний визит</TableHead>
               <TableHead>Статус</TableHead>
@@ -278,38 +274,14 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
             <DialogTitle>Редактировать клиента</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input
-              placeholder="Имя"
-              value={customerToEdit?.name || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, name: e.target.value } : null)}
-            />
-            <Input
-              placeholder="Телефон"
-              value={customerToEdit?.phone || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, phone: e.target.value } : null)}
-            />
-            <Input
-              placeholder="Email"
-              value={customerToEdit?.email || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, email: e.target.value } : null)}
-            />
-            <Input
-              placeholder="Логин"
-              value={customerToEdit?.username || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, username: e.target.value } : null)}
-            />
-            <Input
-              placeholder="Пароль"
-              value={customerToEdit?.password || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, password: e.target.value } : null)}
-            />
+            <Input placeholder="Имя" value={customerToEdit?.name || ""} onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, name: e.target.value } : null)} />
+            <Input placeholder="Телефон" value={customerToEdit?.phone || ""} onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, phone: e.target.value } : null)} />
+            <Input placeholder="Email" value={customerToEdit?.email || ""} onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, email: e.target.value } : null)} />
+            <Input placeholder="Логин" value={customerToEdit?.username || ""} onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, username: e.target.value } : null)} />
+            <Input placeholder="Пароль" value={customerToEdit?.password || ""} onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, password: e.target.value } : null)} />
             <div className="flex items-center space-x-2">
               <Label htmlFor="vip">VIP</Label>
-              <Switch
-                id="vip"
-                checked={!!customerToEdit?.vip}
-                onCheckedChange={(checked) => setCustomerToEdit((prev) => prev ? { ...prev, vip: checked } : null)}
-              />
+              <Switch id="vip" checked={!!customerToEdit?.vip} onCheckedChange={(checked) => setCustomerToEdit((prev) => prev ? { ...prev, vip: checked } : null)} />
             </div>
           </div>
           <DialogFooter>
