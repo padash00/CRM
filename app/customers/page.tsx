@@ -52,6 +52,10 @@ interface CustomerTableProps {
   filterVip?: boolean
 }
 
+type SortKey = keyof Pick<Customer, "name" | "visits" | "lastVisit">
+
+type SortOrder = "asc" | "desc"
+
 const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDelete: (customer: Customer) => void, onEdit: (customer: Customer) => void }) => {
   const [showPassword, setShowPassword] = useState(false)
   return (
@@ -113,6 +117,8 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null)
   const [search, setSearch] = useState("")
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc")
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -120,7 +126,7 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
       if (error) {
         toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" })
       } else {
-        setCustomers((data as any[]).filter((c) => c?.id))
+        setCustomers((data || []) as Customer[])
       }
     }
 
@@ -129,15 +135,12 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     const channel = supabase
       .channel("realtime:customers")
       .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (payload) => {
-        const newRow = payload.new as Partial<Customer>
-        const oldRow = payload.old as Partial<Customer>
-
-        if (!newRow?.id && payload.eventType !== "DELETE") return
-
+        const newRow = payload.new as Customer
+        const oldRow = payload.old as Customer
         if (payload.eventType === "INSERT") {
-          setCustomers((prev) => [...prev, newRow as Customer])
+          setCustomers((prev) => [...prev, newRow])
         } else if (payload.eventType === "UPDATE") {
-          setCustomers((prev) => prev.map((c) => c.id === newRow.id ? newRow as Customer : c))
+          setCustomers((prev) => prev.map((c) => c.id === newRow.id ? newRow : c))
         } else if (payload.eventType === "DELETE") {
           setCustomers((prev) => prev.filter((c) => c.id !== oldRow.id))
         }
@@ -149,15 +152,32 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
     }
   }, [])
 
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch = customer.name?.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone?.includes(search) ||
-      customer.email?.toLowerCase().includes(search)
+  const filteredCustomers = customers
+    .filter((customer) => {
+      const matchesSearch = customer.name?.toLowerCase().includes(search.toLowerCase()) ||
+        customer.phone?.includes(search) ||
+        customer.email?.toLowerCase().includes(search)
 
-    if (filterActive && customer.status !== "active") return false
-    if (filterVip && !customer.vip) return false
-    return matchesSearch
-  })
+      if (filterActive && customer.status !== "active") return false
+      if (filterVip && !customer.vip) return false
+      return matchesSearch
+    })
+    .sort((a, b) => {
+      const valueA = a[sortKey] || ""
+      const valueB = b[sortKey] || ""
+      if (valueA < valueB) return sortOrder === "asc" ? -1 : 1
+      if (valueA > valueB) return sortOrder === "asc" ? 1 : -1
+      return 0
+    })
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortKey(key)
+      setSortOrder("asc")
+    }
+  }
 
   const handleDelete = (customer: Customer) => {
     setCustomerToDelete(customer)
@@ -206,26 +226,22 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]"><Checkbox /></TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Имя</TableHead>
+              <TableHead onClick={() => handleSort("name")} className="cursor-pointer">Имя</TableHead>
               <TableHead>Телефон</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Логин</TableHead>
               <TableHead>Пароль</TableHead>
-              <TableHead>Посещения</TableHead>
-              <TableHead>Последний визит</TableHead>
+              <TableHead onClick={() => handleSort("visits")} className="cursor-pointer">Посещения</TableHead>
+              <TableHead onClick={() => handleSort("lastVisit")} className="cursor-pointer">Последний визит</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>VIP</TableHead>
               <TableHead className="w-[50px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.map((customer) => {
-              if (!customer?.id) return null
-              return (
-                <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
-              )
-            })}
+            {filteredCustomers.map((customer) => (
+              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} onEdit={handleEdit} />
+            ))}
           </TableBody>
         </Table>
       </div>
