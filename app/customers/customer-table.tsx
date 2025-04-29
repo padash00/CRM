@@ -39,7 +39,7 @@ interface Customer {
   name: string
   phone: string | null
   email: string | null
-  login: string
+  username: string
   password: string
   visits: number
   lastVisit: string | null
@@ -61,7 +61,7 @@ const CustomerRow = ({ customer, onDelete, onEdit }: { customer: Customer, onDel
       <TableCell>{customer.name || "-"}</TableCell>
       <TableCell>{customer.phone || "-"}</TableCell>
       <TableCell>{customer.email || "-"}</TableCell>
-      <TableCell>{customer.login || "-"}</TableCell>
+      <TableCell>{customer.username || "-"}</TableCell>
       <TableCell>
         {showPassword ? customer.password : "****"}
         <Button variant="ghost" size="sm" className="ml-2" onClick={() => setShowPassword((prev) => !prev)}>
@@ -263,8 +263,8 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
             />
             <Input
               placeholder="Логин"
-              value={customerToEdit?.login || ""}
-              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, login: e.target.value } : null)}
+              value={customerToEdit?.username || ""}
+              onChange={(e) => setCustomerToEdit((prev) => prev ? { ...prev, username: e.target.value } : null)}
             />
             <Input
               placeholder="Пароль"
