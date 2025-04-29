@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -25,7 +26,6 @@ import {
 } from "@/components/ui/dialog"
 import { useLanguage } from "@/contexts/language-context"
 
-// Типизация бронирования
 interface Booking {
   id: string
   customer: string
@@ -37,32 +37,23 @@ interface Booking {
 }
 
 export function BookingTable() {
-  const { t, language } = useLanguage()
-  const [bookings, setBookings] = useState<Booking[]>([
-    // Данные перенесены без изменений
-    {
-      id: "B001",
-      customer: "Алексей К.",
-      station: "PC-01",
-      date: "30.03.2025",
-      time: "14:30 - 17:30",
-      duration: "3 часа",
-      status: "active",
-    },
-    // ... остальные записи остаются такими же
-    {
-      id: "B010",
-      customer: "Владимир Н.",
-      station: "PC-05",
-      date: "31.03.2025",
-      time: "15:00 - 18:00",
-      duration: "3 часа",
-      status: "upcoming",
-    },
-  ])
-
+  const { language } = useLanguage()
+  const [bookings, setBookings] = useState<Booking[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null)
+
+  // Загрузка данных
+  useEffect(() => {
+    const fetchBookings = async () => {
+      const { data, error } = await supabase.from("bookings").select("*")
+      if (error) {
+        toast({ title: "Ошибка", description: error.message, variant: "destructive" })
+      } else {
+        setBookings(data || [])
+      }
+    }
+    fetchBookings()
+  }, [])
 
   const getStatusBadge = (status: Booking["status"]) => {
     const variants = {
@@ -91,22 +82,32 @@ export function BookingTable() {
     setDeleteDialogOpen(true)
   }, [])
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (!bookingToDelete) return
 
-    setBookings((prev) => prev.filter((booking) => booking.id !== bookingToDelete))
-    toast({
-      title: language === "ru" ? "Бронирование удалено" : "Брондау жойылды",
-      description:
-        language === "ru"
-          ? `Бронирование ${bookingToDelete} было успешно удалено.`
-          : `Брондау ${bookingToDelete} сәтті жойылды.`,
-    })
+    const { error } = await supabase.from("bookings").delete().eq("id", bookingToDelete)
+
+    if (error) {
+      toast({
+        title: language === "ru" ? "Ошибка удаления" : "Жою қатесі",
+        description: error.message,
+        variant: "destructive",
+      })
+    } else {
+      setBookings((prev) => prev.filter((booking) => booking.id !== bookingToDelete))
+      toast({
+        title: language === "ru" ? "Бронирование удалено" : "Брондау жойылды",
+        description:
+          language === "ru"
+            ? `Бронирование ${bookingToDelete} успешно удалено.`
+            : `Брондау ${bookingToDelete} сәтті жойылды.`,
+      })
+    }
+
     setDeleteDialogOpen(false)
     setBookingToDelete(null)
   }, [bookingToDelete, language])
 
-  // Компонент строки таблицы
   const BookingRow = ({
     booking,
     onEdit,
@@ -117,9 +118,7 @@ export function BookingTable() {
     onDelete: (id: string) => void
   }) => (
     <TableRow>
-      <TableCell>
-        <Checkbox />
-      </TableCell>
+      <TableCell><Checkbox /></TableCell>
       <TableCell>{booking.id}</TableCell>
       <TableCell>{booking.customer}</TableCell>
       <TableCell>{booking.station}</TableCell>
@@ -156,9 +155,7 @@ export function BookingTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox />
-              </TableHead>
+              <TableHead className="w-[50px]"><Checkbox /></TableHead>
               <TableHead>ID</TableHead>
               <TableHead>{language === "ru" ? "Клиент" : "Клиент"}</TableHead>
               <TableHead>{language === "ru" ? "Станция" : "Станция"}</TableHead>
@@ -183,8 +180,8 @@ export function BookingTable() {
             <DialogTitle>{language === "ru" ? "Удалить бронирование" : "Брондауды жою"}</DialogTitle>
             <DialogDescription>
               {language === "ru"
-                ? `Вы уверены, что хотите удалить бронирование ${bookingToDelete}? Это действие нельзя отменить.`
-                : `${bookingToDelete} брондауын жоюға сенімдісіз бе? Бұл әрекетті болдырмау мүмкін емес.`}
+                ? `Вы уверены, что хотите удалить бронирование ${bookingToDelete}?`
+                : `Сіз ${bookingToDelete} брондауын жойғыңыз келетініне сенімдісіз бе?`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -200,4 +197,3 @@ export function BookingTable() {
     </>
   )
 }
-
