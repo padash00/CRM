@@ -39,6 +39,8 @@ export default function CustomersPage() {
     name: "",
     phone: "",
     email: "",
+    login: "",
+    password: ""
   })
 
   const stats: Stat[] = [
@@ -65,6 +67,19 @@ export default function CustomersPage() {
   ]
 
   const handleDialogSubmit = async () => {
+    const loginRegex = /^[a-zA-Z0-9_]+$/
+    const passwordRegex = /^\d{6}$/
+
+    if (!loginRegex.test(newCustomer.login)) {
+      toast({ title: "Неверный логин", description: "Логин должен содержать только латинские буквы и цифры" })
+      return
+    }
+
+    if (!passwordRegex.test(newCustomer.password)) {
+      toast({ title: "Неверный пароль", description: "Пароль должен состоять из 6 цифр" })
+      return
+    }
+
     const { error } = await supabase.from("customers").insert([
       {
         ...newCustomer,
@@ -80,7 +95,7 @@ export default function CustomersPage() {
     } else {
       toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
       setOpenDialog(false)
-      setNewCustomer({ name: "", phone: "", email: "" })
+      setNewCustomer({ name: "", phone: "", email: "", login: "", password: "" })
     }
   }
 
@@ -176,6 +191,14 @@ export default function CustomersPage() {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" value={newCustomer.email} onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login">Логин (только латиница)</Label>
+              <Input id="login" value={newCustomer.login} onChange={(e) => setNewCustomer((prev) => ({ ...prev, login: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль (6 цифр)</Label>
+              <Input id="password" type="password" value={newCustomer.password} onChange={(e) => setNewCustomer((prev) => ({ ...prev, password: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
