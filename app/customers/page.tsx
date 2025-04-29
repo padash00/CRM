@@ -1,5 +1,6 @@
 "use client"; // <-- СТРОГО первой строкой
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -14,9 +15,17 @@ import { LayoutDashboard, Plus, Search } from "lucide-react"
 import Link from "next/link"
 import { CustomerTable } from "./customer-table"
 import { CustomerStats } from "./customer-stats"
-import { useState } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabaseClient"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 interface Stat {
   title: string
@@ -26,6 +35,12 @@ interface Stat {
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const [openDialog, setOpenDialog] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+  })
 
   const stats: Stat[] = [
     {
@@ -50,12 +65,10 @@ export default function CustomersPage() {
     },
   ]
 
-  const handleNewCustomer = async () => {
-    const { data, error } = await supabase.from("customers").insert([
+  const handleDialogSubmit = async () => {
+    const { error } = await supabase.from("customers").insert([
       {
-        name: "Новый клиент",
-        phone: "",
-        email: "",
+        ...newCustomer,
         visits: 0,
         lastVisit: new Date().toISOString().split("T")[0],
         status: "active",
@@ -67,6 +80,8 @@ export default function CustomersPage() {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
     } else {
       toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
+      setOpenDialog(false)
+      setNewCustomer({ name: "", phone: "", email: "" })
     }
   }
 
@@ -99,7 +114,7 @@ export default function CustomersPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление клиентами</h2>
-          <Button onClick={handleNewCustomer}>
+          <Button onClick={() => setOpenDialog(true)}>
             <Plus className="mr-2 h-4 w-4" /> Новый клиент
           </Button>
         </div>
@@ -130,36 +145,10 @@ export default function CustomersPage() {
           </TabsContent>
 
           <TabsContent value="active" className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Поиск активных клиентов..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={handleSearch}
-                />
-              </div>
-              <Button variant="outline">Фильтры</Button>
-            </div>
             <CustomerTable filterActive={true} />
           </TabsContent>
 
           <TabsContent value="vip" className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Поиск VIP клиентов..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={handleSearch}
-                />
-              </div>
-              <Button variant="outline">Фильтры</Button>
-            </div>
             <CustomerTable filterVip={true} />
           </TabsContent>
 
@@ -189,6 +178,33 @@ export default function CustomersPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создать нового клиента</DialogTitle>
+            <DialogDescription>Введите данные клиента ниже</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Имя</Label>
+              <Input id="name" value={newCustomer.name} onChange={(e) => setNewCustomer((prev) => ({ ...prev, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Телефон</Label>
+              <Input id="phone" value={newCustomer.phone} onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" value={newCustomer.email} onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>Отмена</Button>
+            <Button onClick={handleDialogSubmit}>Создать</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
