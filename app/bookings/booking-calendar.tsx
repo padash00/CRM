@@ -1,22 +1,20 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { supabase } from "@/lib/supabaseClient"
 
-// Типизация данных бронирования
 interface Booking {
-  time: string
+  id: string
   customer: string
   station: string
+  date: string
+  time: string
+  duration: string
 }
 
-interface BookingsByDate {
-  [date: string]: Booking[]
-}
-
-// Компонент для отображения отдельного бронирования
 const BookingItem = ({ booking }: { booking: Booking }) => (
   <div className="flex items-center justify-between rounded-lg border p-3">
     <div>
@@ -33,43 +31,50 @@ const BookingItem = ({ booking }: { booking: Booking }) => (
 
 export function BookingCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [allBookings, setAllBookings] = useState<Booking[]>([])
 
-  // Данные о бронированиях
-  const bookingsByDate: BookingsByDate = {
-    "2025-03-29": [
-      { time: "10:00 - 12:15", customer: "Иван П.", station: "PC-07" },
-      { time: "19:00 - 22:00", customer: "Артем С.", station: "PC-02" },
-      { time: "17:30 - 19:30", customer: "Максим К.", station: "XBOX-01" },
-    ],
-    "2025-03-30": [
-      { time: "14:30 - 17:30", customer: "Алексей К.", station: "PC-01" },
-      { time: "15:00 - 18:00", customer: "Михаил С.", station: "PC-03" },
-      { time: "13:45 - 14:30", customer: "Дмитрий В.", station: "PC-04" },
-      { time: "12:00 - 15:00", customer: "Сергей Л.", station: "VIP-01" },
-      { time: "18:00 - 21:00", customer: "Андрей К.", station: "VIP-03" },
-      { time: "16:00 - 18:00", customer: "Николай Р.", station: "PS5-01" },
-    ],
-    "2025-03-31": [
-      { time: "15:00 - 18:00", customer: "Владимир Н.", station: "PC-05" },
-    ],
-  }
-
-  // Форматирование даты с мемоизацией
+  // Форматирование даты
   const formatDate = (date: Date): string => date.toISOString().split("T")[0]
 
-  // Мемоизация выбранных бронирований
+  // Получаем все брони при загрузке
+  useEffect(() => {
+    const fetchBookings = async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("*")
+
+      if (error) {
+        console.error("Ошибка при загрузке бронирований:", error)
+      } else {
+        setAllBookings(data || [])
+      }
+    }
+
+    fetchBookings()
+  }, [])
+
+  // Дата → брони
+  const bookingsByDate = useMemo(() => {
+    const grouped: { [date: string]: Booking[] } = {}
+    for (const booking of allBookings) {
+      if (!grouped[booking.date]) grouped[booking.date] = []
+      grouped[booking.date].push(booking)
+    }
+    return grouped
+  }, [allBookings])
+
   const selectedDateBookings = useMemo(() => {
     if (!date) return []
     return bookingsByDate[formatDate(date)] || []
-  }, [date])
+  }, [date, bookingsByDate])
 
-  // Мемоизация отформатированной строки даты
   const formattedDate = useMemo(
-    () => date?.toLocaleDateString("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }) || "",
+    () =>
+      date?.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }) || "",
     [date]
   )
 
@@ -99,7 +104,7 @@ export function BookingCalendar() {
         />
       </div>
 
-      {/* Список бронирований */}
+      {/* Список */}
       <div className="md:w-1/2">
         <Card className="shadow-sm">
           <CardContent className="p-4">
@@ -108,8 +113,8 @@ export function BookingCalendar() {
             </h3>
             {selectedDateBookings.length > 0 ? (
               <div className="space-y-3">
-                {selectedDateBookings.map((booking, index) => (
-                  <BookingItem key={index} booking={booking} />
+                {selectedDateBookings.map((booking) => (
+                  <BookingItem key={booking.id} booking={booking} />
                 ))}
               </div>
             ) : (
@@ -123,4 +128,3 @@ export function BookingCalendar() {
     </div>
   )
 }
-
