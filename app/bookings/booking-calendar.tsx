@@ -33,16 +33,11 @@ export function BookingCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [allBookings, setAllBookings] = useState<Booking[]>([])
 
-  // Форматирование даты
   const formatDate = (date: Date): string => date.toISOString().split("T")[0]
 
-  // Получаем все брони при загрузке
   useEffect(() => {
     const fetchBookings = async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*")
-
+      const { data, error } = await supabase.from("bookings").select("*")
       if (error) {
         console.error("Ошибка при загрузке бронирований:", error)
       } else {
@@ -51,9 +46,25 @@ export function BookingCalendar() {
     }
 
     fetchBookings()
+
+    const subscription = supabase
+      .channel('public:bookings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+        console.log('Реалтайм событие (календарь):', payload)
+
+        if (payload.eventType === 'INSERT') {
+          setAllBookings((prev) => [...prev, payload.new as Booking])
+        } else if (payload.eventType === 'DELETE') {
+          setAllBookings((prev) => prev.filter((b) => b.id !== (payload.old as Booking).id))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
   }, [])
 
-  // Дата → брони
   const bookingsByDate = useMemo(() => {
     const grouped: { [date: string]: Booking[] } = {}
     for (const booking of allBookings) {
