@@ -16,8 +16,8 @@ import { CustomerTable } from "./customer-table"
 import { CustomerStats } from "./customer-stats"
 import { useState } from "react"
 import { toast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabaseClient"
 
-// Типизация для статистики
 interface Stat {
   title: string
   value: string
@@ -27,7 +27,6 @@ interface Stat {
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState<string>("")
 
-  // Данные статистики
   const stats: Stat[] = [
     {
       title: "Всего клиентов",
@@ -51,23 +50,32 @@ export default function CustomersPage() {
     },
   ]
 
-  // Обработчик создания нового клиента
-  const handleNewCustomer = () => {
-    toast({
-      title: "Новый клиент",
-      description: "Функционал создания нового клиента будет доступен в следующей версии.",
-    })
+  const handleNewCustomer = async () => {
+    const { data, error } = await supabase.from("customers").insert([
+      {
+        name: "Новый клиент",
+        phone: "",
+        email: "",
+        visits: 0,
+        lastVisit: new Date().toISOString().split("T")[0],
+        status: "active",
+        vip: false,
+      },
+    ])
+
+    if (error) {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
+    }
   }
 
-  // Обработчик поиска (заглушка)
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    // Здесь можно добавить логику фильтрации клиентов по запросу
   }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Шапка */}
       <header className="border-b bg-background">
         <div className="flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2">
@@ -75,14 +83,7 @@ export default function CustomersPage() {
             <span className="text-lg font-semibold">GameZone CRM</span>
           </div>
           <nav className="ml-auto flex items-center gap-4 sm:gap-6">
-            {[
-              { href: "/", label: "Панель" },
-              { href: "/bookings", label: "Бронирования" },
-              { href: "/customers", label: "Клиенты" },
-              { href: "/staff", label: "Персонал" },
-              { href: "/pos", label: "Касса" },
-              { href: "/games", label: "Игры" },
-            ].map((link) => (
+            {[{ href: "/", label: "Панель" }, { href: "/bookings", label: "Бронирования" }, { href: "/customers", label: "Клиенты" }, { href: "/staff", label: "Персонал" }, { href: "/pos", label: "Касса" }, { href: "/games", label: "Игры" }].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -95,7 +96,6 @@ export default function CustomersPage() {
         </div>
       </header>
 
-      {/* Основной контент */}
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление клиентами</h2>
@@ -112,7 +112,6 @@ export default function CustomersPage() {
             <TabsTrigger value="stats">Статистика</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Все клиенты" */}
           <TabsContent value="all" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -130,7 +129,6 @@ export default function CustomersPage() {
             <CustomerTable />
           </TabsContent>
 
-          {/* Вкладка "Активные" */}
           <TabsContent value="active" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -148,7 +146,6 @@ export default function CustomersPage() {
             <CustomerTable filterActive={true} />
           </TabsContent>
 
-          {/* Вкладка "VIP" */}
           <TabsContent value="vip" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -166,7 +163,6 @@ export default function CustomersPage() {
             <CustomerTable filterVip={true} />
           </TabsContent>
 
-          {/* Вкладка "Статистика" */}
           <TabsContent value="stats" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
@@ -196,4 +192,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
