@@ -23,8 +23,14 @@ import { MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabaseClient"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-// Типизация клиента
 interface Customer {
   id: string
   name: string
@@ -41,7 +47,7 @@ interface CustomerTableProps {
   filterVip?: boolean
 }
 
-const CustomerRow = ({ customer }: { customer: Customer }) => {
+const CustomerRow = ({ customer, onDelete }: { customer: Customer, onDelete: (customer: Customer) => void }) => {
   const handleEdit = useCallback(() => {
     toast({
       title: "Редактирование клиента",
@@ -49,13 +55,7 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
     })
   }, [customer.id])
 
-  const handleDelete = useCallback(() => {
-    toast({
-      title: "Удаление клиента",
-      description: `Удаление клиента ${customer.id} будет доступно в следующей версии.`,
-      variant: "destructive",
-    })
-  }, [customer.id])
+  const handleDeleteClick = () => onDelete(customer)
 
   return (
     <TableRow>
@@ -94,7 +94,7 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
             <DropdownMenuItem onClick={handleEdit}>
               <Pencil className="mr-2 h-4 w-4" /> Редактировать
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
+            <DropdownMenuItem className="text-destructive" onClick={handleDeleteClick}>
               <Trash className="mr-2 h-4 w-4" /> Удалить
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -106,6 +106,8 @@ const CustomerRow = ({ customer }: { customer: Customer }) => {
 
 export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -116,9 +118,29 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
         setCustomers(data as Customer[])
       }
     }
-
     fetchCustomers()
   }, [])
+
+  const handleDelete = useCallback((customer: Customer) => {
+    setCustomerToDelete(customer)
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return
+
+    const { error } = await supabase.from("customers").delete().eq("id", customerToDelete.id)
+
+    if (error) {
+      toast({ title: "Ошибка удаления", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Удалено", description: `Клиент ${customerToDelete.name} удалён.` })
+      setCustomers((prev) => prev.filter((c) => c.id !== customerToDelete.id))
+    }
+
+    setDeleteDialogOpen(false)
+    setCustomerToDelete(null)
+  }
 
   const filteredCustomers = useCallback(() => {
     return customers.filter((customer) => {
@@ -129,28 +151,45 @@ export function CustomerTable({ filterActive, filterVip }: CustomerTableProps) {
   }, [customers, filterActive, filterVip])()
 
   return (
-    <div className="rounded-md border shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]"><Checkbox /></TableHead>
-            <TableHead>ID</TableHead>
-            <TableHead>Имя</TableHead>
-            <TableHead>Телефон</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Посещения</TableHead>
-            <TableHead>Последний визит</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead>VIP</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredCustomers.map((customer) => (
-            <CustomerRow key={customer.id} customer={customer} />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      <div className="rounded-md border shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]"><Checkbox /></TableHead>
+              <TableHead>ID</TableHead>
+              <TableHead>Имя</TableHead>
+              <TableHead>Телефон</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Посещения</TableHead>
+              <TableHead>Последний визит</TableHead>
+              <TableHead>Статус</TableHead>
+              <TableHead>VIP</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredCustomers.map((customer) => (
+              <CustomerRow key={customer.id} customer={customer} onDelete={handleDelete} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить клиента?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Ты уверен, что хочешь удалить клиента <span className="font-bold text-foreground">{customerToDelete?.name}</span>? Это действие нельзя будет отменить.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
