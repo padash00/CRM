@@ -94,7 +94,7 @@ export default function BookingsPage() {
                     <Label htmlFor="customer">Клиент</Label>
                     <CustomerCombobox
                       value={formData.customer}
-                      onSelect={(value) => setFormData((prev) => ({ ...prev, customer: value }))}
+                      onChange={(value) => setFormData((prev) => ({ ...prev, customer: value }))}
                     />
                   </div>
                   <div className="space-y-2">
