@@ -34,7 +34,7 @@ import { supabase } from "@/lib/supabaseClient";
 interface CartItem {
   id: string;
   name: string;
-  price: number;
+  price: number; // Теперь это sale_price для товаров
   quantity: number;
   type: "time" | "product" | "service";
 }
@@ -43,6 +43,8 @@ interface Item {
   id: string;
   name: string;
   price: number;
+  sale_price: number;
+  quantity: number;
   type: "time" | "product" | "service";
 }
 
@@ -111,14 +113,32 @@ export function POSInterface() {
   }, []);
 
   const addToCart = useCallback((item: Item) => {
+    if (item.quantity <= 0) {
+      toast({
+        title: "Ошибка",
+        description: `Товар "${item.name}" отсутствует на складе`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCart((prev) => {
       const existingItemIndex = prev.findIndex((cartItem) => cartItem.id === item.id);
       if (existingItemIndex !== -1) {
         const updatedCart = [...prev];
-        updatedCart[existingItemIndex].quantity += 1;
+        const newQuantity = updatedCart[existingItemIndex].quantity + 1;
+        if (newQuantity > item.quantity) {
+          toast({
+            title: "Ошибка",
+            description: `Недостаточно товара "${item.name}" на складе (осталось: ${item.quantity})`,
+            variant: "destructive",
+          });
+          return prev;
+        }
+        updatedCart[existingItemIndex].quantity = newQuantity;
         return updatedCart;
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { id: item.id, name: item.name, price: item.type === "product" ? item.sale_price : item.price, quantity: 1, type: item.type }];
     });
     toast({
       title: "Товар добавлен",
@@ -144,10 +164,24 @@ export function POSInterface() {
       removeFromCart(id);
       return;
     }
+
+    const itemInCart = cart.find((item) => item.id === id);
+    const itemInStock = products.find((p) => p.id === id) || services.find((s) => s.id === id);
+    if (!itemInCart || !itemInStock) return;
+
+    if (newQuantity > itemInStock.quantity) {
+      toast({
+        title: "Ошибка",
+        description: `Недостаточно товара "${itemInCart.name}" на складе (осталось: ${itemInStock.quantity})`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCart((prev) =>
       prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))
     );
-  }, [removeFromCart]);
+  }, [cart, products, services, removeFromCart]);
 
   const calculateTotal = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -241,8 +275,7 @@ export function POSInterface() {
     // Сохраняем товары/услуги из корзины в transaction_items
     const transactionItems = cart.map((item) => ({
       transaction_id: transactionId,
-      product_id: item.type === "product" ? item.id : null,
-      service_id: item.type !== "product" ? item.id : null,
+      item_id: item.id, // Теперь используем только item_id
       item_type: item.type,
       quantity: item.quantity,
       price: item.price,
@@ -259,6 +292,23 @@ export function POSInterface() {
       return;
     }
 
+    // Уменьшаем количество на складе
+    for (const item of cart) {
+      const tableName = item.type === "product" ? "items" : "services";
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update({ quantity: supabase.sql(`quantity - ${item.quantity}`) })
+        .eq("id", item.id);
+
+      if (updateError) {
+        toast({
+          title: "Ошибка обновления склада",
+          description: updateError.message,
+          variant: "destructive",
+        });
+      }
+    }
+
     toast({
       title: "Оплата успешна",
       description: `Оплата на сумму ₸${total} успешно выполнена${change > 0 ? `. Сдача: ₸${change}` : ""}`,
@@ -269,6 +319,12 @@ export function POSInterface() {
     setCustomerId("");
     setCashReceived("");
     setPaymentMethod("cash");
+
+    // Обновляем данные о товарах и услугах
+    const { data: updatedProducts } = await supabase.from("items").select("*").eq("type", "product");
+    const { data: updatedServices } = await supabase.from("services").select("*");
+    setProducts(updatedProducts || []);
+    setServices(updatedServices || []);
   }, [calculateTotal, paymentMethod, cashReceived, customerId, cart]);
 
   return (
@@ -291,9 +347,11 @@ export function POSInterface() {
                     variant="outline"
                     className="h-auto flex-col items-start p-4 text-left shadow-sm hover:bg-muted"
                     onClick={() => addToCart(product)}
+                    disabled={product.quantity <= 0}
                   >
                     <div className="font-medium">{product.name}</div>
-                    <div className="text-sm text-muted-foreground">₸{product.price}</div>
+                    <div className="text-sm text-muted-foreground">₸{product.sale_price}</div>
+                    <div className="text-xs text-muted-foreground">Остаток: {product.quantity}</div>
                   </Button>
                 ))}
               </div>
@@ -306,9 +364,11 @@ export function POSInterface() {
                     variant="outline"
                     className="h-auto flex-col items-start p-4 text-left shadow-sm hover:bg-muted"
                     onClick={() => addToCart(service)}
+                    disabled={service.quantity <= 0}
                   >
                     <div className="font-medium">{service.name}</div>
                     <div className="text-sm text-muted-foreground">₸{service.price}</div>
+                    <div className="text-xs text-muted-foreground">Остаток: {service.quantity}</div>
                   </Button>
                 ))}
               </div>
