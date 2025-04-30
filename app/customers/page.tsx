@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +33,11 @@ interface Stat {
   description: string;
 }
 
+interface MonthlyVisit {
+  month: string;
+  totalVisits: number;
+}
+
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -44,20 +49,136 @@ export default function CustomersPage() {
     password: "",
   });
   const [refreshTable, setRefreshTable] = useState(0);
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [monthlyVisits, setMonthlyVisits] = useState<MonthlyVisit[]>([]);
 
-  const stats: Stat[] = [
-    { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
-    { title: "Активные клиенты", value: "128", description: "50% от общего числа" },
-    { title: "VIP клиенты", value: "32", description: "12.5% от общего числа" },
-    { title: "Средний чек", value: "₸850", description: "+₸120 с прошлого месяца" },
-  ];
+  useEffect(() => {
+    const fetchStats = async () => {
+      // Запрос 1: Всего клиентов
+      const { count: totalCustomers, error: totalError } = await supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true });
+
+      // Запрос 2: Активные клиенты
+      const { count: activeCustomers, error: activeError } = await supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active");
+
+      // Запрос 3: VIP клиенты
+      const { count: vipCustomers, error: vipError } = await supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("vip", true);
+
+      // Запрос 4: Среднее количество посещений
+      const { data: visitsData, error: visitsError } = await supabase
+        .from("customers")
+        .select("visits");
+
+      // Запрос 5: Посещения по месяцам
+      const { data: monthlyData, error: monthlyError } = await supabase
+        .from("customers")
+        .select("lastVisit, visits")
+        .not("lastVisit", "is", null);
+
+      // Запрос 6: Средний чек (из таблицы orders)
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("amount");
+
+      if (totalError || activeError || vipError || visitsError || monthlyError || ordersError) {
+        toast({
+          title: "Ошибка загрузки статистики",
+          description: "Не удалось загрузить данные из базы.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Считаем среднее количество посещений
+      const averageVisits =
+        visitsData && visitsData.length > 0
+          ? (
+              visitsData.reduce((sum, customer) => sum + (customer.visits || 0), 0) /
+              visitsData.length
+            ).toFixed(1)
+          : "0";
+
+      // Считаем средний чек
+      const averageCheck =
+        ordersData && ordersData.length > 0
+          ? (
+              ordersData.reduce((sum, order) => sum + order.amount, 0) / ordersData.length
+            ).toFixed(0)
+          : "0";
+
+      // Обрабатываем данные для графика посещений по месяцам
+      const monthlyVisitsMap: { [key: string]: number } = {};
+      if (monthlyData) {
+        monthlyData.forEach((customer) => {
+          const date = new Date(customer.lastVisit);
+          const month = date.toISOString().slice(0, 7); // Формат YYYY-MM
+          monthlyVisitsMap[month] = (monthlyVisitsMap[month] || 0) + (customer.visits || 0);
+        });
+      }
+
+      const monthlyVisitsArray = Object.entries(monthlyVisitsMap)
+        .map(([month, totalVisits]) => ({
+          month,
+          totalVisits,
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      // Формируем массив stats
+      const newStats: Stat[] = [
+        {
+          title: "Всего клиентов",
+          value: totalCustomers?.toString() || "0",
+          description: "",
+        },
+        {
+          title: "Активные клиенты",
+          value: activeCustomers?.toString() || "0",
+          description: totalCustomers
+            ? `${((activeCustomers! / totalCustomers!) * 100).toFixed(1)}% от общего числа`
+            : "",
+        },
+        {
+          title: "VIP клиенты",
+          value: vipCustomers?.toString() || "0",
+          description: totalCustomers
+            ? `${((vipCustomers! / totalCustomers!) * 100).toFixed(1)}% от общего числа`
+            : "",
+        },
+        {
+          title: "Среднее число посещений",
+          value: averageVisits,
+          description: "",
+        },
+        {
+          title: "Средний чек",
+          value: `₸${averageCheck}`,
+          description: "", // Можно добавить динамическое описание, если нужно
+        },
+      ];
+
+      setStats(newStats);
+      setMonthlyVisits(monthlyVisitsArray);
+    };
+
+    fetchStats();
+  }, [refreshTable]);
 
   const handleDialogSubmit = async () => {
     const loginRegex = /^[a-zA-Z0-9_]+$/;
     const passwordRegex = /^\d{6}$/;
 
     if (!loginRegex.test(newCustomer.username)) {
-      toast({ title: "Неверный логин", description: "Логин должен содержать только латиницу и цифры" });
+      toast({
+        title: "Неверный логин",
+        description: "Логин должен содержать только латиницу и цифры",
+      });
       return;
     }
 
@@ -82,7 +203,11 @@ export default function CustomersPage() {
 
     if (error) {
       if (error.message.includes("duplicate key value")) {
-        toast({ title: "Логин уже занят", description: "Выберите другой логин", variant: "destructive" });
+        toast({
+          title: "Логин уже занят",
+          description: "Выберите другой логин",
+          variant: "destructive",
+        });
       } else {
         toast({ title: "Ошибка", description: error.message, variant: "destructive" });
       }
@@ -133,7 +258,7 @@ export default function CustomersPage() {
                 filterVip={false}
                 className="w-full border border-border rounded-md table-auto text-left"
                 refresh={refreshTable}
-                searchQuery={searchQuery} // Передаём searchQuery
+                searchQuery={searchQuery}
               />
             </div>
           </TabsContent>
@@ -180,7 +305,7 @@ export default function CustomersPage() {
                 <CardDescription>Количество посещений по месяцам</CardDescription>
               </CardHeader>
               <CardContent>
-                <CustomerStats />
+                <CustomerStats monthlyVisits={monthlyVisits} />
               </CardContent>
             </Card>
           </TabsContent>
