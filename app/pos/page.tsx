@@ -53,6 +53,8 @@ interface Item {
   id: string;
   name: string;
   price: number;
+  sale_price: number;
+  quantity: number;
   type: "time" | "product" | "service";
 }
 
@@ -71,10 +73,12 @@ interface NewTransaction {
 }
 
 interface InventoryAction {
+  itemType: "product" | "service";
+  itemId: string;
   name: string;
   quantity: string;
   price: string;
-  type: "product";
+  salePrice: string;
   action: "add" | "remove";
 }
 
@@ -93,16 +97,19 @@ export default function POSPage() {
   });
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [services, setServices] = useState<Item[]>([]);
   const [newTransaction, setNewTransaction] = useState<NewTransaction>({
     customerId: "",
     amount: "",
     paymentType: "cash",
   });
   const [inventoryAction, setInventoryAction] = useState<InventoryAction>({
+    itemType: "product",
+    itemId: "",
     name: "",
     quantity: "",
     price: "",
-    type: "product",
+    salePrice: "",
     action: "add",
   });
 
@@ -134,6 +141,20 @@ export default function POSPage() {
         });
       } else {
         setItems(itemsData || []);
+      }
+
+      const { data: servicesData, error: servicesError } = await supabase
+        .from("services")
+        .select("*");
+
+      if (servicesError) {
+        toast({
+          title: "Ошибка загрузки услуг",
+          description: servicesError.message,
+          variant: "destructive",
+        });
+      } else {
+        setServices(servicesData || []);
       }
     };
 
@@ -229,18 +250,27 @@ export default function POSPage() {
   };
 
   const handleInventorySubmit = async () => {
-    if (!inventoryAction.name || !inventoryAction.quantity || !inventoryAction.price) {
-      toast({
-        title: "Ошибка",
-        description: "Заполните все поля для управления товаром",
-        variant: "destructive",
-      });
-      return;
+    if (inventoryAction.action === "add") {
+      if (!inventoryAction.name || !inventoryAction.quantity || !inventoryAction.price || (inventoryAction.itemType === "product" && !inventoryAction.salePrice)) {
+        toast({
+          title: "Ошибка",
+          description: "Заполните все поля для добавления",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      if (!inventoryAction.itemId || !inventoryAction.quantity) {
+        toast({
+          title: "Ошибка",
+          description: "Выберите элемент и укажите количество для списания",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const quantity = parseInt(inventoryAction.quantity);
-    const price = parseFloat(inventoryAction.price);
-
     if (isNaN(quantity) || quantity <= 0) {
       toast({
         title: "Ошибка",
@@ -250,78 +280,181 @@ export default function POSPage() {
       return;
     }
 
-    if (isNaN(price) || price <= 0) {
-      toast({
-        title: "Ошибка",
-        description: "Цена должна быть положительным числом",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (inventoryAction.action === "add") {
-      // Добавление нового товара
-      const { error } = await supabase.from("items").insert([
-        {
-          name: inventoryAction.name,
-          price: price,
-          type: "product",
-        },
-      ]);
+      const price = parseFloat(inventoryAction.price);
+      const salePrice = parseFloat(inventoryAction.salePrice);
 
-      if (error) {
+      if (isNaN(price) || price <= 0) {
         toast({
-          title: "Ошибка добавления товара",
-          description: error.message,
+          title: "Ошибка",
+          description: "Цена закупки должна быть положительным числом",
           variant: "destructive",
         });
         return;
       }
 
+      if (inventoryAction.itemType === "product") {
+        if (isNaN(salePrice) || salePrice <= 0) {
+          toast({
+            title: "Ошибка",
+            description: "Цена продажи должна быть положительным числом",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (salePrice < price) {
+          toast({
+            title: "Ошибка",
+            description: "Цена продажи должна быть больше или равна цене закупки",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Добавление нового товара/услуги
+      const tableName = inventoryAction.itemType === "product" ? "items" : "services";
+      const { data: newItem, error: insertError } = await supabase
+        .from(tableName)
+        .insert([
+          {
+            name: inventoryAction.name,
+            price: price,
+            sale_price: inventoryAction.itemType === "product" ? salePrice : undefined,
+            quantity: quantity,
+            type: inventoryAction.itemType === "product" ? "product" : inventoryAction.itemType,
+          },
+        ])
+        .select()
+        .single();
+
+      if (insertError) {
+        toast({
+          title: "Ошибка добавления",
+          description: insertError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Логируем операцию
+      const { error: logError } = await supabase.from("inventory_log").insert([
+        {
+          item_id: newItem.id,
+          item_type: inventoryAction.itemType,
+          action: "add",
+          quantity: quantity,
+          price: price,
+          sale_price: inventoryAction.itemType === "product" ? salePrice : null,
+        },
+      ]);
+
+      if (logError) {
+        toast({
+          title: "Ошибка логирования",
+          description: logError.message,
+          variant: "destructive",
+        });
+      }
+
       toast({
-        title: "Товар добавлен",
+        title: "Элемент добавлен",
         description: `${inventoryAction.name} успешно добавлен в количестве ${quantity} шт.`,
       });
     } else {
-      // Списание товара (удаление или уменьшение количества)
+      // Списание товара/услуги
+      const tableName = inventoryAction.itemType === "product" ? "items" : "services";
       const { data: itemData, error: fetchError } = await supabase
-        .from("items")
-        .select("id")
-        .eq("name", inventoryAction.name)
+        .from(tableName)
+        .select("id, quantity, price, sale_price")
+        .eq("id", inventoryAction.itemId)
         .single();
 
       if (fetchError || !itemData) {
         toast({
           title: "Ошибка",
-          description: "Товар не найден",
+          description: "Элемент не найден",
           variant: "destructive",
         });
         return;
       }
 
-      // Здесь можно добавить логику уменьшения количества, но пока просто удаляем
-      const { error: deleteError } = await supabase
-        .from("items")
-        .delete()
-        .eq("id", itemData.id);
-
-      if (deleteError) {
+      const currentQuantity = itemData.quantity;
+      if (quantity > currentQuantity) {
         toast({
-          title: "Ошибка списания товара",
-          description: deleteError.message,
+          title: "Ошибка",
+          description: `Недостаточно на складе (осталось: ${currentQuantity})`,
           variant: "destructive",
         });
         return;
+      }
+
+      const newQuantity = currentQuantity - quantity;
+      if (newQuantity === 0) {
+        const { error: deleteError } = await supabase
+          .from(tableName)
+          .delete()
+          .eq("id", inventoryAction.itemId);
+
+        if (deleteError) {
+          toast({
+            title: "Ошибка списания",
+            description: deleteError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        const { error: updateError } = await supabase
+          .from(tableName)
+          .update({ quantity: newQuantity })
+          .eq("id", inventoryAction.itemId);
+
+        if (updateError) {
+          toast({
+            title: "Ошибка списания",
+            description: updateError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Логируем операцию
+      const { error: logError } = await supabase.from("inventory_log").insert([
+        {
+          item_id: itemData.id,
+          item_type: inventoryAction.itemType,
+          action: "remove",
+          quantity: quantity,
+          price: itemData.price,
+          sale_price: itemData.sale_price || null,
+        },
+      ]);
+
+      if (logError) {
+        toast({
+          title: "Ошибка логирования",
+          description: logError.message,
+          variant: "destructive",
+        });
       }
 
       toast({
-        title: "Товар списан",
+        title: "Элемент списан",
         description: `${inventoryAction.name} успешно списан в количестве ${quantity} шт.`,
       });
     }
 
+    // Обновляем данные о товарах и услугах
+    const { data: updatedItems } = await supabase.from("items").select("*");
+    const { data: updatedServices } = await supabase.from("services").select("*");
+    setItems(updatedItems || []);
+    setServices(updatedServices || []);
+
     setOpenInventoryDialog(false);
-    setInventoryAction({ name: "", quantity: "", price: "", type: "product", action: "add" });
+    setInventoryAction({ itemType: "product", itemId: "", name: "", quantity: "", price: "", salePrice: "", action: "add" });
   };
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -564,8 +697,8 @@ export default function POSPage() {
       <Dialog open={openInventoryDialog} onOpenChange={setOpenInventoryDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Управление товарами</DialogTitle>
-            <DialogDescription>Добавьте или спишите товар</DialogDescription>
+            <DialogTitle>Управление товарами и услугами</DialogTitle>
+            <DialogDescription>Добавьте или спишите товар/услугу</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -573,7 +706,7 @@ export default function POSPage() {
               <Select
                 value={inventoryAction.action}
                 onValueChange={(value) =>
-                  setInventoryAction((prev) => ({ ...prev, action: value as "add" | "remove" }))
+                  setInventoryAction((prev) => ({ ...prev, action: value as "add" | "remove", itemId: "", name: "" }))
                 }
               >
                 <SelectTrigger>
@@ -586,8 +719,25 @@ export default function POSPage() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="inventoryItemType">Тип</Label>
+              <Select
+                value={inventoryAction.itemType}
+                onValueChange={(value) =>
+                  setInventoryAction((prev) => ({ ...prev, itemType: value as "product" | "service", itemId: "", name: "" }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите тип" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="product">Товар</SelectItem>
+                  <SelectItem value="service">Услуга</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="inventoryName">
-                {inventoryAction.action === "add" ? "Название товара" : "Товар для списания"}
+                {inventoryAction.action === "add" ? "Название" : "Элемент для списания"}
               </Label>
               {inventoryAction.action === "add" ? (
                 <Input
@@ -596,22 +746,27 @@ export default function POSPage() {
                   onChange={(e) =>
                     setInventoryAction((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  placeholder="Введите название товара"
+                  placeholder="Введите название"
                 />
               ) : (
                 <Select
-                  value={inventoryAction.name}
-                  onValueChange={(value) =>
-                    setInventoryAction((prev) => ({ ...prev, name: value }))
-                  }
+                  value={inventoryAction.itemId}
+                  onValueChange={(value) => {
+                    const selectedItem = (inventoryAction.itemType === "product" ? items : services).find(item => item.id === value);
+                    setInventoryAction((prev) => ({
+                      ...prev,
+                      itemId: value,
+                      name: selectedItem ? selectedItem.name : "",
+                    }));
+                  }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите товар" />
+                    <SelectValue placeholder="Выберите элемент" />
                   </SelectTrigger>
                   <SelectContent>
-                    {items.map((item) => (
-                      <SelectItem key={item.id} value={item.name}>
-                        {item.name}
+                    {(inventoryAction.itemType === "product" ? items : services).map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} (Остаток: {item.quantity})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -632,19 +787,36 @@ export default function POSPage() {
               />
             </div>
             {inventoryAction.action === "add" && (
-              <div className="space-y-2">
-                <Label htmlFor="inventoryPrice">Цена за единицу (₸)</Label>
-                <Input
-                  id="inventoryPrice"
-                  type="number"
-                  value={inventoryAction.price}
-                  onChange={(e) =>
-                    setInventoryAction((prev) => ({ ...prev, price: e.target.value }))
-                  }
-                  placeholder="Введите цену"
-                  min="0"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="inventoryPrice">Цена закупки за единицу (₸)</Label>
+                  <Input
+                    id="inventoryPrice"
+                    type="number"
+                    value={inventoryAction.price}
+                    onChange={(e) =>
+                      setInventoryAction((prev) => ({ ...prev, price: e.target.value }))
+                    }
+                    placeholder="Введите цену закупки"
+                    min="0"
+                  />
+                </div>
+                {inventoryAction.itemType === "product" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="inventorySalePrice">Цена продажи за единицу (₸)</Label>
+                    <Input
+                      id="inventorySalePrice"
+                      type="number"
+                      value={inventoryAction.salePrice}
+                      onChange={(e) =>
+                        setInventoryAction((prev) => ({ ...prev, salePrice: e.target.value }))
+                      }
+                      placeholder="Введите цену продажи"
+                      min="0"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
           <DialogFooter>
