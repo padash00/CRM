@@ -1,8 +1,9 @@
-"use client"
+// pos/transaction-history.tsx
+"use client";
 
-import { useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -18,21 +19,35 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { MoreHorizontal, Printer, Receipt } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/table";
+import { MoreHorizontal, Printer, Receipt } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 // Типизация транзакции
 interface Transaction {
-  id: string
-  date: string
-  time: string
-  customer: string
-  items: string
-  total: number
-  paymentMethod: "card" | "cash"
-  operator: string
+  id: string;
+  date: string;
+  time: string;
+  customer: string;
+  items: string;
+  total: number;
+  paymentMethod: "card" | "cash";
+  operator: string;
+}
+
+interface Filters {
+  customerId: string;
+  dateFrom: string;
+  dateTo: string;
+  amountMin: string;
+  amountMax: string;
+}
+
+interface TransactionHistoryProps {
+  searchQuery: string;
+  filters: Filters;
 }
 
 // Компонент строки таблицы
@@ -41,15 +56,15 @@ const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
     toast({
       title: "Детали чека",
       description: `Открытие деталей чека для транзакции ${transaction.id} будет доступно в следующей версии.`,
-    })
-  }, [transaction.id])
+    });
+  }, [transaction.id]);
 
   const handlePrintReceipt = useCallback(() => {
     toast({
       title: "Печать чека",
       description: `Печать чека для транзакции ${transaction.id} будет доступна в следующей версии.`,
-    })
-  }, [transaction.id])
+    });
+  }, [transaction.id]);
 
   return (
     <TableRow>
@@ -64,7 +79,7 @@ const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
       </TableCell>
       <TableCell>{transaction.customer}</TableCell>
       <TableCell className="max-w-[200px] truncate">{transaction.items}</TableCell>
-      <TableCell>₽{transaction.total.toLocaleString()}</TableCell>
+      <TableCell>₸{transaction.total.toLocaleString()}</TableCell>
       <TableCell>
         <Badge
           variant={transaction.paymentMethod === "card" ? "outline" : "secondary"}
@@ -95,92 +110,73 @@ const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
         </DropdownMenu>
       </TableCell>
     </TableRow>
-  )
-}
+  );
+};
 
-export function TransactionHistory() {
-  const transactions: Transaction[] = [
-    {
-      id: "T001",
-      date: "30.03.2025",
-      time: "14:35",
-      customer: "Алексей К.",
-      items: "Игровое время (3 часа), Энергетический напиток x2",
-      total: 800,
-      paymentMethod: "card",
-      operator: "Иван С.",
-    },
-    {
-      id: "T002",
-      date: "30.03.2025",
-      time: "15:10",
-      customer: "Михаил С.",
-      items: "Игровое время (2 часа), Чипсы, Кофе",
-      total: 570,
-      paymentMethod: "cash",
-      operator: "Иван С.",
-    },
-    {
-      id: "T003",
-      date: "30.03.2025",
-      time: "13:45",
-      customer: "Дмитрий В.",
-      items: "Игровое время (1 час)",
-      total: 200,
-      paymentMethod: "card",
-      operator: "Мария П.",
-    },
-    {
-      id: "T004",
-      date: "30.03.2025",
-      time: "12:00",
-      customer: "Сергей Л.",
-      items: "VIP зона (3 часа), Сэндвич, Вода",
-      total: 970,
-      paymentMethod: "cash",
-      operator: "Мария П.",
-    },
-    {
-      id: "T005",
-      date: "30.03.2025",
-      time: "16:20",
-      customer: "Николай Р.",
-      items: "Консоль (2 часа), Энергетический напиток, Чипсы",
-      total: 820,
-      paymentMethod: "card",
-      operator: "Иван С.",
-    },
-    {
-      id: "T006",
-      date: "29.03.2025",
-      time: "19:15",
-      customer: "Артем С.",
-      items: "Игровое время (3 часа), Печать документов x5",
-      total: 575,
-      paymentMethod: "cash",
-      operator: "Анна К.",
-    },
-    {
-      id: "T007",
-      date: "29.03.2025",
-      time: "17:30",
-      customer: "Максим К.",
-      items: "Консоль (2 часа), Сэндвич, Кофе",
-      total: 800,
-      paymentMethod: "card",
-      operator: "Анна К.",
-    },
-    {
-      id: "T008",
-      date: "29.03.2025",
-      time: "14:45",
-      customer: "Владимир Н.",
-      items: "Игровое время (2 часа), Шоколадный батончик x2",
-      total: 510,
-      paymentMethod: "cash",
-      operator: "Мария П.",
-    },
-  ]
+export function TransactionHistory({ searchQuery, filters }: TransactionHistoryProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      let query = supabase
+        .from("transactions")
+        .select("*, customers(name)")
+        .order("transaction_date", { ascending: false });
+
+      // Фильтрация по поиску (по имени клиента)
+      if (searchQuery) {
+        query = query.ilike("customers.name", `%${searchQuery}%`);
+      }
+
+      // Фильтрация по клиенту
+      if (filters.customerId && filters.customerId !== "all") {
+        query = query.eq("customer_id", filters.customerId);
+      }
+
+      // Фильтрация по дате
+      if (filters.dateFrom) {
+        query = query.gte("transaction_date", filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        query = query.lte("transaction_date", filters.dateTo);
+      }
+
+      // Фильтрация по сумме
+      if (filters.amountMin) {
+        query = query.gte("amount", parseFloat(filters.amountMin));
+      }
+      if (filters.amountMax) {
+        query = query.lte("amount", parseFloat(filters.amountMax));
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast({
+          title: "Ошибка загрузки транзакций",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        const transformedTransactions = (data || []).map((transaction) => {
+          const date = new Date(transaction.transaction_date);
+          return {
+            id: transaction.id,
+            date: date.toLocaleDateString("ru-RU"),
+            time: date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+            customer: transaction.customers?.name || "Неизвестный клиент",
+            items: "Игровое время", // Пока захардкодим, можно добавить отдельную таблицу для товаров
+            total: transaction.amount,
+            paymentMethod: transaction.payment_type === "card" ? "card" : "cash",
+            operator: "Кассир", // Пока захардкодим, можно добавить таблицу для операторов
+          };
+        });
+        setTransactions(transformedTransactions);
+      }
+    };
+
+    fetchTransactions();
+  }, [searchQuery, filters]);
 
   return (
     <div className="rounded-md border shadow-sm">
@@ -201,12 +197,19 @@ export function TransactionHistory() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions.map((transaction) => (
-            <TransactionRow key={transaction.id} transaction={transaction} />
-          ))}
+          {transactions.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={9} className="text-center">
+                Нет транзакций для отображения
+              </TableCell>
+            </TableRow>
+          ) : (
+            transactions.map((transaction) => (
+              <TransactionRow key={transaction.id} transaction={transaction} />
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }
-
