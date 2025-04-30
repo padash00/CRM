@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,7 +46,7 @@ interface UpdateAction {
 
 interface Game {
   name: string;
-  categoryId: string; // Теперь categoryId вместо category
+  categoryId: string;
 }
 
 interface Category {
@@ -59,25 +60,27 @@ export default function GamesPage() {
   const [openAddGameDialog, setOpenAddGameDialog] = useState(false);
   const [newGame, setNewGame] = useState<Game>({ name: "", categoryId: "" });
   const [refreshGames, setRefreshGames] = useState(0);
-  const [categories, setCategories] = useState<Category[]>([]); // Список категорий для выпадающего списка
+  const [refreshCategories, setRefreshCategories] = useState(0); // Добавляем для обновления категорий
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  // Загружаем категории для выпадающего списка
   useEffect(() => {
     const fetchCategories = async () => {
       const { data, error } = await supabase.from("categories").select("id, name");
       if (error) {
+        console.error("Ошибка загрузки категорий:", error);
         toast({
           title: "Ошибка загрузки категорий",
           description: error.message,
           variant: "destructive",
         });
       } else {
+        console.log("Загруженные категории:", data);
         setCategories(data || []);
       }
     };
 
     fetchCategories();
-  }, []);
+  }, [refreshCategories]); // Зависимость от refreshCategories
 
   const updateActions: UpdateAction[] = [
     {
@@ -135,7 +138,7 @@ export default function GamesPage() {
     const { error } = await supabase.from("games").insert([
       {
         name: newGame.name,
-        category_id: newGame.categoryId, // Используем category_id вместо category
+        category_id: newGame.categoryId,
       },
     ]);
 
@@ -163,6 +166,10 @@ export default function GamesPage() {
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     setSearchQuery("");
+  }, []);
+
+  const handleCategoryAdded = useCallback(() => {
+    setRefreshCategories((prev) => prev + 1); // Обновляем список категорий
   }, []);
 
   return (
@@ -235,7 +242,7 @@ export default function GamesPage() {
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-4">
-            <GameCategories />
+            <GameCategories onCategoryAdded={handleCategoryAdded} />
           </TabsContent>
 
           <TabsContent value="updates" className="space-y-4">
