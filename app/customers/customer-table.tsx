@@ -45,6 +45,8 @@ interface Customer {
   lastVisit: string;
   status: "active" | "inactive";
   vip: boolean;
+  visitDates: string[]; // Даты посещений из visits
+  totalSpent: number; // Сумма трат из orders
 }
 
 interface CustomerTableProps {
@@ -52,10 +54,10 @@ interface CustomerTableProps {
   filterVip?: boolean;
   className?: string;
   refresh?: number;
-  searchQuery?: string; // Добавляем searchQuery как проп
+  searchQuery?: string;
 }
 
-type SortKey = keyof Pick<Customer, "name" | "visits" | "lastVisit">;
+type SortKey = keyof Pick<Customer, "name" | "visits" | "lastVisit" | "totalSpent">;
 type SortOrder = "asc" | "desc";
 
 const CustomerRow = ({
@@ -92,6 +94,10 @@ const CustomerRow = ({
         </div>
       </TableCell>
       <TableCell>{customer.visits ?? 0}</TableCell>
+      <TableCell>
+        {customer.visitDates.length > 0 ? customer.visitDates.join(", ") : "-"}
+      </TableCell>
+      <TableCell>{customer.totalSpent ? `₸${customer.totalSpent}` : "-"}</TableCell>
       <TableCell>{customer.lastVisit || "-"}</TableCell>
       <TableCell>
         <Badge variant={customer.status === "active" ? "default" : "secondary"}>
@@ -135,7 +141,7 @@ export function CustomerTable({
   filterVip,
   className,
   refresh,
-  searchQuery = "", // Добавляем searchQuery с дефолтным значением
+  searchQuery = "",
 }: CustomerTableProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -147,12 +153,61 @@ export function CustomerTable({
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      const { data, error } = await supabase.from("customers").select("*");
-      if (error) {
-        toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" });
-      } else {
-        setCustomers((data || []) as Customer[]);
+      // Загружаем базовые данные клиентов
+      const { data: customersData, error: customersError } = await supabase
+        .from("customers")
+        .select("*");
+
+      if (customersError) {
+        toast({
+          title: "Ошибка загрузки клиентов",
+          description: customersError.message,
+          variant: "destructive",
+        });
+        return;
       }
+
+      // Для каждого клиента загружаем данные из visits и orders
+      const customersWithDetails = await Promise.all(
+        (customersData || []).map(async (customer) => {
+          // Загружаем даты посещений из visits
+          const { data: visitsData, error: visitsError } = await supabase
+            .from("visits")
+            .select("visit_date")
+            .eq("customer_id", customer.id);
+
+          // Загружаем сумму трат из orders
+          const { data: ordersData, error: ordersError } = await supabase
+            .from("orders")
+            .select("amount")
+            .eq("customer_id", customer.id);
+
+          if (visitsError || ordersError) {
+            toast({
+              title: "Ошибка загрузки данных клиента",
+              description: visitsError?.message || ordersError?.message,
+              variant: "destructive",
+            });
+            return {
+              ...customer,
+              visitDates: [],
+              totalSpent: 0,
+            };
+          }
+
+          const visitDates = visitsData?.map((visit) => visit.visit_date) || [];
+          const totalSpent =
+            ordersData?.reduce((sum, order) => sum + order.amount, 0) || 0;
+
+          return {
+            ...customer,
+            visitDates,
+            totalSpent,
+          };
+        })
+      );
+
+      setCustomers(customersWithDetails);
     };
 
     fetchCustomers();
@@ -163,9 +218,11 @@ export function CustomerTable({
         const newRow = payload.new as Customer;
         const oldRow = payload.old as Customer;
         if (payload.eventType === "INSERT") {
-          setCustomers((prev) => [...prev, newRow]);
+          setCustomers((prev) => [...prev, { ...newRow, visitDates: [], totalSpent: 0 }]);
         } else if (payload.eventType === "UPDATE") {
-          setCustomers((prev) => prev.map((c) => (c.id === newRow.id ? newRow : c)));
+          setCustomers((prev) =>
+            prev.map((c) => (c.id === newRow.id ? { ...c, ...newRow } : c))
+          );
         } else if (payload.eventType === "DELETE") {
           setCustomers((prev) => prev.filter((c) => c.id !== oldRow.id));
         }
@@ -263,6 +320,10 @@ export function CustomerTable({
               <TableHead className="w-[160px]">Пароль</TableHead>
               <TableHead onClick={() => handleSort("visits")} className="cursor-pointer">
                 Посещения
+              </TableHead>
+              <TableHead>Даты посещений</TableHead>
+              <TableHead onClick={() => handleSort("totalSpent")} className="cursor-pointer">
+                Сумма трат
               </TableHead>
               <TableHead onClick={() => handleSort("lastVisit")} className="cursor-pointer">
                 Последний визит
