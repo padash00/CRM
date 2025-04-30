@@ -61,10 +61,8 @@ export function POSInterface() {
   const [services, setServices] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
-  // Загружаем данные из Supabase
   useEffect(() => {
     const fetchData = async () => {
-      // Загружаем товары
       const { data: productsData, error: productsError } = await supabase
         .from("items")
         .select("*")
@@ -80,7 +78,6 @@ export function POSInterface() {
         setProducts(productsData || []);
       }
 
-      // Загружаем услуги
       const { data: servicesData, error: servicesError } = await supabase
         .from("services")
         .select("*");
@@ -95,7 +92,6 @@ export function POSInterface() {
         setServices(servicesData || []);
       }
 
-      // Загружаем клиентов
       const { data: customersData, error: customersError } = await supabase
         .from("customers")
         .select("id, name");
@@ -114,7 +110,6 @@ export function POSInterface() {
     fetchData();
   }, []);
 
-  // Добавление в корзину
   const addToCart = useCallback((item: Item) => {
     setCart((prev) => {
       const existingItemIndex = prev.findIndex((cartItem) => cartItem.id === item.id);
@@ -132,7 +127,6 @@ export function POSInterface() {
     });
   }, []);
 
-  // Удаление из корзины
   const removeFromCart = useCallback((id: string) => {
     const itemToRemove = cart.find((item) => item.id === id);
     setCart((prev) => prev.filter((item) => item.id !== id));
@@ -145,7 +139,6 @@ export function POSInterface() {
     }
   }, [cart]);
 
-  // Обновление количества
   const updateQuantity = useCallback((id: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromCart(id);
@@ -156,12 +149,10 @@ export function POSInterface() {
     );
   }, [removeFromCart]);
 
-  // Расчёт общей суммы
   const calculateTotal = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
 
-  // Очистка корзины
   const clearCart = useCallback(() => {
     setCart([]);
     setCustomerId("");
@@ -171,7 +162,6 @@ export function POSInterface() {
     });
   }, []);
 
-  // Получение иконки элемента
   const getItemIcon = (type: CartItem["type"]) => {
     switch (type) {
       case "time":
@@ -185,7 +175,6 @@ export function POSInterface() {
     }
   };
 
-  // Открытие диалога оплаты
   const handlePayment = useCallback(() => {
     if (cart.length === 0) {
       toast({
@@ -206,7 +195,6 @@ export function POSInterface() {
     setPaymentDialogOpen(true);
   }, [cart.length, customerId]);
 
-  // Обработка оплаты
   const processPayment = useCallback(async () => {
     const total = calculateTotal();
     let change = 0;
@@ -225,20 +213,46 @@ export function POSInterface() {
       }
     }
 
-    // Сохраняем транзакцию в Supabase
-    const { error } = await supabase.from("transactions").insert([
-      {
-        customer_id: customerId,
-        amount: total,
-        transaction_date: new Date().toISOString(),
-        payment_type: paymentMethod,
-      },
-    ]);
+    // Создаём транзакцию
+    const { data: transactionData, error: transactionError } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          customer_id: customerId,
+          amount: total,
+          transaction_date: new Date().toISOString(),
+          payment_type: paymentMethod,
+        },
+      ])
+      .select()
+      .single();
 
-    if (error) {
+    if (transactionError) {
       toast({
         title: "Ошибка создания транзакции",
-        description: error.message,
+        description: transactionError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const transactionId = transactionData.id;
+
+    // Сохраняем товары/услуги из корзины в transaction_items
+    const transactionItems = cart.map((item) => ({
+      transaction_id: transactionId,
+      item_id: item.id,
+      item_type: item.type,
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
+    const { error: itemsError } = await supabase.from("transaction_items").insert(transactionItems);
+
+    if (itemsError) {
+      toast({
+        title: "Ошибка сохранения товаров",
+        description: itemsError.message,
         variant: "destructive",
       });
       return;
@@ -254,11 +268,10 @@ export function POSInterface() {
     setCustomerId("");
     setCashReceived("");
     setPaymentMethod("cash");
-  }, [calculateTotal, paymentMethod, cashReceived, customerId]);
+  }, [calculateTotal, paymentMethod, cashReceived, customerId, cart]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {/* Секция товаров и услуг */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Товары и услуги</CardTitle>
@@ -303,7 +316,6 @@ export function POSInterface() {
         </CardContent>
       </Card>
 
-      {/* Корзина */}
       <Card className="shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Текущая продажа</CardTitle>
@@ -396,7 +408,6 @@ export function POSInterface() {
         </CardFooter>
       </Card>
 
-      {/* Диалог оплаты */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
