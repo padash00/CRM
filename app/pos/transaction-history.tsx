@@ -25,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 
-// Типизация транзакции
 interface Transaction {
   id: string;
   date: string;
@@ -50,7 +49,6 @@ interface TransactionHistoryProps {
   filters: Filters;
 }
 
-// Компонент строки таблицы
 const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
   const handleViewDetails = useCallback(() => {
     toast({
@@ -123,17 +121,14 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
         .select("*, customers(name)")
         .order("transaction_date", { ascending: false });
 
-      // Фильтрация по поиску (по имени клиента)
       if (searchQuery) {
         query = query.ilike("customers.name", `%${searchQuery}%`);
       }
 
-      // Фильтрация по клиенту
       if (filters.customerId && filters.customerId !== "all") {
         query = query.eq("customer_id", filters.customerId);
       }
 
-      // Фильтрация по дате
       if (filters.dateFrom) {
         query = query.gte("transaction_date", filters.dateFrom);
       }
@@ -141,7 +136,6 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
         query = query.lte("transaction_date", filters.dateTo);
       }
 
-      // Фильтрация по сумме
       if (filters.amountMin) {
         query = query.gte("amount", parseFloat(filters.amountMin));
       }
@@ -149,30 +143,55 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
         query = query.lte("amount", parseFloat(filters.amountMax));
       }
 
-      const { data, error } = await query;
+      const { data: transactionsData, error: transactionsError } = await query;
 
-      if (error) {
+      if (transactionsError) {
         toast({
           title: "Ошибка загрузки транзакций",
-          description: error.message,
+          description: transactionsError.message,
           variant: "destructive",
         });
-      } else {
-        const transformedTransactions = (data || []).map((transaction) => {
+        return;
+      }
+
+      const transformedTransactions = await Promise.all(
+        (transactionsData || []).map(async (transaction) => {
+          // Загружаем товары/услуги для каждой транзакции
+          const { data: itemsData, error: itemsError } = await supabase
+            .from("transaction_items")
+            .select("*, items(name), services(name)")
+            .eq("transaction_id", transaction.id);
+
+          if (itemsError) {
+            toast({
+              title: "Ошибка загрузки товаров транзакции",
+              description: itemsError.message,
+              variant: "destructive",
+            });
+            return null;
+          }
+
+          const itemsList = itemsData.map((item) => {
+            const itemName =
+              item.item_type === "product" ? item.items?.name : item.services?.name;
+            return `${itemName} (${item.quantity} шт.)`;
+          }).join(", ");
+
           const date = new Date(transaction.transaction_date);
           return {
             id: transaction.id,
             date: date.toLocaleDateString("ru-RU"),
             time: date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
             customer: transaction.customers?.name || "Неизвестный клиент",
-            items: "Игровое время", // Пока захардкодим, можно добавить отдельную таблицу для товаров
+            items: itemsList || "Нет товаров",
             total: transaction.amount,
             paymentMethod: transaction.payment_type === "card" ? "card" : "cash",
-            operator: "Кассир", // Пока захардкодим, можно добавить таблицу для операторов
+            operator: "Кассир", // Пока захардкодим
           };
-        });
-        setTransactions(transformedTransactions);
-      }
+        })
+      );
+
+      setTransactions(transformedTransactions.filter((t) => t !== null) as Transaction[]);
     };
 
     fetchTransactions();
