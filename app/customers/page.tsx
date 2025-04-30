@@ -43,7 +43,7 @@ export default function CustomersPage() {
     username: "",
     password: "",
   });
-  const [refreshTable, setRefreshTable] = useState(0); // Для обновления таблицы
+  const [refreshTable, setRefreshTable] = useState(0);
 
   const stats: Stat[] = [
     { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
@@ -90,7 +90,7 @@ export default function CustomersPage() {
       toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" });
       setOpenDialog(false);
       setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" });
-      setRefreshTable((prev) => prev + 1); // Обновляем таблицу
+      setRefreshTable((prev) => prev + 1);
     }
   };
 
@@ -133,6 +133,7 @@ export default function CustomersPage() {
                 filterVip={false}
                 className="w-full border border-border rounded-md table-auto text-left"
                 refresh={refreshTable}
+                searchQuery={searchQuery} // Передаём searchQuery
               />
             </div>
           </TabsContent>
@@ -143,6 +144,7 @@ export default function CustomersPage() {
                 filterActive={true}
                 className="w-full border border-border rounded-md table-auto text-left"
                 refresh={refreshTable}
+                searchQuery={searchQuery}
               />
             </div>
           </TabsContent>
@@ -153,6 +155,7 @@ export default function CustomersPage() {
                 filterVip={true}
                 className="w-full border border-border rounded-md table-auto text-left"
                 refresh={refreshTable}
+                searchQuery={searchQuery}
               />
             </div>
           </TabsContent>
@@ -234,7 +237,9 @@ export default function CustomersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>Отмена</Button>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+              Отмена
+            </Button>
             <Button onClick={handleDialogSubmit}>Создать</Button>
           </DialogFooter>
         </DialogContent>
