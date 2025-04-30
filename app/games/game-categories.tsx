@@ -16,6 +16,14 @@ import { Label } from "@/components/ui/label";
 import { Pencil, Plus, Trash } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"; // Добавляем импорт
 
 // Типизация категории
 interface Category {
@@ -73,7 +81,6 @@ export function GameCategories() {
   const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
 
-  // Загружаем категории из Supabase
   useEffect(() => {
     const fetchCategories = async () => {
       const { data: categoriesData, error: categoriesError } = await supabase
@@ -89,7 +96,6 @@ export function GameCategories() {
         return;
       }
 
-      // Для каждой категории считаем количество игр
       const categoriesWithGamesCount = await Promise.all(
         (categoriesData || []).map(async (category) => {
           const { count, error } = await supabase
@@ -202,7 +208,6 @@ export function GameCategories() {
   }, [editCategory, formData]);
 
   const handleDelete = useCallback(async (id: string) => {
-    // Проверяем, есть ли игры в этой категории
     const { count, error: countError } = await supabase
       .from("games")
       .select("*", { count: "exact", head: true })
