@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { CustomerTable } from "./customer-table"
 import { CustomerStats } from "./customer-stats"
+import { MainNav } from "@/components/main-nav"
 
 interface Stat {
   title: string
@@ -39,7 +40,7 @@ export default function CustomersPage() {
     name: "",
     phone: "",
     email: "",
-    username: "", // ИСПРАВЛЕНО: сразу username
+    username: "",
     password: "",
   })
 
@@ -93,6 +94,7 @@ export default function CustomersPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление клиентами</h2>
