@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Clock } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -26,6 +26,13 @@ import { Label } from "@/components/ui/label";
 import { CustomerTable } from "./customer-table";
 import { CustomerStats } from "./customer-stats";
 import { MainNav } from "@/components/main-nav";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Stat {
   title: string;
@@ -34,14 +41,20 @@ interface Stat {
 }
 
 interface MonthlyVisit {
-  month: string; // Формат "Янв", "Фев", ...
+  month: string;
   totalVisits: number;
-  year: number; // Для сортировки
+  year: number;
+}
+
+interface Customer {
+  id: string;
+  name: string;
 }
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [openVisitDialog, setOpenVisitDialog] = useState(false); // Для формы записи посещения
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
@@ -49,41 +62,58 @@ export default function CustomersPage() {
     username: "",
     password: "",
   });
+  const [newVisit, setNewVisit] = useState({
+    customerId: "",
+    duration: "",
+  });
+  const [customers, setCustomers] = useState<Customer[]>([]); // Список клиентов для выпадающего списка
   const [refreshTable, setRefreshTable] = useState(0);
   const [stats, setStats] = useState<Stat[]>([]);
   const [monthlyVisits, setMonthlyVisits] = useState<MonthlyVisit[]>([]);
 
+  // Загружаем список клиентов для выпадающего списка
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data, error } = await supabase.from("customers").select("id, name");
+      if (error) {
+        toast({
+          title: "Ошибка загрузки клиентов",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setCustomers(data || []);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
   useEffect(() => {
     const fetchStats = async () => {
-      // Запрос 1: Всего клиентов
       const { count: totalCustomers, error: totalError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true });
 
-      // Запрос 2: Активные клиенты
       const { count: activeCustomers, error: activeError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true })
         .eq("status", "active");
 
-      // Запрос 3: VIP клиенты
       const { count: vipCustomers, error: vipError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true })
         .eq("vip", true);
 
-      // Запрос 4: Среднее количество посещений
       const { data: visitsData, error: visitsError } = await supabase
         .from("customers")
         .select("visits");
 
-      // Запрос 5: Посещения по месяцам
       const { data: monthlyData, error: monthlyError } = await supabase
         .from("customers")
         .select("lastVisit, visits")
         .not("lastVisit", "is", null);
 
-      // Запрос 6: Средний чек (из таблицы orders)
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select("amount");
@@ -97,7 +127,6 @@ export default function CustomersPage() {
         return;
       }
 
-      // Считаем среднее количество посещений
       const averageVisits =
         visitsData && visitsData.length > 0
           ? (
@@ -106,7 +135,6 @@ export default function CustomersPage() {
             ).toFixed(1)
           : "0";
 
-      // Считаем средний чек
       const averageCheck =
         ordersData && ordersData.length > 0
           ? (
@@ -114,31 +142,27 @@ export default function CustomersPage() {
             ).toFixed(0)
           : "0";
 
-      // Обрабатываем данные для графика посещений по месяцам
       const monthlyVisitsMap: { [key: string]: number } = {};
       if (monthlyData) {
         monthlyData.forEach((customer) => {
           const date = new Date(customer.lastVisit);
-          const monthYear = date.toISOString().slice(0, 7); // Формат YYYY-MM
+          const monthYear = date.toISOString().slice(0, 7);
           monthlyVisitsMap[monthYear] =
             (monthlyVisitsMap[monthYear] || 0) + (customer.visits || 0);
         });
       }
 
-      // Форматируем данные для графика
       const monthNames = [
         "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
         "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек",
       ];
 
-      // Получаем текущий год
       const currentYear = new Date().getFullYear();
       const monthlyVisitsArray: MonthlyVisit[] = [];
 
-      // Заполняем массив за последний год (12 месяцев)
       for (let i = 11; i >= 0; i--) {
         const date = new Date(currentYear, new Date().getMonth() - i, 1);
-        const monthYear = date.toISOString().slice(0, 7); // YYYY-MM
+        const monthYear = date.toISOString().slice(0, 7);
         const monthIndex = date.getMonth();
         const year = date.getFullYear();
         const totalVisits = monthlyVisitsMap[monthYear] || 0;
@@ -150,7 +174,6 @@ export default function CustomersPage() {
         });
       }
 
-      // Формируем массив stats
       const newStats: Stat[] = [
         {
           title: "Всего клиентов",
@@ -207,6 +230,8 @@ export default function CustomersPage() {
       return;
     }
 
+    const today = new Date().toISOString().split("T")[0];
+
     const { error } = await supabase.from("customers").insert([
       {
         name: newCustomer.name,
@@ -215,7 +240,7 @@ export default function CustomersPage() {
         username: newCustomer.username,
         password: newCustomer.password,
         visits: 0,
-        lastVisit: new Date().toISOString().split("T")[0],
+        lastVisit: today,
         status: "active",
         vip: false,
       },
@@ -239,15 +264,85 @@ export default function CustomersPage() {
     }
   };
 
+  // Логика для записи посещения
+  const handleVisitSubmit = async () => {
+    if (!newVisit.customerId) {
+      toast({
+        title: "Ошибка",
+        description: "Выберите клиента",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newVisit.duration || isNaN(parseInt(newVisit.duration)) || parseInt(newVisit.duration) <= 0) {
+      toast({
+        title: "Ошибка",
+        description: "Укажите корректную длительность посещения (в минутах)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const duration = parseInt(newVisit.duration);
+
+    // Добавляем запись в visits
+    const { error: visitError } = await supabase.from("visits").insert([
+      {
+        customer_id: newVisit.customerId,
+        visit_date: today,
+        duration: duration,
+      },
+    ]);
+
+    if (visitError) {
+      toast({
+        title: "Ошибка записи посещения",
+        description: visitError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Обновляем lastVisit в customers
+    const { error: updateError } = await supabase
+      .from("customers")
+      .update({ lastVisit: today })
+      .eq("id", newVisit.customerId);
+
+    if (updateError) {
+      toast({
+        title: "Ошибка обновления клиента",
+        description: updateError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Посещение зафиксировано",
+      description: `Клиент посетил клуб ${today} на ${duration} минут`,
+    });
+    setOpenVisitDialog(false);
+    setNewVisit({ customerId: "", duration: "" });
+    setRefreshTable((prev) => prev + 1);
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление клиентами</h2>
-          <Button onClick={() => setOpenDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Новый клиент
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setOpenVisitDialog(true)}>
+              <Clock className="mr-2 h-4 w-4" /> Зафиксировать посещение
+            </Button>
+            <Button onClick={() => setOpenDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Новый клиент
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
@@ -332,6 +427,7 @@ export default function CustomersPage() {
         </Tabs>
       </main>
 
+      {/* Форма создания клиента */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
           <DialogHeader>
@@ -386,6 +482,54 @@ export default function CustomersPage() {
               Отмена
             </Button>
             <Button onClick={handleDialogSubmit}>Создать</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Форма записи посещения */}
+      <Dialog open={openVisitDialog} onOpenChange={setOpenVisitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Зафиксировать посещение</DialogTitle>
+            <DialogDescription>Укажите клиента и длительность посещения</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerId">Клиент</Label>
+              <Select
+                value={newVisit.customerId}
+                onValueChange={(value) =>
+                  setNewVisit((prev) => ({ ...prev, customerId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите клиента" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="duration">Длительность (минуты)</Label>
+              <Input
+                id="duration"
+                type="number"
+                value={newVisit.duration}
+                onChange={(e) => setNewVisit((prev) => ({ ...prev, duration: e.target.value }))}
+                placeholder="Например, 120"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenVisitDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleVisitSubmit}>Зафиксировать</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
