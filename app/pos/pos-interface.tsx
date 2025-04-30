@@ -43,7 +43,7 @@ interface Item {
   id: string;
   name: string;
   price: number;
-  sale_price: number;
+  sale_price?: number; // sale_price есть только у товаров
   quantity: number;
   type: "time" | "product" | "service";
 }
@@ -56,6 +56,7 @@ interface Customer {
 export function POSInterface() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
+  const [guestName, setGuestName] = useState<string>(""); // Для покупок без аккаунта
   const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [cashReceived, setCashReceived] = useState<string>("");
@@ -82,7 +83,7 @@ export function POSInterface() {
 
       const { data: servicesData, error: servicesError } = await supabase
         .from("services")
-        .select("*");
+        .select("id, name, price, quantity, type"); // Убираем sale_price
 
       if (servicesError) {
         toast({
@@ -138,7 +139,7 @@ export function POSInterface() {
         updatedCart[existingItemIndex].quantity = newQuantity;
         return updatedCart;
       }
-      return [...prev, { id: item.id, name: item.name, price: item.type === "product" ? item.sale_price : item.price, quantity: 1, type: item.type }];
+      return [...prev, { id: item.id, name: item.name, price: item.type === "product" ? item.sale_price || item.price : item.price, quantity: 1, type: item.type }];
     });
     toast({
       title: "Товар добавлен",
@@ -190,6 +191,7 @@ export function POSInterface() {
   const clearCart = useCallback(() => {
     setCart([]);
     setCustomerId("");
+    setGuestName("");
     toast({
       title: "Корзина очищена",
       description: "Все товары удалены из корзины",
@@ -218,16 +220,8 @@ export function POSInterface() {
       });
       return;
     }
-    if (!customerId) {
-      toast({
-        title: "Ошибка",
-        description: "Выберите клиента для оплаты",
-        variant: "destructive",
-      });
-      return;
-    }
     setPaymentDialogOpen(true);
-  }, [cart.length, customerId]);
+  }, [cart.length]);
 
   const processPayment = useCallback(async () => {
     const total = calculateTotal();
@@ -252,10 +246,11 @@ export function POSInterface() {
       .from("transactions")
       .insert([
         {
-          customer_id: customerId,
+          customer_id: customerId || null, // Если клиент не выбран, ставим null
           amount: total,
           transaction_date: new Date().toISOString(),
           payment_type: paymentMethod,
+          guest_name: customerId ? null : guestName || "Гость", // Если нет customer_id, сохраняем имя гостя
         },
       ])
       .select()
@@ -275,7 +270,7 @@ export function POSInterface() {
     // Сохраняем товары/услуги из корзины в transaction_items
     const transactionItems = cart.map((item) => ({
       transaction_id: transactionId,
-      item_id: item.id, // Теперь используем только item_id
+      item_id: item.id,
       item_type: item.type,
       quantity: item.quantity,
       price: item.price,
@@ -295,9 +290,25 @@ export function POSInterface() {
     // Уменьшаем количество на складе
     for (const item of cart) {
       const tableName = item.type === "product" ? "items" : "services";
+      const { data: currentItem, error: fetchError } = await supabase
+        .from(tableName)
+        .select("quantity")
+        .eq("id", item.id)
+        .single();
+
+      if (fetchError) {
+        toast({
+          title: "Ошибка получения текущего количества",
+          description: fetchError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const newQuantity = currentItem.quantity - item.quantity;
       const { error: updateError } = await supabase
         .from(tableName)
-        .update({ quantity: supabase.sql(`quantity - ${item.quantity}`) })
+        .update({ quantity: newQuantity })
         .eq("id", item.id);
 
       if (updateError) {
@@ -306,6 +317,7 @@ export function POSInterface() {
           description: updateError.message,
           variant: "destructive",
         });
+        return;
       }
     }
 
@@ -317,15 +329,16 @@ export function POSInterface() {
     setPaymentDialogOpen(false);
     setCart([]);
     setCustomerId("");
+    setGuestName("");
     setCashReceived("");
     setPaymentMethod("cash");
 
     // Обновляем данные о товарах и услугах
     const { data: updatedProducts } = await supabase.from("items").select("*").eq("type", "product");
-    const { data: updatedServices } = await supabase.from("services").select("*");
+    const { data: updatedServices } = await supabase.from("services").select("id, name, price, quantity, type");
     setProducts(updatedProducts || []);
     setServices(updatedServices || []);
-  }, [calculateTotal, paymentMethod, cashReceived, customerId, cart]);
+  }, [calculateTotal, paymentMethod, cashReceived, customerId, guestName, cart]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -390,9 +403,10 @@ export function POSInterface() {
             <label className="text-sm font-medium">Клиент</label>
             <Select onValueChange={setCustomerId} value={customerId}>
               <SelectTrigger className="shadow-sm">
-                <SelectValue placeholder="Выберите клиента" />
+                <SelectValue placeholder="Выберите клиента (или оставьте пустым)" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="">Без клиента</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
@@ -401,6 +415,17 @@ export function POSInterface() {
               </SelectContent>
             </Select>
           </div>
+          {!customerId && (
+            <div className="space-y-2">
+              <Label htmlFor="guestName">Имя гостя (если без аккаунта)</Label>
+              <Input
+                id="guestName"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Введите имя (например, Гость)"
+              />
+            </div>
+          )}
           <div className="rounded-md border shadow-sm">
             <div className="p-4">
               <div className="space-y-2">
