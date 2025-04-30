@@ -43,6 +43,7 @@ export default function CustomersPage() {
     username: "",
     password: "",
   });
+  const [refreshTable, setRefreshTable] = useState(0); // Для обновления таблицы
 
   const stats: Stat[] = [
     { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
@@ -89,6 +90,7 @@ export default function CustomersPage() {
       toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" });
       setOpenDialog(false);
       setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" });
+      setRefreshTable((prev) => prev + 1); // Обновляем таблицу
     }
   };
 
@@ -130,6 +132,7 @@ export default function CustomersPage() {
                 filterActive={false}
                 filterVip={false}
                 className="w-full border border-border rounded-md table-auto text-left"
+                refresh={refreshTable}
               />
             </div>
           </TabsContent>
@@ -139,6 +142,7 @@ export default function CustomersPage() {
               <CustomerTable
                 filterActive={true}
                 className="w-full border border-border rounded-md table-auto text-left"
+                refresh={refreshTable}
               />
             </div>
           </TabsContent>
@@ -148,6 +152,7 @@ export default function CustomersPage() {
               <CustomerTable
                 filterVip={true}
                 className="w-full border border-border rounded-md table-auto text-left"
+                refresh={refreshTable}
               />
             </div>
           </TabsContent>
