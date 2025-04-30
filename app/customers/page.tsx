@@ -54,7 +54,7 @@ interface Customer {
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
-  const [openVisitDialog, setOpenVisitDialog] = useState(false); // Для формы записи посещения
+  const [openVisitDialog, setOpenVisitDialog] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
@@ -66,12 +66,11 @@ export default function CustomersPage() {
     customerId: "",
     duration: "",
   });
-  const [customers, setCustomers] = useState<Customer[]>([]); // Список клиентов для выпадающего списка
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [refreshTable, setRefreshTable] = useState(0);
   const [stats, setStats] = useState<Stat[]>([]);
   const [monthlyVisits, setMonthlyVisits] = useState<MonthlyVisit[]>([]);
 
-  // Загружаем список клиентов для выпадающего списка
   useEffect(() => {
     const fetchCustomers = async () => {
       const { data, error } = await supabase.from("customers").select("id, name");
@@ -91,29 +90,34 @@ export default function CustomersPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      // Запрос 1: Всего клиентов
       const { count: totalCustomers, error: totalError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true });
 
+      // Запрос 2: Активные клиенты
       const { count: activeCustomers, error: activeError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true })
         .eq("status", "active");
 
+      // Запрос 3: VIP клиенты
       const { count: vipCustomers, error: vipError } = await supabase
         .from("customers")
         .select("*", { count: "exact", head: true })
         .eq("vip", true);
 
-      const { data: visitsData, error: visitsError } = await supabase
-        .from("customers")
-        .select("visits");
+      // Запрос 4: Общее количество посещений из visits
+      const { count: totalVisits, error: visitsError } = await supabase
+        .from("visits")
+        .select("*", { count: "exact", head: true });
 
+      // Запрос 5: Посещения по месяцам из visits
       const { data: monthlyData, error: monthlyError } = await supabase
-        .from("customers")
-        .select("lastVisit, visits")
-        .not("lastVisit", "is", null);
+        .from("visits")
+        .select("visit_date");
 
+      // Запрос 6: Общий доход клуба из orders
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select("amount");
@@ -127,28 +131,19 @@ export default function CustomersPage() {
         return;
       }
 
-      const averageVisits =
-        visitsData && visitsData.length > 0
-          ? (
-              visitsData.reduce((sum, customer) => sum + (customer.visits || 0), 0) /
-              visitsData.length
-            ).toFixed(1)
-          : "0";
-
-      const averageCheck =
+      // Считаем общий доход клуба
+      const totalRevenue =
         ordersData && ordersData.length > 0
-          ? (
-              ordersData.reduce((sum, order) => sum + order.amount, 0) / ordersData.length
-            ).toFixed(0)
+          ? ordersData.reduce((sum, order) => sum + order.amount, 0).toFixed(0)
           : "0";
 
+      // Обрабатываем данные для графика посещений по месяцам
       const monthlyVisitsMap: { [key: string]: number } = {};
       if (monthlyData) {
-        monthlyData.forEach((customer) => {
-          const date = new Date(customer.lastVisit);
-          const monthYear = date.toISOString().slice(0, 7);
-          monthlyVisitsMap[monthYear] =
-            (monthlyVisitsMap[monthYear] || 0) + (customer.visits || 0);
+        monthlyData.forEach((visit) => {
+          const date = new Date(visit.visit_date);
+          const monthYear = date.toISOString().slice(0, 7); // Формат YYYY-MM
+          monthlyVisitsMap[monthYear] = (monthlyVisitsMap[monthYear] || 0) + 1; // Считаем количество посещений
         });
       }
 
@@ -174,6 +169,7 @@ export default function CustomersPage() {
         });
       }
 
+      // Формируем массив stats
       const newStats: Stat[] = [
         {
           title: "Всего клиентов",
@@ -195,13 +191,13 @@ export default function CustomersPage() {
             : "",
         },
         {
-          title: "Среднее число посещений",
-          value: averageVisits,
+          title: "Общее количество посещений",
+          value: totalVisits?.toString() || "0",
           description: "",
         },
         {
-          title: "Средний чек",
-          value: `₸${averageCheck}`,
+          title: "Общий доход клуба",
+          value: `₸${totalRevenue}`,
           description: "",
         },
       ];
@@ -264,7 +260,6 @@ export default function CustomersPage() {
     }
   };
 
-  // Логика для записи посещения
   const handleVisitSubmit = async () => {
     if (!newVisit.customerId) {
       toast({
@@ -287,7 +282,6 @@ export default function CustomersPage() {
     const today = new Date().toISOString().split("T")[0];
     const duration = parseInt(newVisit.duration);
 
-    // Добавляем запись в visits
     const { error: visitError } = await supabase.from("visits").insert([
       {
         customer_id: newVisit.customerId,
@@ -305,7 +299,6 @@ export default function CustomersPage() {
       return;
     }
 
-    // Обновляем lastVisit в customers
     const { error: updateError } = await supabase
       .from("customers")
       .update({ lastVisit: today })
@@ -427,7 +420,6 @@ export default function CustomersPage() {
         </Tabs>
       </main>
 
-      {/* Форма создания клиента */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
           <DialogHeader>
@@ -486,7 +478,6 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Форма записи посещения */}
       <Dialog open={openVisitDialog} onOpenChange={setOpenVisitDialog}>
         <DialogContent>
           <DialogHeader>
