@@ -1,7 +1,8 @@
-"use client"
+// game-categories.tsx
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,35 +10,34 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Pencil, Plus, Trash } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pencil, Plus, Trash } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 // Типизация категории
 interface Category {
-  id: string
-  name: string
-  description: string
-  gamesCount: number
+  id: string;
+  name: string;
+  description: string;
+  gamesCount: number;
 }
 
-// Типизация данных формы
 interface CategoryForm {
-  name: string
-  description: string
+  name: string;
+  description: string;
 }
 
-// Компонент карточки категории
 const CategoryCard = ({
   category,
   onEdit,
   onDelete,
 }: {
-  category: Category
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
+  category: Category;
+  onEdit: (category: Category) => void;
+  onDelete: (id: string) => void;
 }) => (
   <Card className="shadow-sm hover:shadow-md transition-shadow">
     <CardHeader>
@@ -50,7 +50,7 @@ const CategoryCard = ({
       </div>
     </CardContent>
     <CardFooter className="flex justify-between">
-      <Button variant="outline" size="icon" onClick={() => onEdit(category.id)}>
+      <Button variant="outline" size="icon" onClick={() => onEdit(category)}>
         <Pencil className="h-4 w-4" />
         <span className="sr-only">Редактировать</span>
       </Button>
@@ -65,107 +65,185 @@ const CategoryCard = ({
       </Button>
     </CardFooter>
   </Card>
-)
+);
 
 export function GameCategories() {
-  const [categories, setCategories] = useState<Category[]>([
-    {
-      id: "C001",
-      name: "Шутер",
-      description: "Шутеры от первого и третьего лица",
-      gamesCount: 5,
-    },
-    {
-      id: "C002",
-      name: "MOBA",
-      description: "Многопользовательские онлайн боевые арены",
-      gamesCount: 2,
-    },
-    {
-      id: "C003",
-      name: "MMORPG",
-      description: "Массовые многопользовательские ролевые онлайн-игры",
-      gamesCount: 1,
-    },
-    {
-      id: "C004",
-      name: "Песочница",
-      description: "Игры с открытым миром и свободой действий",
-      gamesCount: 1,
-    },
-    {
-      id: "C005",
-      name: "Спорт",
-      description: "Спортивные симуляторы",
-      gamesCount: 1,
-    },
-    {
-      id: "C006",
-      name: "RPG",
-      description: "Ролевые игры",
-      gamesCount: 1,
-    },
-  ])
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [formData, setFormData] = useState<CategoryForm>({ name: "", description: "" });
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
 
-  const [formData, setFormData] = useState<CategoryForm>({
-    name: "",
-    description: "",
-  })
+  // Загружаем категории из Supabase
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("categories")
+        .select("*");
 
-  // Обработчик изменения формы
+      if (categoriesError) {
+        toast({
+          title: "Ошибка загрузки категорий",
+          description: categoriesError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Для каждой категории считаем количество игр
+      const categoriesWithGamesCount = await Promise.all(
+        (categoriesData || []).map(async (category) => {
+          const { count, error } = await supabase
+            .from("games")
+            .select("*", { count: "exact", head: true })
+            .eq("category_id", category.id);
+
+          if (error) {
+            toast({
+              title: "Ошибка подсчёта игр",
+              description: error.message,
+              variant: "destructive",
+            });
+            return { ...category, gamesCount: 0 };
+          }
+
+          return {
+            ...category,
+            gamesCount: count || 0,
+          };
+        })
+      );
+
+      setCategories(categoriesWithGamesCount);
+    };
+
+    fetchCategories();
+  }, []);
+
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target
-    setFormData((prev) => ({ ...prev, [id]: value }))
-  }, [])
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  }, []);
 
-  // Обработчик добавления категории
-  const handleAddCategory = useCallback(() => {
+  const handleAddCategory = useCallback(async () => {
     if (!formData.name.trim()) {
       toast({
         title: "Ошибка",
         description: "Название категории не может быть пустым",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    const newCategory: Category = {
-      id: `C${(categories.length + 1).toString().padStart(3, "0")}`,
-      name: formData.name,
-      description: formData.description,
-      gamesCount: 0,
-    }
+    const { data, error } = await supabase
+      .from("categories")
+      .insert([{ name: formData.name, description: formData.description }])
+      .select();
 
-    setCategories((prev) => [...prev, newCategory])
-    setFormData({ name: "", description: "" })
-    toast({
-      title: "Категория добавлена",
-      description: `Категория "${newCategory.name}" успешно создана.`,
-    })
-  }, [formData, categories.length])
-
-  // Обработчик редактирования (заглушка)
-  const handleEdit = useCallback((id: string) => {
-    const category = categories.find((c) => c.id === id)
-    if (category) {
+    if (error) {
       toast({
-        title: "Редактирование",
-        description: `Редактирование категории "${category.name}" будет доступно в следующей версии.`,
-      })
-    }
-  }, [categories])
-
-  // Обработчик удаления
-  const handleDelete = useCallback((id: string) => {
-    const category = categories.find((c) => c.id === id)
-    if (category) {
-      setCategories((prev) => prev.filter((c) => c.id !== id))
+        title: "Ошибка добавления категории",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data[0]) {
+      setCategories((prev) => [...prev, { ...data[0], gamesCount: 0 }]);
+      setFormData({ name: "", description: "" });
       toast({
-        title: "Категория удалена",
-        description: `Категория "${category.name}" удалена.`,
-      })
+        title: "Категория добавлена",
+        description: `Категория "${data[0].name}" успешно создана.`,
+      });
     }
-  }, [categories])
+  }, [formData]);
+
+  const handleEdit = useCallback((category: Category) => {
+    setEditCategory(category);
+    setFormData({ name: category.name, description: category.description });
+    setOpenEditDialog(true);
+  }, []);
+
+  const handleEditSubmit = useCallback(async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Название категории не может быть пустым",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editCategory) return;
+
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ name: formData.name, description: formData.description })
+      .eq("id", editCategory.id)
+      .select();
+
+    if (error) {
+      toast({
+        title: "Ошибка редактирования категории",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data[0]) {
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === editCategory.id ? { ...cat, name: data[0].name, description: data[0].description } : cat
+        )
+      );
+      setOpenEditDialog(false);
+      setEditCategory(null);
+      setFormData({ name: "", description: "" });
+      toast({
+        title: "Категория обновлена",
+        description: `Категория "${data[0].name}" успешно обновлена.`,
+      });
+    }
+  }, [editCategory, formData]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    // Проверяем, есть ли игры в этой категории
+    const { count, error: countError } = await supabase
+      .from("games")
+      .select("*", { count: "exact", head: true })
+      .eq("category_id", id);
+
+    if (countError) {
+      toast({
+        title: "Ошибка проверки игр",
+        description: countError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (count && count > 0) {
+      toast({
+        title: "Ошибка удаления",
+        description: "Нельзя удалить категорию, в которой есть игры.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      toast({
+        title: "Ошибка удаления категории",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      const category = categories.find((c) => c.id === id);
+      if (category) {
+        toast({
+          title: "Категория удалена",
+          description: `Категория "${category.name}" удалена.`,
+        });
+      }
+    }
+  }, [categories]);
 
   return (
     <div className="space-y-6">
@@ -196,7 +274,7 @@ export function GameCategories() {
                 onChange={handleInputChange}
               />
             </div>
-        </div>
+          </div>
         </CardContent>
         <CardFooter>
           <Button className="ml-auto" onClick={handleAddCategory}>
@@ -216,7 +294,43 @@ export function GameCategories() {
           />
         ))}
       </div>
-    </div>
-  )
-}
 
+      {/* Диалог редактирования категории */}
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать категорию</DialogTitle>
+            <DialogDescription>Обновите данные категории ниже</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Название категории</Label>
+              <Input
+                id="name"
+                placeholder="Введите название категории"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Описание</Label>
+              <Input
+                id="description"
+                placeholder="Введите описание категории"
+                value={formData.description}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleEditSubmit}>Сохранить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
