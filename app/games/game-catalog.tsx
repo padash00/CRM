@@ -40,7 +40,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Типизация игры
 interface Game {
   id: string;
   name: string;
@@ -172,9 +171,20 @@ export function GameCatalog({ searchQuery, refresh, categories, filters }: GameC
 
   useEffect(() => {
     const fetchGames = async () => {
-      const { data: gamesData, error: gamesError } = await supabase
-        .from("games")
-        .select("*, categories(name)");
+      let query = supabase.from("games").select("*, categories(name)");
+
+      // Фильтрация по поиску
+      if (searchQuery) {
+        query = query.ilike("name", `%${searchQuery}%`);
+      }
+
+      // Фильтрация по категории
+      if (filters.categoryId) {
+        query = query.eq("category_id", filters.categoryId);
+      }
+
+      // Пока popularity и status захардкодены, поэтому фильтруем на клиенте
+      const { data: gamesData, error: gamesError } = await query;
 
       if (gamesError) {
         toast({
@@ -193,21 +203,20 @@ export function GameCatalog({ searchQuery, refresh, categories, filters }: GameC
           popularity: "Средняя" as "Высокая" | "Средняя" | "Низкая",
           status: "not-installed" as "installed" | "not-installed",
         }));
-        setGames(transformedGames);
+
+        // Фильтрация по popularity и status на клиенте (пока они захардкодены)
+        const filteredGames = transformedGames.filter((game) => {
+          const matchesPopularity = filters.popularity ? game.popularity === filters.popularity : true;
+          const matchesStatus = filters.status ? game.status === filters.status : true;
+          return matchesPopularity && matchesStatus;
+        });
+
+        setGames(filteredGames);
       }
     };
 
     fetchGames();
-  }, [refresh]);
-
-  const filteredGames = games.filter((game) => {
-    const matchesSearch = game.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filters.categoryId ? game.categoryId === filters.categoryId : true;
-    const matchesPopularity = filters.popularity ? game.popularity === filters.popularity : true;
-    const matchesStatus = filters.status ? game.status === filters.status : true;
-
-    return matchesSearch && matchesCategory && matchesPopularity && matchesStatus;
-  });
+  }, [refresh, searchQuery, filters, categories]);
 
   const handleInstall = useCallback((id: string) => {
     setGames((prev) =>
@@ -315,7 +324,7 @@ export function GameCatalog({ searchQuery, refresh, categories, filters }: GameC
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredGames.map((game) => (
+        {games.map((game) => (
           <GameCard
             key={game.id}
             game={game}
