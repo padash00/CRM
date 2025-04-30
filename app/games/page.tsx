@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MainNav } from "@/components/main-nav"; // Импортируем MainNav
+import { MainNav } from "@/components/main-nav";
 
 interface UpdateAction {
   title: string;
@@ -57,8 +57,8 @@ interface Category {
 
 interface Filters {
   categoryId: string;
-  popularity: "Высокая" | "Средняя" | "Низкая" | "";
-  status: "installed" | "not-installed" | "";
+  popularity: "Высокая" | "Средняя" | "Низкая" | "all";
+  status: "installed" | "not-installed" | "all";
 }
 
 export default function GamesPage() {
@@ -67,7 +67,7 @@ export default function GamesPage() {
   const [openAddGameDialog, setOpenAddGameDialog] = useState(false);
   const [openFiltersDialog, setOpenFiltersDialog] = useState(false);
   const [newGame, setNewGame] = useState<Game>({ name: "", categoryId: "" });
-  const [filters, setFilters] = useState<Filters>({ categoryId: "", popularity: "", status: "" });
+  const [filters, setFilters] = useState<Filters>({ categoryId: "all", popularity: "all", status: "all" });
   const [refreshGames, setRefreshGames] = useState(0);
   const [refreshCategories, setRefreshCategories] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -187,7 +187,7 @@ export default function GamesPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <MainNav /> {/* Заменяем <header> на <MainNav /> */}
+      <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">
@@ -321,7 +321,7 @@ export default function GamesPage() {
                   <SelectValue placeholder="Выберите категорию" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Все категории</SelectItem>
+                  <SelectItem value="all">Все категории</SelectItem> {/* Меняем value="" на "all" */}
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -342,7 +342,7 @@ export default function GamesPage() {
                   <SelectValue placeholder="Выберите популярность" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Все</SelectItem>
+                  <SelectItem value="all">Все</SelectItem> {/* Меняем value="" на "all" */}
                   <SelectItem value="Высокая">Высокая</SelectItem>
                   <SelectItem value="Средняя">Средняя</SelectItem>
                   <SelectItem value="Низкая">Низкая</SelectItem>
@@ -361,7 +361,7 @@ export default function GamesPage() {
                   <SelectValue placeholder="Выберите статус" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Все</SelectItem>
+                  <SelectItem value="all">Все</SelectItem> {/* Меняем value="" на "all" */}
                   <SelectItem value="installed">Установленные</SelectItem>
                   <SelectItem value="not-installed">Не установленные</SelectItem>
                 </SelectContent>
