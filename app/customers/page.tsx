@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
-import { supabase } from "@/lib/supabaseClient"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Dialog,
   DialogContent,
@@ -21,48 +21,48 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { CustomerTable } from "./customer-table"
-import { CustomerStats } from "./customer-stats"
-import { MainNav } from "@/components/main-nav"
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { CustomerTable } from "./customer-table";
+import { CustomerStats } from "./customer-stats";
+import { MainNav } from "@/components/main-nav";
 
 interface Stat {
-  title: string
-  value: string
-  description: string
+  title: string;
+  value: string;
+  description: string;
 }
 
 export default function CustomersPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [openDialog, setOpenDialog] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     phone: "",
     email: "",
     username: "",
     password: "",
-  })
+  });
 
   const stats: Stat[] = [
     { title: "Всего клиентов", value: "256", description: "+24 за последний месяц" },
     { title: "Активные клиенты", value: "128", description: "50% от общего числа" },
     { title: "VIP клиенты", value: "32", description: "12.5% от общего числа" },
     { title: "Средний чек", value: "₸850", description: "+₸120 с прошлого месяца" },
-  ]
+  ];
 
   const handleDialogSubmit = async () => {
-    const loginRegex = /^[a-zA-Z0-9_]+$/
-    const passwordRegex = /^\d{6}$/
+    const loginRegex = /^[a-zA-Z0-9_]+$/;
+    const passwordRegex = /^\d{6}$/;
 
     if (!loginRegex.test(newCustomer.username)) {
-      toast({ title: "Неверный логин", description: "Логин должен содержать только латиницу и цифры" })
-      return
+      toast({ title: "Неверный логин", description: "Логин должен содержать только латиницу и цифры" });
+      return;
     }
 
     if (!passwordRegex.test(newCustomer.password)) {
-      toast({ title: "Неверный пароль", description: "Пароль должен состоять из 6 цифр" })
-      return
+      toast({ title: "Неверный пароль", description: "Пароль должен состоять из 6 цифр" });
+      return;
     }
 
     const { error } = await supabase.from("customers").insert([
@@ -77,20 +77,20 @@ export default function CustomersPage() {
         status: "active",
         vip: false,
       },
-    ])
+    ]);
 
     if (error) {
       if (error.message.includes("duplicate key value")) {
-        toast({ title: "Логин уже занят", description: "Выберите другой логин", variant: "destructive" })
+        toast({ title: "Логин уже занят", description: "Выберите другой логин", variant: "destructive" });
       } else {
-        toast({ title: "Ошибка", description: error.message, variant: "destructive" })
+        toast({ title: "Ошибка", description: error.message, variant: "destructive" });
       }
     } else {
-      toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" })
-      setOpenDialog(false)
-      setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" })
+      toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" });
+      setOpenDialog(false);
+      setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" });
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -111,7 +111,7 @@ export default function CustomersPage() {
             <TabsTrigger value="stats">Статистика</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
+          <TabsContent value="all" className="space-y-4" style={{ width: "100%" }}>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -125,18 +125,24 @@ export default function CustomersPage() {
               </div>
               <Button variant="outline">Фильтры</Button>
             </div>
-            <CustomerTable filterActive={false} filterVip={false} />
+            <div style={{ overflowX: "auto" }}>
+              <CustomerTable filterActive={false} filterVip={false} />
+            </div>
           </TabsContent>
 
-          <TabsContent value="active" className="space-y-4">
-            <CustomerTable filterActive={true} />
+          <TabsContent value="active" className="space-y-4" style={{ width: "100%" }}>
+            <div style={{ overflowX: "auto" }}>
+              <CustomerTable filterActive={true} />
+            </div>
           </TabsContent>
 
-          <TabsContent value="vip" className="space-y-4">
-            <CustomerTable filterVip={true} />
+          <TabsContent value="vip" className="space-y-4" style={{ width: "100%" }}>
+            <div style={{ overflowX: "auto" }}>
+              <CustomerTable filterVip={true} />
+            </div>
           </TabsContent>
 
-          <TabsContent value="stats" className="space-y-4">
+          <TabsContent value="stats" className="space-y-4" style={{ width: "100%" }}>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
                 <Card key={stat.title} className="shadow-sm">
@@ -198,5 +204,5 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
