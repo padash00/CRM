@@ -92,3 +92,12 @@ body {
     @apply bg-background text-foreground;
   }
 }
+@layer components {
+  table {
+    @apply w-full border-collapse text-left;
+  }
+  th,
+  td {
+    @apply p-2 text-left whitespace-nowrap border-b border-border;
+  }
+}
