@@ -111,7 +111,7 @@ export default function CustomersPage() {
             <TabsTrigger value="stats">Статистика</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4" style={{ width: "100%" }}>
+          <TabsContent value="all" className="space-y-4 w-full">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -125,24 +125,34 @@ export default function CustomersPage() {
               </div>
               <Button variant="outline">Фильтры</Button>
             </div>
-            <div style={{ overflowX: "auto" }}>
-              <CustomerTable filterActive={false} filterVip={false} />
+            <div className="overflow-x-auto w-full">
+              <CustomerTable
+                filterActive={false}
+                filterVip={false}
+                className="w-full border border-border rounded-md table-auto text-left"
+              />
             </div>
           </TabsContent>
 
-          <TabsContent value="active" className="space-y-4" style={{ width: "100%" }}>
-            <div style={{ overflowX: "auto" }}>
-              <CustomerTable filterActive={true} />
+          <TabsContent value="active" className="space-y-4 w-full">
+            <div className="overflow-x-auto w-full">
+              <CustomerTable
+                filterActive={true}
+                className="w-full border border-border rounded-md table-auto text-left"
+              />
             </div>
           </TabsContent>
 
-          <TabsContent value="vip" className="space-y-4" style={{ width: "100%" }}>
-            <div style={{ overflowX: "auto" }}>
-              <CustomerTable filterVip={true} />
+          <TabsContent value="vip" className="space-y-4 w-full">
+            <div className="overflow-x-auto w-full">
+              <CustomerTable
+                filterVip={true}
+                className="w-full border border-border rounded-md table-auto text-left"
+              />
             </div>
           </TabsContent>
 
-          <TabsContent value="stats" className="space-y-4" style={{ width: "100%" }}>
+          <TabsContent value="stats" className="space-y-4 w-full">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
                 <Card key={stat.title} className="shadow-sm">
@@ -178,23 +188,44 @@ export default function CustomersPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Имя</Label>
-              <Input id="name" value={newCustomer.name} onChange={(e) => setNewCustomer((prev) => ({ ...prev, name: e.target.value }))} />
+              <Input
+                id="name"
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, name: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Телефон</Label>
-              <Input id="phone" value={newCustomer.phone} onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))} />
+              <Input
+                id="phone"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" value={newCustomer.email} onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))} />
+              <Input
+                id="email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="username">Логин (только латиница)</Label>
-              <Input id="username" value={newCustomer.username} onChange={(e) => setNewCustomer((prev) => ({ ...prev, username: e.target.value }))} />
+              <Input
+                id="username"
+                value={newCustomer.username}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, username: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Пароль (6 цифр)</Label>
-              <Input id="password" type="password" value={newCustomer.password} onChange={(e) => setNewCustomer((prev) => ({ ...prev, password: e.target.value }))} />
+              <Input
+                id="password"
+                type="password"
+                value={newCustomer.password}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, password: e.target.value }))}
+              />
             </div>
           </div>
           <DialogFooter>
