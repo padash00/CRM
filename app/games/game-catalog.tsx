@@ -58,8 +58,8 @@ interface Category {
 
 interface Filters {
   categoryId: string;
-  popularity: "Высокая" | "Средняя" | "Низкая" | "";
-  status: "installed" | "not-installed" | "";
+  popularity: "Высокая" | "Средняя" | "Низкая" | "all";
+  status: "installed" | "not-installed" | "all";
 }
 
 interface GameCatalogProps {
@@ -179,11 +179,10 @@ export function GameCatalog({ searchQuery, refresh, categories, filters }: GameC
       }
 
       // Фильтрация по категории
-      if (filters.categoryId) {
+      if (filters.categoryId && filters.categoryId !== "all") {
         query = query.eq("category_id", filters.categoryId);
       }
 
-      // Пока popularity и status захардкодены, поэтому фильтруем на клиенте
       const { data: gamesData, error: gamesError } = await query;
 
       if (gamesError) {
@@ -206,8 +205,8 @@ export function GameCatalog({ searchQuery, refresh, categories, filters }: GameC
 
         // Фильтрация по popularity и status на клиенте (пока они захардкодены)
         const filteredGames = transformedGames.filter((game) => {
-          const matchesPopularity = filters.popularity ? game.popularity === filters.popularity : true;
-          const matchesStatus = filters.status ? game.status === filters.status : true;
+          const matchesPopularity = filters.popularity && filters.popularity !== "all" ? game.popularity === filters.popularity : true;
+          const matchesStatus = filters.status && filters.status !== "all" ? game.status === filters.status : true;
           return matchesPopularity && matchesStatus;
         });
 
