@@ -53,7 +53,7 @@ interface Item {
   id: string;
   name: string;
   price: number;
-  sale_price: number;
+  sale_price?: number;
   quantity: number;
   type: "time" | "product" | "service";
 }
@@ -80,6 +80,14 @@ interface InventoryAction {
   price: string;
   salePrice: string;
   action: "add" | "remove";
+}
+
+interface ReportData {
+  transactions: { id: string; amount: number; transaction_date: string; payment_type: string; customer_id?: string; guest_name?: string }[];
+  inventoryLogs: { item_id: string; item_type: string; action: string; quantity: number; price: number; sale_price?: number; created_at: string }[];
+  totalSales: number;
+  totalCash: number;
+  totalCard: number;
 }
 
 export default function POSPage() {
@@ -145,7 +153,7 @@ export default function POSPage() {
 
       const { data: servicesData, error: servicesError } = await supabase
         .from("services")
-        .select("*");
+        .select("id, name, price, quantity, type");
 
       if (servicesError) {
         toast({
@@ -161,17 +169,98 @@ export default function POSPage() {
     fetchData();
   }, []);
 
+  const fetchReportData = useCallback(async (isZReport: boolean) => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+    // Получаем транзакции за текущую смену (за день)
+    let transactionsQuery = supabase
+      .from("transactions")
+      .select("id, amount, transaction_date, payment_type, customer_id, guest_name")
+      .gte("transaction_date", startOfDay);
+
+    const { data: transactionsData, error: transactionsError } = await transactionsQuery;
+
+    if (transactionsError) {
+      toast({
+        title: "Ошибка загрузки транзакций для отчёта",
+        description: transactionsError.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // Получаем логи операций за текущую смену
+    let inventoryQuery = supabase
+      .from("inventory_log")
+      .select("item_id, item_type, action, quantity, price, sale_price, created_at")
+      .gte("created_at", startOfDay);
+
+    const { data: inventoryData, error: inventoryError } = await inventoryQuery;
+
+    if (inventoryError) {
+      toast({
+        title: "Ошибка загрузки логов операций",
+        description: inventoryError.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // Рассчитываем общую выручку
+    const totalSales = transactionsData.reduce((sum, tx) => sum + tx.amount, 0);
+    const totalCash = transactionsData
+      .filter((tx) => tx.payment_type === "cash")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const totalCard = transactionsData
+      .filter((tx) => tx.payment_type === "card")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    return {
+      transactions: transactionsData,
+      inventoryLogs: inventoryData,
+      totalSales,
+      totalCash,
+      totalCard,
+    };
+  }, []);
+
   const reportActions: ReportAction[] = [
     {
       title: "Z-отчет",
       description: "Сформировать Z-отчет за текущую смену",
       buttonText: "Сформировать Z-отчет",
       variant: "default",
-      action: () => {
+      action: async () => {
+        const reportData = await fetchReportData(true);
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем текст отчёта
+        const transactionsText = transactions
+          .map((tx) => `Транзакция ${tx.id}: ₸${tx.amount} (${tx.payment_type})`)
+          .join("\n");
+        const inventoryText = inventoryLogs
+          .map((log) => `${log.action === "add" ? "Оприходование" : "Списание"} ${log.item_type} (ID: ${log.item_id}): ${log.quantity} шт.`)
+          .join("\n");
+
         toast({
           title: "Z-отчет",
-          description: "Z-отчет за текущую смену формируется...",
+          description: `Общая выручка: ₸${totalSales}\nНаличные: ₸${totalCash}\nКарта: ₸${totalCard}\n\nТранзакции:\n${transactionsText || "Нет транзакций"}\n\nОперации:\n${inventoryText || "Нет операций"}`,
+          duration: 10000,
         });
+
+        // Очищаем данные (закрываем смену)
+        await supabase
+          .from("transactions")
+          .delete()
+          .gte("transaction_date", new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString());
+
+        await supabase
+          .from("inventory_log")
+          .delete()
+          .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString());
       },
     },
     {
@@ -179,10 +268,24 @@ export default function POSPage() {
       description: "Сформировать X-отчет без закрытия смены",
       buttonText: "Сформировать X-отчет",
       variant: "outline",
-      action: () => {
+      action: async () => {
+        const reportData = await fetchReportData(false);
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем текст отчёта
+        const transactionsText = transactions
+          .map((tx) => `Транзакция ${tx.id}: ₸${tx.amount} (${tx.payment_type})`)
+          .join("\n");
+        const inventoryText = inventoryLogs
+          .map((log) => `${log.action === "add" ? "Оприходование" : "Списание"} ${log.item_type} (ID: ${log.item_id}): ${log.quantity} шт.`)
+          .join("\n");
+
         toast({
           title: "X-отчет",
-          description: "X-отчет формируется без закрытия смены...",
+          description: `Общая выручка: ₸${totalSales}\nНаличные: ₸${totalCash}\nКарта: ₸${totalCard}\n\nТранзакции:\n${transactionsText || "Нет транзакций"}\n\nОперации:\n${inventoryText || "Нет операций"}`,
+          duration: 10000,
         });
       },
     },
@@ -191,10 +294,24 @@ export default function POSPage() {
       description: "Детальный отчет по продажам за период",
       buttonText: "Сформировать отчет",
       variant: "outline",
-      action: () => {
+      action: async () => {
+        const reportData = await fetchReportData(false);
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем текст отчёта
+        const transactionsText = transactions
+          .map((tx) => `Транзакция ${tx.id}: ₸${tx.amount} (${tx.payment_type})`)
+          .join("\n");
+        const inventoryText = inventoryLogs
+          .map((log) => `${log.action === "add" ? "Оприходование" : "Списание"} ${log.item_type} (ID: ${log.item_id}): ${log.quantity} шт.`)
+          .join("\n");
+
         toast({
           title: "Отчет по продажам",
-          description: "Детальный отчет по продажам формируется...",
+          description: `Общая выручка: ₸${totalSales}\nНаличные: ₸${totalCash}\nКарта: ₸${totalCard}\n\nТранзакции:\n${transactionsText || "Нет транзакций"}\n\nОперации:\n${inventoryText || "Нет операций"}`,
+          duration: 10000,
         });
       },
     },
@@ -356,6 +473,7 @@ export default function POSPage() {
           description: logError.message,
           variant: "destructive",
         });
+        return;
       }
 
       toast({
@@ -439,6 +557,7 @@ export default function POSPage() {
           description: logError.message,
           variant: "destructive",
         });
+        return;
       }
 
       toast({
@@ -449,7 +568,7 @@ export default function POSPage() {
 
     // Обновляем данные о товарах и услугах
     const { data: updatedItems } = await supabase.from("items").select("*");
-    const { data: updatedServices } = await supabase.from("services").select("*");
+    const { data: updatedServices } = await supabase.from("services").select("id, name, price, quantity, type");
     setItems(updatedItems || []);
     setServices(updatedServices || []);
 
