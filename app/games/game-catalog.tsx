@@ -1,3 +1,4 @@
+// game-catalog.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -26,7 +27,7 @@ import { supabase } from "@/lib/supabaseClient";
 interface Game {
   id: string;
   name: string;
-  category: string;
+  category: string; // Теперь это будет название категории
   size: string;
   lastUpdated: string;
   popularity: "Высокая" | "Средняя" | "Низкая";
@@ -38,7 +39,6 @@ interface GameCatalogProps {
   refresh: number;
 }
 
-// Компонент карточки игры
 const GameCard = ({
   game,
   onInstall,
@@ -140,23 +140,25 @@ export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
 
   useEffect(() => {
     const fetchGames = async () => {
-      const { data, error } = await supabase.from("games").select("*");
-      if (error) {
+      const { data: gamesData, error: gamesError } = await supabase
+        .from("games")
+        .select("*, categories(name)");
+
+      if (gamesError) {
         toast({
           title: "Ошибка загрузки игр",
-          description: error.message,
+          description: gamesError.message,
           variant: "destructive",
         });
       } else {
-        // Преобразуем данные из Supabase в формат Game
-        const transformedGames = (data || []).map((game) => ({
+        const transformedGames = (gamesData || []).map((game) => ({
           id: game.id,
           name: game.name,
-          category: game.category,
-          size: "N/A", // Пока не храним размер в базе, можно добавить колонку
+          category: game.categories?.name || "Без категории", // Используем название категории
+          size: "N/A",
           lastUpdated: new Date(game.created_at).toLocaleDateString("ru-RU"),
-          popularity: "Средняя" as "Высокая" | "Средняя" | "Низкая", // Пока захардкодим, можно добавить логику
-          status: "not-installed" as "installed" | "not-installed", // Пока захардкодим
+          popularity: "Средняя" as "Высокая" | "Средняя" | "Низкая",
+          status: "not-installed" as "installed" | "not-installed",
         }));
         setGames(transformedGames);
       }
