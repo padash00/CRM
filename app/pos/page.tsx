@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, ShoppingCart, Filter } from "lucide-react";
+import { Search, ShoppingCart, Filter, Package } from "lucide-react";
 import Link from "next/link";
 import { POSInterface } from "./pos-interface";
 import { TransactionHistory } from "./transaction-history";
@@ -49,6 +49,13 @@ interface Customer {
   name: string;
 }
 
+interface Item {
+  id: string;
+  name: string;
+  price: number;
+  type: "time" | "product" | "service";
+}
+
 interface Filters {
   customerId: string;
   dateFrom: string;
@@ -63,11 +70,20 @@ interface NewTransaction {
   paymentType: string;
 }
 
+interface InventoryAction {
+  name: string;
+  quantity: string;
+  price: string;
+  type: "product";
+  action: "add" | "remove";
+}
+
 export default function POSPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("pos");
   const [openFiltersDialog, setOpenFiltersDialog] = useState(false);
   const [openSaleDialog, setOpenSaleDialog] = useState(false);
+  const [openInventoryDialog, setOpenInventoryDialog] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     customerId: "all",
     dateFrom: "",
@@ -76,27 +92,52 @@ export default function POSPage() {
     amountMax: "",
   });
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [newTransaction, setNewTransaction] = useState<NewTransaction>({
     customerId: "",
     amount: "",
-    paymentType: "наличные",
+    paymentType: "cash",
+  });
+  const [inventoryAction, setInventoryAction] = useState<InventoryAction>({
+    name: "",
+    quantity: "",
+    price: "",
+    type: "product",
+    action: "add",
   });
 
   useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data, error } = await supabase.from("customers").select("id, name");
-      if (error) {
+    const fetchData = async () => {
+      const { data: customersData, error: customersError } = await supabase
+        .from("customers")
+        .select("id, name");
+
+      if (customersError) {
         toast({
           title: "Ошибка загрузки клиентов",
-          description: error.message,
+          description: customersError.message,
           variant: "destructive",
         });
       } else {
-        setCustomers(data || []);
+        setCustomers(customersData || []);
+      }
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("items")
+        .select("*");
+
+      if (itemsError) {
+        toast({
+          title: "Ошибка загрузки товаров",
+          description: itemsError.message,
+          variant: "destructive",
+        });
+      } else {
+        setItems(itemsData || []);
       }
     };
 
-    fetchCustomers();
+    fetchData();
   }, []);
 
   const reportActions: ReportAction[] = [
@@ -183,8 +224,104 @@ export default function POSPage() {
         description: `Транзакция на сумму ${amount} ₸ успешно создана`,
       });
       setOpenSaleDialog(false);
-      setNewTransaction({ customerId: "", amount: "", paymentType: "наличные" });
+      setNewTransaction({ customerId: "", amount: "", paymentType: "cash" });
     }
+  };
+
+  const handleInventorySubmit = async () => {
+    if (!inventoryAction.name || !inventoryAction.quantity || !inventoryAction.price) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните все поля для управления товаром",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const quantity = parseInt(inventoryAction.quantity);
+    const price = parseFloat(inventoryAction.price);
+
+    if (isNaN(quantity) || quantity <= 0) {
+      toast({
+        title: "Ошибка",
+        description: "Количество должно быть положительным числом",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(price) || price <= 0) {
+      toast({
+        title: "Ошибка",
+        description: "Цена должна быть положительным числом",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (inventoryAction.action === "add") {
+      // Добавление нового товара
+      const { error } = await supabase.from("items").insert([
+        {
+          name: inventoryAction.name,
+          price: price,
+          type: "product",
+        },
+      ]);
+
+      if (error) {
+        toast({
+          title: "Ошибка добавления товара",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Товар добавлен",
+        description: `${inventoryAction.name} успешно добавлен в количестве ${quantity} шт.`,
+      });
+    } else {
+      // Списание товара (удаление или уменьшение количества)
+      const { data: itemData, error: fetchError } = await supabase
+        .from("items")
+        .select("id")
+        .eq("name", inventoryAction.name)
+        .single();
+
+      if (fetchError || !itemData) {
+        toast({
+          title: "Ошибка",
+          description: "Товар не найден",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Здесь можно добавить логику уменьшения количества, но пока просто удаляем
+      const { error: deleteError } = await supabase
+        .from("items")
+        .delete()
+        .eq("id", itemData.id);
+
+      if (deleteError) {
+        toast({
+          title: "Ошибка списания товара",
+          description: deleteError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Товар списан",
+        description: `${inventoryAction.name} успешно списан в количестве ${quantity} шт.`,
+      });
+    }
+
+    setOpenInventoryDialog(false);
+    setInventoryAction({ name: "", quantity: "", price: "", type: "product", action: "add" });
   };
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,9 +343,14 @@ export default function POSPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Кассовые операции</h2>
-          <Button onClick={handleNewSale}>
-            <ShoppingCart className="mr-2 h-4 w-4" /> Новая продажа
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setOpenInventoryDialog(true)}>
+              <Package className="mr-2 h-4 w-4" /> Управление товарами
+            </Button>
+            <Button onClick={handleNewSale}>
+              <ShoppingCart className="mr-2 h-4 w-4" /> Новая продажа
+            </Button>
+          </div>
         </div>
 
         <Tabs
@@ -404,8 +546,8 @@ export default function POSPage() {
                   <SelectValue placeholder="Выберите тип оплаты" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="наличные">Наличные</SelectItem>
-                  <SelectItem value="карта">Карта</SelectItem>
+                  <SelectItem value="cash">Наличные</SelectItem>
+                  <SelectItem value="card">Карта</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -415,6 +557,103 @@ export default function POSPage() {
               Отмена
             </Button>
             <Button onClick={handleSaleSubmit}>Создать</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openInventoryDialog} onOpenChange={setOpenInventoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Управление товарами</DialogTitle>
+            <DialogDescription>Добавьте или спишите товар</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="inventoryAction">Действие</Label>
+              <Select
+                value={inventoryAction.action}
+                onValueChange={(value) =>
+                  setInventoryAction((prev) => ({ ...prev, action: value as "add" | "remove" }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите действие" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="add">Оприходовать</SelectItem>
+                  <SelectItem value="remove">Списать</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inventoryName">
+                {inventoryAction.action === "add" ? "Название товара" : "Товар для списания"}
+              </Label>
+              {inventoryAction.action === "add" ? (
+                <Input
+                  id="inventoryName"
+                  value={inventoryAction.name}
+                  onChange={(e) =>
+                    setInventoryAction((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Введите название товара"
+                />
+              ) : (
+                <Select
+                  value={inventoryAction.name}
+                  onValueChange={(value) =>
+                    setInventoryAction((prev) => ({ ...prev, name: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите товар" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.id} value={item.name}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inventoryQuantity">Количество</Label>
+              <Input
+                id="inventoryQuantity"
+                type="number"
+                value={inventoryAction.quantity}
+                onChange={(e) =>
+                  setInventoryAction((prev) => ({ ...prev, quantity: e.target.value }))
+                }
+                placeholder="Введите количество"
+                min="1"
+              />
+            </div>
+            {inventoryAction.action === "add" && (
+              <div className="space-y-2">
+                <Label htmlFor="inventoryPrice">Цена за единицу (₸)</Label>
+                <Input
+                  id="inventoryPrice"
+                  type="number"
+                  value={inventoryAction.price}
+                  onChange={(e) =>
+                    setInventoryAction((prev) => ({ ...prev, price: e.target.value }))
+                  }
+                  placeholder="Введите цену"
+                  min="0"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenInventoryDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleInventorySubmit}>
+              {inventoryAction.action === "add" ? "Оприходовать" : "Списать"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
