@@ -172,8 +172,7 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
           }
 
           const itemsList = itemsData.map((item) => {
-            const itemName =
-              item.item_type === "product" ? item.items?.name : item.services?.name;
+            const itemName = item.item_type === "product" ? item.items?.name : item.services?.name;
             return `${itemName} (${item.quantity} шт.)`;
           }).join(", ");
 
