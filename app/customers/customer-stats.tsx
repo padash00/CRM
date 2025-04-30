@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Bar,
@@ -8,32 +8,21 @@ import {
   XAxis,
   YAxis,
   TooltipProps,
-} from "recharts"
-import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
+} from "recharts";
+import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
-// Чёткая типизация — чтоб не засрало проект
+// Типизация для данных графика
 interface ChartData {
-  name: string
-  total: number
+  name: string; // Месяц ("Янв", "Фев", ...)
+  total: number; // Количество посещений
 }
 
-// Вот данные — реальные, блядь, а не воображаемые
-const chartData: ChartData[] = [
-  { name: "Янв", total: 240 },
-  { name: "Фев", total: 290 },
-  { name: "Мар", total: 345 },
-  { name: "Апр", total: 410 },
-  { name: "Май", total: 470 },
-  { name: "Июн", total: 510 },
-  { name: "Июл", total: 620 },
-  { name: "Авг", total: 700 },
-  { name: "Сен", total: 540 },
-  { name: "Окт", total: 490 },
-  { name: "Ноя", total: 430 },
-  { name: "Дек", total: 580 },
-]
+// Пропсы компонента
+interface CustomerStatsProps {
+  monthlyVisits: { month: string; totalVisits: number; year: number }[];
+}
 
-// Кастомный тултип, без пыли
+// Кастомный тултип
 const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     return (
@@ -43,13 +32,19 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
           Посещений: <span className="font-medium text-foreground">{payload[0].value}</span>
         </p>
       </div>
-    )
+    );
   }
-  return null
-}
+  return null;
+};
 
-// Сам компонент — шоб вставить и не еб*ться
-export function CustomerStats() {
+// Компонент графика
+export function CustomerStats({ monthlyVisits }: CustomerStatsProps) {
+  // Преобразуем monthlyVisits в формат, который ожидает график
+  const chartData: ChartData[] = monthlyVisits.map((entry) => ({
+    name: entry.month,
+    total: entry.totalVisits,
+  }));
+
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
@@ -70,11 +65,11 @@ export function CustomerStats() {
         <Tooltip content={<CustomTooltip />} />
         <Bar
           dataKey="total"
-          fill="#cde901" // цвет как просили — акцент клуба
+          fill="#cde901" // Цвет как просили — акцент клуба
           radius={[4, 4, 0, 0]}
           barSize={30}
         />
       </BarChart>
     </ResponsiveContainer>
-  )
+  );
 }
