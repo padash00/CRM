@@ -34,8 +34,9 @@ interface Stat {
 }
 
 interface MonthlyVisit {
-  month: string;
+  month: string; // Формат "Янв", "Фев", ...
   totalVisits: number;
+  year: number; // Для сортировки
 }
 
 export default function CustomersPage() {
@@ -118,17 +119,36 @@ export default function CustomersPage() {
       if (monthlyData) {
         monthlyData.forEach((customer) => {
           const date = new Date(customer.lastVisit);
-          const month = date.toISOString().slice(0, 7); // Формат YYYY-MM
-          monthlyVisitsMap[month] = (monthlyVisitsMap[month] || 0) + (customer.visits || 0);
+          const monthYear = date.toISOString().slice(0, 7); // Формат YYYY-MM
+          monthlyVisitsMap[monthYear] =
+            (monthlyVisitsMap[monthYear] || 0) + (customer.visits || 0);
         });
       }
 
-      const monthlyVisitsArray = Object.entries(monthlyVisitsMap)
-        .map(([month, totalVisits]) => ({
-          month,
+      // Форматируем данные для графика
+      const monthNames = [
+        "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+        "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек",
+      ];
+
+      // Получаем текущий год
+      const currentYear = new Date().getFullYear();
+      const monthlyVisitsArray: MonthlyVisit[] = [];
+
+      // Заполняем массив за последний год (12 месяцев)
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(currentYear, new Date().getMonth() - i, 1);
+        const monthYear = date.toISOString().slice(0, 7); // YYYY-MM
+        const monthIndex = date.getMonth();
+        const year = date.getFullYear();
+        const totalVisits = monthlyVisitsMap[monthYear] || 0;
+
+        monthlyVisitsArray.push({
+          month: monthNames[monthIndex],
           totalVisits,
-        }))
-        .sort((a, b) => a.month.localeCompare(b.month));
+          year,
+        });
+      }
 
       // Формируем массив stats
       const newStats: Stat[] = [
@@ -159,7 +179,7 @@ export default function CustomersPage() {
         {
           title: "Средний чек",
           value: `₸${averageCheck}`,
-          description: "", // Можно добавить динамическое описание, если нужно
+          description: "",
         },
       ];
 
