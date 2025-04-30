@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Download, MoreHorizontal, Pencil, Trash } from "lucide-react"
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Download, MoreHorizontal, Pencil, Trash } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,33 +18,44 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 // Типизация игры
 interface Game {
-  id: string
-  name: string
-  category: string
-  size: string
-  lastUpdated: string
-  popularity: "Высокая" | "Средняя" | "Низкая"
-  status: "installed" | "not-installed"
+  id: string;
+  name: string;
+  category: string;
+  size: string;
+  lastUpdated: string;
+  popularity: "Высокая" | "Средняя" | "Низкая";
+  status: "installed" | "not-installed";
+}
+
+interface GameCatalogProps {
+  searchQuery: string;
+  refresh: number;
 }
 
 // Компонент карточки игры
-const GameCard = ({ game, onInstall, onUpdate, onDelete }: { 
-  game: Game
-  onInstall: (id: string) => void
-  onUpdate: (id: string) => void
-  onDelete: (id: string) => void
+const GameCard = ({
+  game,
+  onInstall,
+  onUpdate,
+  onDelete,
+}: {
+  game: Game;
+  onInstall: (id: string) => void;
+  onUpdate: (id: string) => void;
+  onDelete: (id: string) => void;
 }) => {
   const handleEdit = useCallback(() => {
     toast({
       title: "Редактирование игры",
       description: `Редактирование игры ${game.name} будет доступно в следующей версии.`,
-    })
-  }, [game.name])
+    });
+  }, [game.name]);
 
   return (
     <Card className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -121,71 +132,91 @@ const GameCard = ({ game, onInstall, onUpdate, onDelete }: {
         )}
       </CardFooter>
     </Card>
-  )
-}
+  );
+};
 
-export function GameCatalog() {
-  const [games, setGames] = useState<Game[]>([
-    {
-      id: "G001",
-      name: "Counter-Strike 2",
-      category: "Шутер",
-      size: "25 GB",
-      lastUpdated: "28.03.2025",
-      popularity: "Высокая",
-      status: "installed",
-    },
-    // ... остальные данные остаются без изменений
-    {
-      id: "G012",
-      name: "Cyberpunk 2077",
-      category: "RPG",
-      size: "70 GB",
-      lastUpdated: "05.03.2025",
-      popularity: "Низкая",
-      status: "not-installed",
-    },
-  ])
+export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
+  const [games, setGames] = useState<Game[]>([]);
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      const { data, error } = await supabase.from("games").select("*");
+      if (error) {
+        toast({
+          title: "Ошибка загрузки игр",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        // Преобразуем данные из Supabase в формат Game
+        const transformedGames = (data || []).map((game) => ({
+          id: game.id,
+          name: game.name,
+          category: game.category,
+          size: "N/A", // Пока не храним размер в базе, можно добавить колонку
+          lastUpdated: new Date(game.created_at).toLocaleDateString("ru-RU"),
+          popularity: "Средняя" as "Высокая" | "Средняя" | "Низкая", // Пока захардкодим, можно добавить логику
+          status: "not-installed" as "installed" | "not-installed", // Пока захардкодим
+        }));
+        setGames(transformedGames);
+      }
+    };
+
+    fetchGames();
+  }, [refresh]);
+
+  const filteredGames = games.filter((game) =>
+    game.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleInstall = useCallback((id: string) => {
     setGames((prev) =>
       prev.map((game) =>
         game.id === id ? { ...game, status: "installed" } : game
       )
-    )
-    const game = games.find((g) => g.id === id)
+    );
+    const game = games.find((g) => g.id === id);
     if (game) {
       toast({
         title: "Установка начата",
         description: `Игра ${game.name} устанавливается...`,
-      })
+      });
     }
-  }, [games])
+  }, [games]);
 
   const handleUpdate = useCallback((id: string) => {
-    const game = games.find((g) => g.id === id)
+    const game = games.find((g) => g.id === id);
     if (game) {
       toast({
         title: "Обновление начато",
         description: `Игра ${game.name} обновляется...`,
-      })
+      });
     }
-  }, [games])
+  }, [games]);
 
-  const handleDelete = useCallback((id: string) => {
-    const game = games.find((g) => g.id === id)
-    setGames((prev) => prev.filter((game) => game.id !== id))
-    if (game) {
+  const handleDelete = useCallback(async (id: string) => {
+    const { error } = await supabase.from("games").delete().eq("id", id);
+    if (error) {
       toast({
-        title: "Игра удалена",
-        description: `Игра ${game.name} удалена из каталога`,
-      })
+        title: "Ошибка удаления игры",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setGames((prev) => prev.filter((game) => game.id !== id));
+      const game = games.find((g) => g.id === id);
+      if (game) {
+        toast({
+          title: "Игра удалена",
+          description: `Игра ${game.name} удалена из каталога`,
+        });
+      }
     }
-  }, [games])
+  }, [games]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {games.map((game) => (
+      {filteredGames.map((game) => (
         <GameCard
           key={game.id}
           game={game}
@@ -195,6 +226,5 @@ export function GameCatalog() {
         />
       ))}
     </div>
-  )
+  );
 }
-
