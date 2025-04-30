@@ -1,36 +1,52 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutDashboard, Plus, Search } from "lucide-react"
-import Link from "next/link"
-import { GameCatalog } from "./game-catalog"
-import { GameCategories } from "./game-categories"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LayoutDashboard, Plus, Search } from "lucide-react";
+import Link from "next/link";
+import { GameCatalog } from "./game-catalog";
+import { GameCategories } from "./game-categories";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabaseClient";
 
-// Типизация данных для обновлений
 interface UpdateAction {
-  title: string
-  description: string
-  buttonText: string
-  variant?: "outline" | "default"
-  action: () => void // Добавляем функцию действия
+  title: string;
+  description: string;
+  buttonText: string;
+  variant?: "outline" | "default";
+  action: () => void;
+}
+
+interface Game {
+  name: string;
+  category: string;
 }
 
 export default function GamesPage() {
-  const [searchQuery, setSearchQuery] = useState<string>("")
-  const [activeTab, setActiveTab] = useState<string>("catalog") // Для отслеживания активной вкладки
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("catalog");
+  const [openAddGameDialog, setOpenAddGameDialog] = useState(false);
+  const [newGame, setNewGame] = useState<Game>({ name: "", category: "" });
+  const [refreshGames, setRefreshGames] = useState(0);
 
-  // Данные для вкладки обновлений с конкретными действиями
   const updateActions: UpdateAction[] = [
     {
       title: "Обновление игр",
@@ -41,7 +57,7 @@ export default function GamesPage() {
         toast({
           title: "Обновление игр",
           description: "Обновление всех игр запущено...",
-        })
+        });
       },
     },
     {
@@ -53,7 +69,7 @@ export default function GamesPage() {
         toast({
           title: "Обновление клиента",
           description: "Обновление игрового клиента запущено...",
-        })
+        });
       },
     },
     {
@@ -65,34 +81,60 @@ export default function GamesPage() {
         toast({
           title: "Проверка целостности",
           description: "Проверка файлов игр запущена...",
-        })
+        });
       },
     },
-  ]
+  ];
 
-  // Обработчик добавления игры
   const handleAddGame = useCallback(() => {
-    toast({
-      title: "Добавление игры",
-      description: "Функционал добавления игры будет доступен в следующей версии.",
-    })
-  }, [])
+    setOpenAddGameDialog(true);
+  }, []);
 
-  // Обработчик поиска
+  const handleAddGameSubmit = async () => {
+    if (!newGame.name || !newGame.category) {
+      toast({
+        title: "Ошибка",
+        description: "Укажите название и категорию игры",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("games").insert([
+      {
+        name: newGame.name,
+        category: newGame.category,
+      },
+    ]);
+
+    if (error) {
+      toast({
+        title: "Ошибка добавления игры",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Игра добавлена",
+        description: `Игра ${newGame.name} успешно добавлена`,
+      });
+      setOpenAddGameDialog(false);
+      setNewGame({ name: "", category: "" });
+      setRefreshGames((prev) => prev + 1);
+    }
+  };
+
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-    // Здесь можно добавить передачу searchQuery в GameCatalog для фильтрации
-  }, [])
+    setSearchQuery(e.target.value);
+  }, []);
 
-  // Обработчик смены вкладки
   const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value)
-    setSearchQuery("") // Сброс поиска при смене вкладки
-  }, [])
+    setActiveTab(value);
+    setSearchQuery("");
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Шапка */}
       <header className="border-b bg-background shadow-sm">
         <div className="flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2">
@@ -120,7 +162,6 @@ export default function GamesPage() {
         </div>
       </header>
 
-      {/* Основной контент */}
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">
@@ -142,7 +183,6 @@ export default function GamesPage() {
             <TabsTrigger value="updates">Обновления</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Каталог игр" */}
           <TabsContent value="catalog" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -159,15 +199,13 @@ export default function GamesPage() {
                 Фильтры
               </Button>
             </div>
-            <GameCatalog />
+            <GameCatalog searchQuery={searchQuery} refresh={refreshGames} />
           </TabsContent>
 
-          {/* Вкладка "Категории" */}
           <TabsContent value="categories" className="space-y-4">
             <GameCategories />
           </TabsContent>
 
-          {/* Вкладка "Обновления" */}
           <TabsContent value="updates" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {updateActions.map((action) => (
@@ -191,7 +229,41 @@ export default function GamesPage() {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
-  )
-}
 
+      <Dialog open={openAddGameDialog} onOpenChange={setOpenAddGameDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить новую игру</DialogTitle>
+            <DialogDescription>Введите данные игры ниже</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="gameName">Название игры</Label>
+              <Input
+                id="gameName"
+                value={newGame.name}
+                onChange={(e) => setNewGame((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Например, Dota 2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gameCategory">Категория</Label>
+              <Input
+                id="gameCategory"
+                value={newGame.category}
+                onChange={(e) => setNewGame((prev) => ({ ...prev, category: e.target.value }))}
+                placeholder="Например, MOBA"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAddGameDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleAddGameSubmit}>Добавить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
