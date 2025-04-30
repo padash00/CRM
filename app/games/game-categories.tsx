@@ -23,9 +23,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"; // Добавляем импорт
+} from "@/components/ui/dialog";
 
-// Типизация категории
 interface Category {
   id: string;
   name: string;
@@ -36,6 +35,10 @@ interface Category {
 interface CategoryForm {
   name: string;
   description: string;
+}
+
+interface GameCategoriesProps {
+  onCategoryAdded?: () => void; // Callback для обновления списка категорий в GamesPage
 }
 
 const CategoryCard = ({
@@ -75,7 +78,7 @@ const CategoryCard = ({
   </Card>
 );
 
-export function GameCategories() {
+export function GameCategories({ onCategoryAdded }: GameCategoriesProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<CategoryForm>({ name: "", description: "" });
   const [editCategory, setEditCategory] = useState<Category | null>(null);
@@ -158,8 +161,11 @@ export function GameCategories() {
         title: "Категория добавлена",
         description: `Категория "${data[0].name}" успешно создана.`,
       });
+      if (onCategoryAdded) {
+        onCategoryAdded(); // Вызываем callback, чтобы обновить список категорий в GamesPage
+      }
     }
-  }, [formData]);
+  }, [formData, onCategoryAdded]);
 
   const handleEdit = useCallback((category: Category) => {
     setEditCategory(category);
@@ -204,8 +210,11 @@ export function GameCategories() {
         title: "Категория обновлена",
         description: `Категория "${data[0].name}" успешно обновлена.`,
       });
+      if (onCategoryAdded) {
+        onCategoryAdded(); // Обновляем список категорий в GamesPage
+      }
     }
-  }, [editCategory, formData]);
+  }, [editCategory, formData, onCategoryAdded]);
 
   const handleDelete = useCallback(async (id: string) => {
     const { count, error: countError } = await supabase
@@ -247,12 +256,14 @@ export function GameCategories() {
           description: `Категория "${category.name}" удалена.`,
         });
       }
+      if (onCategoryAdded) {
+        onCategoryAdded(); // Обновляем список категорий в GamesPage
+      }
     }
-  }, [categories]);
+  }, [categories, onCategoryAdded]);
 
   return (
     <div className="space-y-6">
-      {/* Форма добавления категории */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Добавить категорию</CardTitle>
@@ -288,7 +299,6 @@ export function GameCategories() {
         </CardFooter>
       </Card>
 
-      {/* Список категорий */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((category) => (
           <CategoryCard
@@ -300,7 +310,6 @@ export function GameCategories() {
         ))}
       </div>
 
-      {/* Диалог редактирования категории */}
       <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
         <DialogContent>
           <DialogHeader>
