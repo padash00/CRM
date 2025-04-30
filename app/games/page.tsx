@@ -1,3 +1,4 @@
+// GamesPage.tsx
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -26,6 +27,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UpdateAction {
   title: string;
@@ -37,15 +45,39 @@ interface UpdateAction {
 
 interface Game {
   name: string;
-  category: string;
+  categoryId: string; // Теперь categoryId вместо category
+}
+
+interface Category {
+  id: string;
+  name: string;
 }
 
 export default function GamesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("catalog");
   const [openAddGameDialog, setOpenAddGameDialog] = useState(false);
-  const [newGame, setNewGame] = useState<Game>({ name: "", category: "" });
+  const [newGame, setNewGame] = useState<Game>({ name: "", categoryId: "" });
   const [refreshGames, setRefreshGames] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]); // Список категорий для выпадающего списка
+
+  // Загружаем категории для выпадающего списка
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase.from("categories").select("id, name");
+      if (error) {
+        toast({
+          title: "Ошибка загрузки категорий",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setCategories(data || []);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const updateActions: UpdateAction[] = [
     {
@@ -91,7 +123,7 @@ export default function GamesPage() {
   }, []);
 
   const handleAddGameSubmit = async () => {
-    if (!newGame.name || !newGame.category) {
+    if (!newGame.name || !newGame.categoryId) {
       toast({
         title: "Ошибка",
         description: "Укажите название и категорию игры",
@@ -103,7 +135,7 @@ export default function GamesPage() {
     const { error } = await supabase.from("games").insert([
       {
         name: newGame.name,
-        category: newGame.category,
+        category_id: newGame.categoryId, // Используем category_id вместо category
       },
     ]);
 
@@ -119,7 +151,7 @@ export default function GamesPage() {
         description: `Игра ${newGame.name} успешно добавлена`,
       });
       setOpenAddGameDialog(false);
-      setNewGame({ name: "", category: "" });
+      setNewGame({ name: "", categoryId: "" });
       setRefreshGames((prev) => prev + 1);
     }
   };
@@ -248,12 +280,23 @@ export default function GamesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="gameCategory">Категория</Label>
-              <Input
-                id="gameCategory"
-                value={newGame.category}
-                onChange={(e) => setNewGame((prev) => ({ ...prev, category: e.target.value }))}
-                placeholder="Например, MOBA"
-              />
+              <Select
+                value={newGame.categoryId}
+                onValueChange={(value) =>
+                  setNewGame((prev) => ({ ...prev, categoryId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
