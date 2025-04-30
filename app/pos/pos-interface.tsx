@@ -1,18 +1,19 @@
-"use client"
+// pos/POSInterface.tsx
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Coffee, DollarSign, Gamepad, Minus, Plus, Trash, X } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, Coffee, DollarSign, Gamepad, Minus, Plus, Trash, X } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -20,188 +21,253 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
+import { supabase } from "@/lib/supabaseClient";
 
-// Типизация элемента корзины
 interface CartItem {
-  id: string
-  name: string
-  price: number
-  quantity: number
-  type: "time" | "product" | "service"
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  type: "time" | "product" | "service";
 }
 
-// Типизация продукта или услуги
 interface Item {
-  id: string
-  name: string
-  price: number
-  type: "time" | "product" | "service"
+  id: string;
+  name: string;
+  price: number;
+  type: "time" | "product" | "service";
+}
+
+interface Customer {
+  id: string;
+  name: string;
 }
 
 export function POSInterface() {
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [customer, setCustomer] = useState<string>("")
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false)
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash")
-  const [cashReceived, setCashReceived] = useState<string>("")
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [customerId, setCustomerId] = useState<string>("");
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [cashReceived, setCashReceived] = useState<string>("");
+  const [products, setProducts] = useState<Item[]>([]);
+  const [services, setServices] = useState<Item[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
-  const products: Item[] = [
-    { id: "p1", name: "Энергетикалық сусын", price: 1500, type: "product" },
-    { id: "p2", name: "Чипсы", price: 1200, type: "product" },
-    { id: "p3", name: "Шоколад батончигі", price: 800, type: "product" },
-    { id: "p4", name: "Кофе", price: 1000, type: "product" },
-    { id: "p5", name: "Сэндвич", price: 2000, type: "product" },
-    { id: "p6", name: "Су", price: 700, type: "product" },
-    { id: "p7", name: "Печенье", price: 900, type: "product" },
-    { id: "p8", name: "Жаңғақтар", price: 1100, type: "product" },
-  ]
+  // Загружаем данные из Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      // Загружаем товары
+      const { data: productsData, error: productsError } = await supabase
+        .from("items")
+        .select("*")
+        .eq("type", "product");
 
-  const services: Item[] = [
-    { id: "s1", name: "Ойын уақыты (1 сағат)", price: 2000, type: "time" },
-    { id: "s2", name: "Ойын уақыты (2 сағат)", price: 3500, type: "time" },
-    { id: "s3", name: "Ойын уақыты (3 сағат)", price: 5000, type: "time" },
-    { id: "s4", name: "VIP аймағы (1 сағат)", price: 3000, type: "time" },
-    { id: "s5", name: "Консоль (1 сағат)", price: 3500, type: "time" },
-    { id: "s6", name: "Құжаттарды басып шығару", price: 150, type: "service" },
-    { id: "s7", name: "Сканерлеу", price: 100, type: "service" },
-    { id: "s8", name: "USB-ге жазу", price: 500, type: "service" },
-  ]
+      if (productsError) {
+        toast({
+          title: "Ошибка загрузки товаров",
+          description: productsError.message,
+          variant: "destructive",
+        });
+      } else {
+        setProducts(productsData || []);
+      }
+
+      // Загружаем услуги
+      const { data: servicesData, error: servicesError } = await supabase
+        .from("services")
+        .select("*");
+
+      if (servicesError) {
+        toast({
+          title: "Ошибка загрузки услуг",
+          description: servicesError.message,
+          variant: "destructive",
+        });
+      } else {
+        setServices(servicesData || []);
+      }
+
+      // Загружаем клиентов
+      const { data: customersData, error: customersError } = await supabase
+        .from("customers")
+        .select("id, name");
+
+      if (customersError) {
+        toast({
+          title: "Ошибка загрузки клиентов",
+          description: customersError.message,
+          variant: "destructive",
+        });
+      } else {
+        setCustomers(customersData || []);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Добавление в корзину
   const addToCart = useCallback((item: Item) => {
     setCart((prev) => {
-      const existingItemIndex = prev.findIndex((cartItem) => cartItem.id === item.id)
+      const existingItemIndex = prev.findIndex((cartItem) => cartItem.id === item.id);
       if (existingItemIndex !== -1) {
-        const updatedCart = [...prev]
-        updatedCart[existingItemIndex].quantity += 1
-        return updatedCart
+        const updatedCart = [...prev];
+        updatedCart[existingItemIndex].quantity += 1;
+        return updatedCart;
       }
-      return [...prev, { ...item, quantity: 1 }]
-    })
+      return [...prev, { ...item, quantity: 1 }];
+    });
     toast({
-      title: "Тауар қосылды",
-      description: `${item.name} себетке қосылды`,
+      title: "Товар добавлен",
+      description: `${item.name} добавлен в корзину`,
       duration: 1500,
-    })
-  }, [])
+    });
+  }, []);
 
   // Удаление из корзины
   const removeFromCart = useCallback((id: string) => {
-    const itemToRemove = cart.find((item) => item.id === id)
-    setCart((prev) => prev.filter((item) => item.id !== id))
+    const itemToRemove = cart.find((item) => item.id === id);
+    setCart((prev) => prev.filter((item) => item.id !== id));
     if (itemToRemove) {
       toast({
-        title: "Тауар жойылды",
-        description: `${itemToRemove.name} себеттен жойылды`,
+        title: "Товар удалён",
+        description: `${itemToRemove.name} удалён из корзины`,
         duration: 1500,
-      })
+      });
     }
-  }, [cart])
+  }, [cart]);
 
   // Обновление количества
   const updateQuantity = useCallback((id: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeFromCart(id)
-      return
+      removeFromCart(id);
+      return;
     }
     setCart((prev) =>
       prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))
-    )
-  }, [removeFromCart])
+    );
+  }, [removeFromCart]);
 
-  // Расчет общей суммы
+  // Расчёт общей суммы
   const calculateTotal = useCallback(() => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0)
-  }, [cart])
+    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  }, [cart]);
 
   // Очистка корзины
   const clearCart = useCallback(() => {
-    setCart([])
-    setCustomer("")
+    setCart([]);
+    setCustomerId("");
     toast({
-      title: "Себет тазартылды",
-      description: "Барлық тауарлар себеттен жойылды",
-    })
-  }, [])
+      title: "Корзина очищена",
+      description: "Все товары удалены из корзины",
+    });
+  }, []);
 
   // Получение иконки элемента
   const getItemIcon = (type: CartItem["type"]) => {
     switch (type) {
       case "time":
-        return <Clock className="h-4 w-4" />
+        return <Clock className="h-4 w-4" />;
       case "product":
-        return <Coffee className="h-4 w-4" />
+        return <Coffee className="h-4 w-4" />;
       case "service":
-        return <Gamepad className="h-4 w-4" />
+        return <Gamepad className="h-4 w-4" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   // Открытие диалога оплаты
   const handlePayment = useCallback(() => {
     if (cart.length === 0) {
       toast({
-        title: "Қате",
-        description: "Себет бос, төлем мүмкін емес",
+        title: "Ошибка",
+        description: "Корзина пуста, оплата невозможна",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
-    setPaymentDialogOpen(true)
-  }, [cart.length])
+    if (!customerId) {
+      toast({
+        title: "Ошибка",
+        description: "Выберите клиента для оплаты",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPaymentDialogOpen(true);
+  }, [cart.length, customerId]);
 
   // Обработка оплаты
-  const processPayment = useCallback(() => {
-    const total = calculateTotal()
-    let change = 0
+  const processPayment = useCallback(async () => {
+    const total = calculateTotal();
+    let change = 0;
 
     if (paymentMethod === "cash") {
-      const received = Number.parseInt(cashReceived) || 0
-      change = received - total
+      const received = Number.parseInt(cashReceived) || 0;
+      change = received - total;
 
       if (received < total) {
         toast({
-          title: "Қате",
-          description: "Төлем үшін қаражат жеткіліксіз",
+          title: "Ошибка",
+          description: "Недостаточно средств для оплаты",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
     }
 
-    toast({
-      title: "Төлем сәтті",
-      description: `₸${total} сомасына төлем сәтті орындалды${change > 0 ? `. Қайтарым: ₸${change}` : ""}`,
-    })
+    // Сохраняем транзакцию в Supabase
+    const { error } = await supabase.from("transactions").insert([
+      {
+        customer_id: customerId,
+        amount: total,
+        transaction_date: new Date().toISOString(),
+        payment_type: paymentMethod,
+      },
+    ]);
 
-    setPaymentDialogOpen(false)
-    setCart([])
-    setCustomer("")
-    setCashReceived("")
-    setPaymentMethod("cash")
-  }, [calculateTotal, paymentMethod, cashReceived])
+    if (error) {
+      toast({
+        title: "Ошибка создания транзакции",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Оплата успешна",
+      description: `Оплата на сумму ₸${total} успешно выполнена${change > 0 ? `. Сдача: ₸${change}` : ""}`,
+    });
+
+    setPaymentDialogOpen(false);
+    setCart([]);
+    setCustomerId("");
+    setCashReceived("");
+    setPaymentMethod("cash");
+  }, [calculateTotal, paymentMethod, cashReceived, customerId]);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Секция товаров и услуг */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Тауарлар мен қызметтер</CardTitle>
+          <CardTitle>Товары и услуги</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="products">
             <TabsList className="mb-4 grid w-full grid-cols-2">
-              <TabsTrigger value="products">Тауарлар</TabsTrigger>
-              <TabsTrigger value="services">Қызметтер</TabsTrigger>
+              <TabsTrigger value="products">Товары</TabsTrigger>
+              <TabsTrigger value="services">Услуги</TabsTrigger>
             </TabsList>
             <TabsContent value="products" className="space-y-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -240,22 +306,24 @@ export function POSInterface() {
       {/* Корзина */}
       <Card className="shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Ағымдағы сату</CardTitle>
+          <CardTitle>Текущая продажа</CardTitle>
           <Button variant="ghost" size="icon" onClick={clearCart}>
             <X className="h-4 w-4" />
-            <span className="sr-only">Себетті тазарту</span>
+            <span className="sr-only">Очистить корзину</span>
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Клиент</label>
-            <Select onValueChange={setCustomer} value={customer}>
+            <Select onValueChange={setCustomerId} value={customerId}>
               <SelectTrigger className="shadow-sm">
-                <SelectValue placeholder="Клиентті таңдаңыз" />
+                <SelectValue placeholder="Выберите клиента" />
               </SelectTrigger>
               <SelectContent>
-                {["Алексей К.", "Михаил С.", "Дмитрий В.", "Сергей Л.", "Андрей К."].map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -264,7 +332,7 @@ export function POSInterface() {
             <div className="p-4">
               <div className="space-y-2">
                 {cart.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">Себет бос</div>
+                  <div className="text-center py-4 text-muted-foreground">Корзина пуста</div>
                 ) : (
                   cart.map((item) => (
                     <div
@@ -288,7 +356,7 @@ export function POSInterface() {
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
-                          <span className="sr-only">Азайту</span>
+                          <span className="sr-only">Уменьшить</span>
                         </Button>
                         <span className="w-4 text-center">{item.quantity}</span>
                         <Button
@@ -298,7 +366,7 @@ export function POSInterface() {
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
-                          <span className="sr-only">Көбейту</span>
+                          <span className="sr-only">Увеличить</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -307,7 +375,7 @@ export function POSInterface() {
                           onClick={() => removeFromCart(item.id)}
                         >
                           <Trash className="h-3 w-3" />
-                          <span className="sr-only">Жою</span>
+                          <span className="sr-only">Удалить</span>
                         </Button>
                       </div>
                     </div>
@@ -319,11 +387,11 @@ export function POSInterface() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="flex items-center justify-between w-full">
-            <div className="text-lg font-semibold">Жиыны:</div>
+            <div className="text-lg font-semibold">Итого:</div>
             <div className="text-lg font-semibold">₸{calculateTotal()}</div>
           </div>
           <Button className="w-full" disabled={cart.length === 0} onClick={handlePayment}>
-            <DollarSign className="mr-2 h-4 w-4" /> Төлем
+            <DollarSign className="mr-2 h-4 w-4" /> Оплатить
           </Button>
         </CardFooter>
       </Card>
@@ -332,12 +400,12 @@ export function POSInterface() {
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Төлем</DialogTitle>
-            <DialogDescription>Төленетін сома: ₸{calculateTotal()}</DialogDescription>
+            <DialogTitle>Оплата</DialogTitle>
+            <DialogDescription>Сумма к оплате: ₸{calculateTotal()}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right font-medium">Төлем әдісі</label>
+              <label className="text-right font-medium">Способ оплаты</label>
               <div className="col-span-3">
                 <Tabs
                   value={paymentMethod}
@@ -345,7 +413,7 @@ export function POSInterface() {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 shadow-sm">
-                    <TabsTrigger value="cash">Қолма-қол</TabsTrigger>
+                    <TabsTrigger value="cash">Наличные</TabsTrigger>
                     <TabsTrigger value="card">Карта</TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -353,20 +421,20 @@ export function POSInterface() {
             </div>
             {paymentMethod === "cash" && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Алынған</label>
+                <label className="text-right font-medium">Получено</label>
                 <Input
                   type="number"
                   value={cashReceived}
                   onChange={(e) => setCashReceived(e.target.value)}
                   className="col-span-3 shadow-sm"
-                  placeholder="Алынған соманы енгізіңіз"
+                  placeholder="Введите сумму"
                   min="0"
                 />
               </div>
             )}
             {paymentMethod === "cash" && cashReceived && Number.parseInt(cashReceived) >= calculateTotal() && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Қайтарым</label>
+                <label className="text-right font-medium">Сдача</label>
                 <div className="col-span-3 font-medium text-green-600">
                   ₸{Number.parseInt(cashReceived) - calculateTotal()}
                 </div>
@@ -375,15 +443,14 @@ export function POSInterface() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
-              Болдырмау
+              Отмена
             </Button>
             <Button onClick={processPayment} disabled={paymentMethod === "cash" && !cashReceived}>
-              Төлемді растау
+              Подтвердить оплату
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-
