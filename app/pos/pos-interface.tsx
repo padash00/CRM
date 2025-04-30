@@ -241,7 +241,8 @@ export function POSInterface() {
     // Сохраняем товары/услуги из корзины в transaction_items
     const transactionItems = cart.map((item) => ({
       transaction_id: transactionId,
-      item_id: item.id,
+      product_id: item.type === "product" ? item.id : null,
+      service_id: item.type !== "product" ? item.id : null,
       item_type: item.type,
       quantity: item.quantity,
       price: item.price,
