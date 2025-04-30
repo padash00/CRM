@@ -22,21 +22,52 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Типизация игры
 interface Game {
   id: string;
   name: string;
-  category: string; // Теперь это будет название категории
+  category: string;
+  categoryId: string;
   size: string;
   lastUpdated: string;
   popularity: "Высокая" | "Средняя" | "Низкая";
   status: "installed" | "not-installed";
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Filters {
+  categoryId: string;
+  popularity: "Высокая" | "Средняя" | "Низкая" | "";
+  status: "installed" | "not-installed" | "";
+}
+
 interface GameCatalogProps {
   searchQuery: string;
   refresh: number;
+  categories: Category[];
+  filters: Filters;
 }
 
 const GameCard = ({
@@ -44,19 +75,14 @@ const GameCard = ({
   onInstall,
   onUpdate,
   onDelete,
+  onEdit,
 }: {
   game: Game;
   onInstall: (id: string) => void;
   onUpdate: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (game: Game) => void;
 }) => {
-  const handleEdit = useCallback(() => {
-    toast({
-      title: "Редактирование игры",
-      description: `Редактирование игры ${game.name} будет доступно в следующей версии.`,
-    });
-  }, [game.name]);
-
   return (
     <Card className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="p-4">
@@ -72,7 +98,7 @@ const GameCard = ({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Действия</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleEdit}>
+              <DropdownMenuItem onClick={() => onEdit(game)}>
                 <Pencil className="mr-2 h-4 w-4" /> Редактировать
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -135,8 +161,14 @@ const GameCard = ({
   );
 };
 
-export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
+export function GameCatalog({ searchQuery, refresh, categories, filters }: GameCatalogProps) {
   const [games, setGames] = useState<Game[]>([]);
+  const [editGame, setEditGame] = useState<Game | null>(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [editFormData, setEditFormData] = useState<{ name: string; categoryId: string }>({
+    name: "",
+    categoryId: "",
+  });
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -154,7 +186,8 @@ export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
         const transformedGames = (gamesData || []).map((game) => ({
           id: game.id,
           name: game.name,
-          category: game.categories?.name || "Без категории", // Используем название категории
+          category: game.categories?.name || "Без категории",
+          categoryId: game.category_id,
           size: "N/A",
           lastUpdated: new Date(game.created_at).toLocaleDateString("ru-RU"),
           popularity: "Средняя" as "Высокая" | "Средняя" | "Низкая",
@@ -167,9 +200,14 @@ export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
     fetchGames();
   }, [refresh]);
 
-  const filteredGames = games.filter((game) =>
-    game.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredGames = games.filter((game) => {
+    const matchesSearch = game.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = filters.categoryId ? game.categoryId === filters.categoryId : true;
+    const matchesPopularity = filters.popularity ? game.popularity === filters.popularity : true;
+    const matchesStatus = filters.status ? game.status === filters.status : true;
+
+    return matchesSearch && matchesCategory && matchesPopularity && matchesStatus;
+  });
 
   const handleInstall = useCallback((id: string) => {
     setGames((prev) =>
@@ -216,17 +254,124 @@ export function GameCatalog({ searchQuery, refresh }: GameCatalogProps) {
     }
   }, [games]);
 
+  const handleEdit = useCallback((game: Game) => {
+    setEditGame(game);
+    setEditFormData({ name: game.name, categoryId: game.categoryId });
+    setOpenEditDialog(true);
+  }, []);
+
+  const handleEditSubmit = useCallback(async () => {
+    if (!editFormData.name.trim() || !editFormData.categoryId) {
+      toast({
+        title: "Ошибка",
+        description: "Укажите название и категорию игры",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editGame) return;
+
+    const { data, error } = await supabase
+      .from("games")
+      .update({ name: editFormData.name, category_id: editFormData.categoryId })
+      .eq("id", editGame.id)
+      .select();
+
+    if (error) {
+      toast({
+        title: "Ошибка редактирования игры",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data[0]) {
+      setGames((prev) =>
+        prev.map((game) =>
+          game.id === editGame.id
+            ? {
+                ...game,
+                name: data[0].name,
+                categoryId: data[0].category_id,
+                category: categories.find((cat) => cat.id === data[0].category_id)?.name || "Без категории",
+              }
+            : game
+        )
+      );
+      setOpenEditDialog(false);
+      setEditGame(null);
+      setEditFormData({ name: "", categoryId: "" });
+      toast({
+        title: "Игра обновлена",
+        description: `Игра "${data[0].name}" успешно обновлена.`,
+      });
+    }
+  }, [editGame, editFormData, categories]);
+
+  const handleEditInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setEditFormData((prev) => ({ ...prev, name: value }));
+  }, []);
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {filteredGames.map((game) => (
-        <GameCard
-          key={game.id}
-          game={game}
-          onInstall={handleInstall}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredGames.map((game) => (
+          <GameCard
+            key={game.id}
+            game={game}
+            onInstall={handleInstall}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+          />
+        ))}
+      </div>
+
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать игру</DialogTitle>
+            <DialogDescription>Обновите данные игры ниже</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editGameName">Название игры</Label>
+              <Input
+                id="editGameName"
+                value={editFormData.name}
+                onChange={handleEditInputChange}
+                placeholder="Например, Dota 2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editGameCategory">Категория</Label>
+              <Select
+                value={editFormData.categoryId}
+                onValueChange={(value) =>
+                  setEditFormData((prev) => ({ ...prev, categoryId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleEditSubmit}>Сохранить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
