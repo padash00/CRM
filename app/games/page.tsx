@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, Plus, Search } from "lucide-react";
+import { LayoutDashboard, Plus, Search, Filter } from "lucide-react";
 import Link from "next/link";
 import { GameCatalog } from "./game-catalog";
 import { GameCategories } from "./game-categories";
@@ -54,13 +54,21 @@ interface Category {
   name: string;
 }
 
+interface Filters {
+  categoryId: string;
+  popularity: "Высокая" | "Средняя" | "Низкая" | "";
+  status: "installed" | "not-installed" | "";
+}
+
 export default function GamesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("catalog");
   const [openAddGameDialog, setOpenAddGameDialog] = useState(false);
+  const [openFiltersDialog, setOpenFiltersDialog] = useState(false);
   const [newGame, setNewGame] = useState<Game>({ name: "", categoryId: "" });
+  const [filters, setFilters] = useState<Filters>({ categoryId: "", popularity: "", status: "" });
   const [refreshGames, setRefreshGames] = useState(0);
-  const [refreshCategories, setRefreshCategories] = useState(0); // Добавляем для обновления категорий
+  const [refreshCategories, setRefreshCategories] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -80,7 +88,7 @@ export default function GamesPage() {
     };
 
     fetchCategories();
-  }, [refreshCategories]); // Зависимость от refreshCategories
+  }, [refreshCategories]);
 
   const updateActions: UpdateAction[] = [
     {
@@ -169,7 +177,11 @@ export default function GamesPage() {
   }, []);
 
   const handleCategoryAdded = useCallback(() => {
-    setRefreshCategories((prev) => prev + 1); // Обновляем список категорий
+    setRefreshCategories((prev) => prev + 1);
+  }, []);
+
+  const handleApplyFilters = useCallback(() => {
+    setOpenFiltersDialog(false);
   }, []);
 
   return (
@@ -234,11 +246,11 @@ export default function GamesPage() {
                   onChange={handleSearch}
                 />
               </div>
-              <Button variant="outline" className="shadow-sm">
-                Фильтры
+              <Button variant="outline" className="shadow-sm" onClick={() => setOpenFiltersDialog(true)}>
+                <Filter className="mr-2 h-4 w-4" /> Фильтры
               </Button>
             </div>
-            <GameCatalog searchQuery={searchQuery} refresh={refreshGames} />
+            <GameCatalog searchQuery={searchQuery} refresh={refreshGames} categories={categories} filters={filters} />
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-4">
@@ -311,6 +323,81 @@ export default function GamesPage() {
               Отмена
             </Button>
             <Button onClick={handleAddGameSubmit}>Добавить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openFiltersDialog} onOpenChange={setOpenFiltersDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Фильтры</DialogTitle>
+            <DialogDescription>Выберите критерии для фильтрации игр</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="filterCategory">Категория</Label>
+              <Select
+                value={filters.categoryId}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, categoryId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Все категории</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="filterPopularity">Популярность</Label>
+              <Select
+                value={filters.popularity}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, popularity: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите популярность" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Все</SelectItem>
+                  <SelectItem value="Высокая">Высокая</SelectItem>
+                  <SelectItem value="Средняя">Средняя</SelectItem>
+                  <SelectItem value="Низкая">Низкая</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="filterStatus">Статус</Label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Все</SelectItem>
+                  <SelectItem value="installed">Установленные</SelectItem>
+                  <SelectItem value="not-installed">Не установленные</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenFiltersDialog(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleApplyFilters}>Применить</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
