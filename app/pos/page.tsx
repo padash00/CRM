@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Убедились, что импорт есть
 import { supabase } from "@/lib/supabaseClient";
 import {
   Select,
