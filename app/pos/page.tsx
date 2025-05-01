@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label"; // Убедились, что импорт есть
+import { Label } from "@/components/ui/label"; // Импорт Label — убедись, что он есть
 import { supabase } from "@/lib/supabaseClient";
 import {
   Select,
@@ -892,7 +892,7 @@ export default function POSPage() {
                 </Select>
               )}
             </div>
-            <div className="space-y-2">
+            <div className convoy-space-y-2">
               <Label htmlFor="inventoryQuantity">Количество</Label>
               <Input
                 id="inventoryQuantity"
