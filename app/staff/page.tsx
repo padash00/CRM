@@ -37,7 +37,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 // Типизация данных формы передачи смены
 interface ShiftTransferForm {
-  employee: string; // ID оператора, принимающего смену
+  employee: string;
   comment: string;
   cashAmount: string;
 }
@@ -47,9 +47,9 @@ interface CurrentShift {
   id: string;
   date: string;
   time: string;
-  responsible: string; // Имя оператора, открывшего смену
-  responsibleId: string; // ID оператора, открывшего смену
-  operators: string[]; // Список имён операторов на смене
+  responsible: string;
+  responsibleId: string;
+  operators: string[];
   revenue: number;
   customerCount: number;
 }
@@ -63,6 +63,7 @@ interface Operator {
   email: string;
   status: "active" | "inactive";
   working_hours: string;
+  role: "maindev" | "operator"; // Добавляем поле role
 }
 
 export default function StaffPage() {
@@ -76,14 +77,16 @@ export default function StaffPage() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [currentShift, setCurrentShift] = useState<CurrentShift | null>(null);
   const [newOperatorName, setNewOperatorName] = useState<string>("");
+  const [newOperatorRole, setNewOperatorRole] = useState<"maindev" | "operator">("operator");
   const [isAddOperatorDialogOpen, setIsAddOperatorDialogOpen] = useState<boolean>(false);
+  const [currentOperator, setCurrentOperator] = useState<Operator | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       // Загружаем операторов
       const { data: operatorsData, error: operatorsError } = await supabase
         .from("operators")
-        .select("id, name, position, phone, email, status, working_hours");
+        .select("id, name, position, phone, email, status, working_hours, role");
 
       if (operatorsError) {
         toast({
@@ -95,7 +98,24 @@ export default function StaffPage() {
         setOperators(operatorsData || []);
       }
 
-      // Загружаем текущую смену (последнюю открытую)
+      // Загружаем текущего оператора (заглушка, в будущем замени на авторизацию)
+      const { data: currentOpData, error: currentOpError } = await supabase
+        .from("operators")
+        .select("*")
+        .eq("name", "Кассир 1")
+        .single();
+
+      if (currentOpError) {
+        toast({
+          title: "Ошибка загрузки текущего оператора",
+          description: currentOpError.message,
+          variant: "destructive",
+        });
+      } else {
+        setCurrentOperator(currentOpData || null);
+      }
+
+      // Загружаем текущую смену (последнюю за сегодня)
       const today = new Date().toISOString().split("T")[0];
       const { data: shiftsData, error: shiftsError } = await supabase
         .from("shifts")
@@ -151,6 +171,15 @@ export default function StaffPage() {
 
   // Обработчик добавления нового оператора
   const handleAddOperator = useCallback(async () => {
+    if (!currentOperator || currentOperator.role !== "maindev") {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может добавлять новых операторов",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!newOperatorName) {
       toast({
         title: "Ошибка",
@@ -163,14 +192,15 @@ export default function StaffPage() {
     const { data, error } = await supabase
       .from("operators")
       .insert([
-        { 
+        {
           name: newOperatorName,
-          position: "Кассир", // Значение по умолчанию
+          position: newOperatorRole === "maindev" ? "Администратор" : "Кассир",
           phone: "",
           email: "",
           status: "active",
           working_hours: "40 ч/нед",
-        }
+          role: newOperatorRole,
+        },
       ])
       .select()
       .single();
@@ -186,12 +216,13 @@ export default function StaffPage() {
 
     setOperators((prev) => [...prev, data]);
     setNewOperatorName("");
+    setNewOperatorRole("operator");
     setIsAddOperatorDialogOpen(false);
     toast({
       title: "Оператор добавлен",
       description: `Оператор ${data.name} успешно добавлен`,
     });
-  }, [newOperatorName]);
+  }, [newOperatorName, newOperatorRole, currentOperator]);
 
   // Обработчик передачи смены
   const handleShiftTransfer = useCallback(
@@ -265,11 +296,15 @@ export default function StaffPage() {
       });
 
       // Обновляем текущую смену
-      setCurrentShift((prev) => prev ? ({
-        ...prev,
-        responsible: employee,
-        responsibleId: toOperatorId,
-      }) : null);
+      setCurrentShift((prev) =>
+        prev
+          ? {
+              ...prev,
+              responsible: employee,
+              responsibleId: toOperatorId,
+            }
+          : null
+      );
 
       setFormData({ employee: "", comment: "", cashAmount: "" });
     },
@@ -329,7 +364,7 @@ export default function StaffPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление персоналом</h2>
-          <Button onClick={() => setIsAddOperatorDialogOpen(true)}>
+          <Button onClick={() => setIsAddOperatorDialogOpen(true)} disabled={currentOperator?.role !== "maindev"}>
             <Plus className="mr-2 h-4 w-4" /> Новый оператор
           </Button>
         </div>
@@ -358,12 +393,17 @@ export default function StaffPage() {
                 Фильтры
               </Button>
             </div>
-            <StaffTable searchQuery={searchQuery} operators={operators} setOperators={setOperators} />
+            <StaffTable
+              searchQuery={searchQuery}
+              operators={operators}
+              setOperators={setOperators}
+              currentOperator={currentOperator}
+            />
           </TabsContent>
 
           {/* Вкладка "Смены" */}
           <TabsContent value="shifts" className="space-y-4">
-            <ShiftSchedule operators={operators} />
+            <ShiftSchedule operators={operators} currentOperator={currentOperator} />
           </TabsContent>
 
           {/* Вкладка "Текущая смена" */}
@@ -480,6 +520,21 @@ export default function StaffPage() {
                 onChange={(e) => setNewOperatorName(e.target.value)}
                 placeholder="Введите имя оператора"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="operatorRole">Роль</Label>
+              <Select
+                value={newOperatorRole}
+                onValueChange={(value: "maindev" | "operator") => setNewOperatorRole(value)}
+              >
+                <SelectTrigger id="operatorRole">
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="operator">Оператор</SelectItem>
+                  <SelectItem value="maindev">Maindev</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
