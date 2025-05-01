@@ -1,6 +1,5 @@
 // app/tariffs/page.tsx
 "use client";
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
