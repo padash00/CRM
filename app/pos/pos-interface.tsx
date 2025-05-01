@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label"; // Импорт Label добавлен ранее
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
 
 interface CartItem {
@@ -56,7 +56,7 @@ interface Customer {
 
 export function POSInterface() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerId, setCustomerId] = useState<string>("");
+  const [customerId, setCustomerId] = useState<string>("none"); // Начальное значение "none"
   const [guestName, setGuestName] = useState<string>(""); // Для покупок без аккаунта
   const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
@@ -84,7 +84,7 @@ export function POSInterface() {
 
       const { data: servicesData, error: servicesError } = await supabase
         .from("services")
-        .select("id, name, price, quantity, type"); // Убираем sale_price
+        .select("id, name, price, quantity, type");
 
       if (servicesError) {
         toast({
@@ -191,7 +191,7 @@ export function POSInterface() {
 
   const clearCart = useCallback(() => {
     setCart([]);
-    setCustomerId("");
+    setCustomerId("none"); // Сбрасываем на "none"
     setGuestName("");
     toast({
       title: "Корзина очищена",
@@ -247,11 +247,11 @@ export function POSInterface() {
       .from("transactions")
       .insert([
         {
-          customer_id: customerId || null, // Если клиент не выбран, ставим null
+          customer_id: customerId === "none" ? null : customerId, // Если "none", ставим null
           amount: total,
           transaction_date: new Date().toISOString(),
           payment_type: paymentMethod,
-          guest_name: customerId ? null : guestName || "Гость", // Если нет customer_id, сохраняем имя гостя
+          guest_name: customerId === "none" ? (guestName || "Гость") : null,
         },
       ])
       .select()
@@ -329,7 +329,7 @@ export function POSInterface() {
 
     setPaymentDialogOpen(false);
     setCart([]);
-    setCustomerId("");
+    setCustomerId("none");
     setGuestName("");
     setCashReceived("");
     setPaymentMethod("cash");
@@ -407,7 +407,7 @@ export function POSInterface() {
                 <SelectValue placeholder="Выберите клиента (или оставьте пустым)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без клиента</SelectItem>
+                <SelectItem value="none">Без клиента</SelectItem> {/* Заменили value="" на value="none" */}
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
@@ -416,7 +416,7 @@ export function POSInterface() {
               </SelectContent>
             </Select>
           </div>
-          {!customerId && (
+          {customerId === "none" && ( // Обновили условие
             <div className="space-y-2">
               <Label htmlFor="guestName">Имя гостя (если без аккаунта)</Label>
               <Input
@@ -431,7 +431,7 @@ export function POSInterface() {
             <div className="p-4">
               <div className="space-y-2">
                 {cart.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">Корзина пуста</div>
+                  <div className="text-centerappropriately py-4 text-muted-foreground">Корзина пуста</div>
                 ) : (
                   cart.map((item) => (
                     <div
