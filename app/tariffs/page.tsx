@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Loader2, Edit, Trash } from "lucide-react";
+import { Plus, Loader2, Edit, Trash, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { MainNav } from "@/components/main-nav";
 import { TariffList } from "@/components/tariff-list";
 import { LoyaltyProgram } from "@/components/loyalty-program";
@@ -29,6 +29,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Типизация тарифа
 interface Tariff {
@@ -89,12 +96,26 @@ export default function TariffsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCreatingTariff, setIsCreatingTariff] = useState<boolean>(false);
   const [isCreatingPromotion, setIsCreatingPromotion] = useState<boolean>(false);
+  const [createTariffDialogOpen, setCreateTariffDialogOpen] = useState<boolean>(false);
+  const [createPromotionDialogOpen, setCreatePromotionDialogOpen] = useState<boolean>(false);
   const [editTariffDialogOpen, setEditTariffDialogOpen] = useState<boolean>(false);
   const [editPromotionDialogOpen, setEditPromotionDialogOpen] = useState<boolean>(false);
+  const [deleteTariffDialogOpen, setDeleteTariffDialogOpen] = useState<boolean>(false);
+  const [deletePromotionDialogOpen, setDeletePromotionDialogOpen] = useState<boolean>(false);
   const [editTariff, setEditTariff] = useState<Tariff | null>(null);
   const [editPromotion, setEditPromotion] = useState<Promotion | null>(null);
+  const [deleteTariffId, setDeleteTariffId] = useState<string | null>(null);
+  const [deletePromotionId, setDeletePromotionId] = useState<string | null>(null);
   const [isDeletingTariff, setIsDeletingTariff] = useState<string | null>(null);
   const [isDeletingPromotion, setIsDeletingPromotion] = useState<string | null>(null);
+
+  // Состояния для фильтров, сортировки и пагинации
+  const [tariffSort, setTariffSort] = useState<"asc" | "desc">("desc");
+  const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
+  const [promotionSort, setPromotionSort] = useState<"asc" | "desc">("desc");
+  const [tariffPage, setTariffPage] = useState<number>(1);
+  const [promotionPage, setPromotionPage] = useState<number>(1);
+  const itemsPerPage = 3;
 
   // Загрузка данных
   const fetchData = async () => {
@@ -102,20 +123,28 @@ export default function TariffsPage() {
     setError(null);
 
     try {
-      // Загружаем тарифы
       const { data: tariffsData, error: tariffsError } = await supabase
         .from("tariffs")
-        .select("*");
+        .select("*")
+        .order("created_at", { ascending: tariffSort === "asc" });
 
       if (tariffsError) {
         throw new Error(`Ошибка загрузки тарифов: ${tariffsError.message}`);
       }
       setTariffs(tariffsData || []);
 
-      // Загружаем акции
-      const { data: promotionsData, error: promotionsError } = await supabase
+      let promotionsQuery = supabase
         .from("promotions")
-        .select("*");
+        .select("*")
+        .order("created_at", { ascending: promotionSort === "asc" });
+
+      if (promotionFilter === "active") {
+        promotionsQuery = promotionsQuery.gte("end_date", new Date().toISOString().split("T")[0]);
+      } else if (promotionFilter === "expired") {
+        promotionsQuery = promotionsQuery.lt("end_date", new Date().toISOString().split("T")[0]);
+      }
+
+      const { data: promotionsData, error: promotionsError } = await promotionsQuery;
 
       if (promotionsError) {
         throw new Error(`Ошибка загрузки акций: ${promotionsError.message}`);
@@ -135,7 +164,7 @@ export default function TariffsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [tariffSort, promotionFilter, promotionSort]);
 
   // Обработчик изменения формы тарифа
   const handleTariffChange = useCallback(
@@ -193,6 +222,7 @@ export default function TariffsPage() {
           title: "Тариф создан",
           description: `Тариф "${name}" успешно добавлен в систему.`,
         });
+        setCreateTariffDialogOpen(false);
         setTariffForm({ name: "", type: "", price: "", description: "" });
       } catch (err: any) {
         toast({
@@ -267,24 +297,27 @@ export default function TariffsPage() {
   );
 
   // Обработчик удаления тарифа
-  const handleDeleteTariff = async (tariffId: string) => {
-    setIsDeletingTariff(tariffId);
+  const handleDeleteTariff = async () => {
+    if (!deleteTariffId) return;
+
+    setIsDeletingTariff(deleteTariffId);
 
     try {
       const { error } = await supabase
         .from("tariffs")
         .delete()
-        .eq("id", tariffId);
+        .eq("id", deleteTariffId);
 
       if (error) {
         throw new Error(`Ошибка удаления тарифа: ${error.message}`);
       }
 
-      setTariffs((prev) => prev.filter((tariff) => tariff.id !== tariffId));
+      setTariffs((prev) => prev.filter((tariff) => tariff.id !== deleteTariffId));
       toast({
         title: "Тариф удалён",
         description: "Тариф успешно удалён из системы.",
       });
+      setDeleteTariffDialogOpen(false);
     } catch (err: any) {
       toast({
         title: "Ошибка удаления тарифа",
@@ -293,6 +326,7 @@ export default function TariffsPage() {
       });
     } finally {
       setIsDeletingTariff(null);
+      setDeleteTariffId(null);
     }
   };
 
@@ -346,6 +380,7 @@ export default function TariffsPage() {
           title: "Акция создана",
           description: `Акция "${name}" успешно добавлена в систему.`,
         });
+        setCreatePromotionDialogOpen(false);
         setPromotionForm({ name: "", discount: "", startDate: "", endDate: "", description: "" });
       } catch (err: any) {
         toast({
@@ -430,24 +465,27 @@ export default function TariffsPage() {
   );
 
   // Обработчик удаления акции
-  const handleDeletePromotion = async (promotionId: string) => {
-    setIsDeletingPromotion(promotionId);
+  const handleDeletePromotion = async () => {
+    if (!deletePromotionId) return;
+
+    setIsDeletingPromotion(deletePromotionId);
 
     try {
       const { error } = await supabase
         .from("promotions")
         .delete()
-        .eq("id", promotionId);
+        .eq("id", deletePromotionId);
 
       if (error) {
         throw new Error(`Ошибка удаления акции: ${error.message}`);
       }
 
-      setPromotions((prev) => prev.filter((promo) => promo.id !== promotionId));
+      setPromotions((prev) => prev.filter((promo) => promo.id !== deletePromotionId));
       toast({
         title: "Акция удалена",
         description: "Акция успешно удалена из системы.",
       });
+      setDeletePromotionDialogOpen(false);
     } catch (err: any) {
       toast({
         title: "Ошибка удаления акции",
@@ -456,6 +494,7 @@ export default function TariffsPage() {
       });
     } finally {
       setIsDeletingPromotion(null);
+      setDeletePromotionId(null);
     }
   };
 
@@ -485,6 +524,30 @@ export default function TariffsPage() {
     });
     setEditPromotionDialogOpen(true);
   };
+
+  const handleDeleteTariffOpen = (tariffId: string) => {
+    setDeleteTariffId(tariffId);
+    setDeleteTariffDialogOpen(true);
+  };
+
+  const handleDeletePromotionOpen = (promotionId: string) => {
+    setDeletePromotionId(promotionId);
+    setDeletePromotionDialogOpen(true);
+  };
+
+  // Пагинация для тарифов
+  const paginatedTariffs = tariffs.slice(
+    (tariffPage - 1) * itemsPerPage,
+    tariffPage * itemsPerPage
+  );
+  const totalTariffPages = Math.ceil(tariffs.length / itemsPerPage);
+
+  // Пагинация для акций
+  const paginatedPromotions = promotions.slice(
+    (promotionPage - 1) * itemsPerPage,
+    promotionPage * itemsPerPage
+  );
+  const totalPromotionPages = Math.ceil(promotions.length / itemsPerPage);
 
   if (isLoading) {
     return (
@@ -522,9 +585,6 @@ export default function TariffsPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление тарифами</h2>
-          <Button onClick={() => setTariffForm({ name: "", type: "", price: "", description: "" })}>
-            <Plus className="mr-2 h-4 w-4" /> Новый тариф
-          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
@@ -535,76 +595,50 @@ export default function TariffsPage() {
           </TabsList>
 
           <TabsContent value="tariffs" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Label>Сортировка:</Label>
+                <Select value={tariffSort} onValueChange={(value: "asc" | "desc") => setTariffSort(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Сортировка" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desc">Новые первыми</SelectItem>
+                    <SelectItem value="asc">Старые первыми</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => setCreateTariffDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Новый тариф
+              </Button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Создать тариф</CardTitle>
-                  <CardDescription>Добавьте новый тариф в систему</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="space-y-4" onSubmit={handleCreateTariff}>
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Название тарифа</Label>
-                      <Input
-                        id="name"
-                        placeholder="Введите название"
-                        value={tariffForm.name}
-                        onChange={(e) => handleTariffChange("name", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingTariff}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="type">Тип компьютера</Label>
-                      <Input
-                        id="type"
-                        placeholder="Стандарт, VIP, Консоль и т.д."
-                        value={tariffForm.type}
-                        onChange={(e) => handleTariffChange("type", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingTariff}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Цена (₸/час)</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        min="0"
-                        placeholder="Введите цену"
-                        value={tariffForm.price}
-                        onChange={(e) => handleTariffChange("price", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingTariff}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Описание</Label>
-                      <Input
-                        id="description"
-                        placeholder="Описание тарифа"
-                        value={tariffForm.description}
-                        onChange={(e) => handleTariffChange("description", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingTariff}
-                      />
-                    </div>
-                    <Button className="w-full" type="submit" disabled={isCreatingTariff}>
-                      {isCreatingTariff ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Создать тариф
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
               <TariffList
-                tariffs={tariffs}
+                tariffs={paginatedTariffs}
                 onEdit={handleEditTariffOpen}
-                onDelete={handleDeleteTariff}
+                onDelete={handleDeleteTariffOpen}
                 isDeleting={isDeletingTariff}
               />
             </div>
+            {totalTariffPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setTariffPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={tariffPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+                </Button>
+                <span>Страница {tariffPage} из {totalTariffPages}</span>
+                <Button
+                  variant="outline"
+                  onClick={() => setTariffPage((prev) => Math.min(prev + 1, totalTariffPages))}
+                  disabled={tariffPage === totalTariffPages}
+                >
+                  Вперед <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="loyalty" className="space-y-4">
@@ -612,85 +646,36 @@ export default function TariffsPage() {
           </TabsContent>
 
           <TabsContent value="promotions" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Label>Фильтр:</Label>
+                <Select value={promotionFilter} onValueChange={(value: "all" | "active" | "expired") => setPromotionFilter(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Фильтр" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все</SelectItem>
+                    <SelectItem value="active">Активные</SelectItem>
+                    <SelectItem value="expired">Завершённые</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Label>Сортировка:</Label>
+                <Select value={promotionSort} onValueChange={(value: "asc" | "desc") => setPromotionSort(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Сортировка" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desc">Новые первыми</SelectItem>
+                    <SelectItem value="asc">Старые первыми</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => setCreatePromotionDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Новая акция
+              </Button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Создать акцию</CardTitle>
-                  <CardDescription>Добавьте новую акцию в систему</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="space-y-4" onSubmit={handleCreatePromotion}>
-                    <div className="space-y-2">
-                      <Label htmlFor="promo-name">Название акции</Label>
-                      <Input
-                        id="promo-name"
-                        placeholder="Введите название"
-                        value={promotionForm.name}
-                        onChange={(e) => handlePromotionChange("name", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingPromotion}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="discount">Скидка (%)</Label>
-                      <Input
-                        id="discount"
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="Введите скидку"
-                        value={promotionForm.discount}
-                        onChange={(e) => handlePromotionChange("discount", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingPromotion}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="start-date">Дата начала</Label>
-                        <Input
-                          id="start-date"
-                          type="date"
-                          value={promotionForm.startDate}
-                          onChange={(e) => handlePromotionChange("startDate", e.target.value)}
-                          className="shadow-sm"
-                          disabled={isCreatingPromotion}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="end-date">Дата окончания</Label>
-                        <Input
-                          id="end-date"
-                          type="date"
-                          value={promotionForm.endDate}
-                          onChange={(e) => handlePromotionChange("endDate", e.target.value)}
-                          className="shadow-sm"
-                          disabled={isCreatingPromotion}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="promo-description">Описание</Label>
-                      <Input
-                        id="promo-description"
-                        placeholder="Описание акции"
-                        value={promotionForm.description}
-                        onChange={(e) => handlePromotionChange("description", e.target.value)}
-                        className="shadow-sm"
-                        disabled={isCreatingPromotion}
-                      />
-                    </div>
-                    <Button className="w-full" type="submit" disabled={isCreatingPromotion}>
-                      {isCreatingPromotion ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Создать акцию
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {promotions.map((promotion) => (
+              {paginatedPromotions.map((promotion) => (
                 <Card key={promotion.id} className="shadow-sm">
                   <CardHeader>
                     <CardTitle>{promotion.name}</CardTitle>
@@ -733,7 +718,7 @@ export default function TariffsPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeletePromotion(promotion.id)}
+                      onClick={() => handleDeletePromotionOpen(promotion.id)}
                       disabled={isDeletingPromotion === promotion.id}
                     >
                       {isDeletingPromotion === promotion.id ? (
@@ -747,9 +732,97 @@ export default function TariffsPage() {
                 </Card>
               ))}
             </div>
+            {totalPromotionPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setPromotionPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={promotionPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+                </Button>
+                <span>Страница {promotionPage} из {totalPromotionPages}</span>
+                <Button
+                  variant="outline"
+                  onClick={() => setPromotionPage((prev) => Math.min(prev + 1, totalPromotionPages))}
+                  disabled={promotionPage === totalPromotionPages}
+                >
+                  Вперед <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Диалог создания тарифа */}
+      <Dialog open={createTariffDialogOpen} onOpenChange={setCreateTariffDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создать тариф</DialogTitle>
+            <DialogDescription>Добавьте новый тариф в систему</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateTariff}>
+            <div className="space-y-2">
+              <Label htmlFor="name">Название тарифа</Label>
+              <Input
+                id="name"
+                placeholder="Введите название"
+                value={tariffForm.name}
+                onChange={(e) => handleTariffChange("name", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingTariff}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Тип компьютера</Label>
+              <Input
+                id="type"
+                placeholder="Стандарт, VIP, Консоль и т.д."
+                value={tariffForm.type}
+                onChange={(e) => handleTariffChange("type", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingTariff}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Цена (₸/час)</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                placeholder="Введите цену"
+                value={tariffForm.price}
+                onChange={(e) => handleTariffChange("price", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingTariff}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Описание</Label>
+              <Input
+                id="description"
+                placeholder="Описание тарифа"
+                value={tariffForm.description}
+                onChange={(e) => handleTariffChange("description", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingTariff}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateTariffDialogOpen(false)} disabled={isCreatingTariff}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isCreatingTariff}>
+                {isCreatingTariff ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Создать
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Диалог редактирования тарифа */}
       <Dialog open={editTariffDialogOpen} onOpenChange={setEditTariffDialogOpen}>
@@ -814,6 +887,112 @@ export default function TariffsPage() {
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
                 Сохранить
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог удаления тарифа */}
+      <Dialog open={deleteTariffDialogOpen} onOpenChange={setDeleteTariffDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтверждение удаления</DialogTitle>
+            <DialogDescription>
+              Вы уверены, что хотите удалить этот тариф? Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTariffDialogOpen(false)} disabled={isDeletingTariff !== null}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTariff} disabled={isDeletingTariff !== null}>
+              {isDeletingTariff ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог создания акции */}
+      <Dialog open={createPromotionDialogOpen} onOpenChange={setCreatePromotionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создать акцию</DialogTitle>
+            <DialogDescription>Добавьте новую акцию в систему</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreatePromotion}>
+            <div className="space-y-2">
+              <Label htmlFor="promo-name">Название акции</Label>
+              <Input
+                id="promo-name"
+                placeholder="Введите название"
+                value={promotionForm.name}
+                onChange={(e) => handlePromotionChange("name", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingPromotion}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="discount">Скидка (%)</Label>
+              <Input
+                id="discount"
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Введите скидку"
+                value={promotionForm.discount}
+                onChange={(e) => handlePromotionChange("discount", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingPromotion}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start-date">Дата начала</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={promotionForm.startDate}
+                  onChange={(e) => handlePromotionChange("startDate", e.target.value)}
+                  className="shadow-sm"
+                  disabled={isCreatingPromotion}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end-date">Дата окончания</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={promotionForm.endDate}
+                  onChange={(e) => handlePromotionChange("endDate", e.target.value)}
+                  className="shadow-sm"
+                  disabled={isCreatingPromotion}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promo-description">Описание</Label>
+              <Input
+                id="promo-description"
+                placeholder="Описание акции"
+                value={promotionForm.description}
+                onChange={(e) => handlePromotionChange("description", e.target.value)}
+                className="shadow-sm"
+                disabled={isCreatingPromotion}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreatePromotionDialogOpen(false)} disabled={isCreatingPromotion}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isCreatingPromotion}>
+                {isCreatingPromotion ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Создать
               </Button>
             </DialogFooter>
           </form>
@@ -900,6 +1079,29 @@ export default function TariffsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог удаления акции */}
+      <Dialog open={deletePromotionDialogOpen} onOpenChange={setDeletePromotionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтверждение удаления</DialogTitle>
+            <DialogDescription>
+              Вы уверены, что хотите удалить эту акцию? Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePromotionDialogOpen(false)} disabled={isDeletingPromotion !== null}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePromotion} disabled={isDeletingPromotion !== null}>
+              {isDeletingPromotion ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Удалить
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
