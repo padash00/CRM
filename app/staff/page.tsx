@@ -1,44 +1,61 @@
-"use client"
+// app/staff/page.tsx
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutDashboard, Plus, Search, Users } from "lucide-react"
-import Link from "next/link"
-import { StaffTable } from "./staff-table"
-import { ShiftSchedule } from "./shift-schedule"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LayoutDashboard, Plus, Search, Users } from "lucide-react";
+import Link from "next/link";
+import { StaffTable } from "./staff-table";
+import { ShiftSchedule } from "./shift-schedule";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabaseClient";
 
 // Типизация данных формы передачи смены
 interface ShiftTransferForm {
-  employee: string
-  comment: string
-  cashAmount: string
+  employee: string;
+  comment: string;
+  cashAmount: string;
 }
 
 // Типизация данных текущей смены
 interface CurrentShift {
-  date: string
-  time: string
-  responsible: string
-  employees: string[]
-  revenue: number
-  customerCount: number
+  date: string;
+  time: string;
+  responsible: string;
+  employees: string[];
+  revenue: number;
+  customerCount: number;
+}
+
+// Типизация оператора
+interface Operator {
+  id: string;
+  name: string;
 }
 
 export default function StaffPage() {
@@ -46,38 +63,92 @@ export default function StaffPage() {
     employee: "",
     comment: "",
     cashAmount: "",
-  })
-  const [searchQuery, setSearchQuery] = useState<string>("")
-  const [activeTab, setActiveTab] = useState<string>("staff")
+  });
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("staff");
+  const [operators, setOperators] = useState<Operator[]>([]); // Список операторов
+  const [newOperatorName, setNewOperatorName] = useState<string>(""); // Для формы добавления оператора
+  const [isAddOperatorDialogOpen, setIsAddOperatorDialogOpen] = useState<boolean>(false);
 
-  // Данные текущей смены
+  // Данные текущей смены (пока захардкодим, потом заменим на данные из базы)
   const currentShift: CurrentShift = {
     date: "30 марта 2025",
     time: "10:00 - 22:00",
-    responsible: "Иван Смирнов (Администратор)",
-    employees: [
-      "Иван Смирнов (Администратор)",
-      "Мария Петрова (Оператор)",
-      "Анна Козлова (Бармен)",
-    ],
+    responsible: operators[0]?.name || "Не указан",
+    employees: operators.map(op => op.name),
     revenue: 15240,
     customerCount: 32,
-  }
+  };
+
+  useEffect(() => {
+    const fetchOperators = async () => {
+      const { data: operatorsData, error: operatorsError } = await supabase
+        .from("operators")
+        .select("id, name");
+
+      if (operatorsError) {
+        toast({
+          title: "Ошибка загрузки операторов",
+          description: operatorsError.message,
+          variant: "destructive",
+        });
+      } else {
+        setOperators(operatorsData || []);
+      }
+    };
+
+    fetchOperators();
+  }, []);
+
+  // Обработчик добавления нового оператора
+  const handleAddOperator = useCallback(async () => {
+    if (!newOperatorName) {
+      toast({
+        title: "Ошибка",
+        description: "Введите имя оператора",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("operators")
+      .insert([{ name: newOperatorName }])
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Ошибка добавления оператора",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setOperators((prev) => [...prev, data]);
+    setNewOperatorName("");
+    setIsAddOperatorDialogOpen(false);
+    toast({
+      title: "Оператор добавлен",
+      description: `Оператор ${data.name} успешно добавлен`,
+    });
+  }, [newOperatorName]);
 
   // Обработчик передачи смены
   const handleShiftTransfer = useCallback(
     (e: React.FormEvent) => {
-      e.preventDefault()
+      e.preventDefault();
 
-      const { employee, cashAmount } = formData
+      const { employee, cashAmount } = formData;
 
       if (!employee) {
         toast({
           title: "Ошибка",
           description: "Выберите сотрудника для передачи смены",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
 
       if (!cashAmount || Number(cashAmount) < 0) {
@@ -85,39 +156,38 @@ export default function StaffPage() {
           title: "Ошибка",
           description: "Укажите корректный остаток в кассе",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
 
       toast({
         title: "Смена передана",
         description: `Смена успешно передана сотруднику ${employee}. Остаток в кассе: ₸${cashAmount}.`,
-      })
+      });
 
-      setFormData({ employee: "", comment: "", cashAmount: "" })
+      setFormData({ employee: "", comment: "", cashAmount: "" });
     },
     [formData]
-  )
+  );
 
   // Обработчик изменения формы
   const handleFormChange = useCallback(
     (field: keyof ShiftTransferForm, value: string) => {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => ({ ...prev, [field]: value }));
     },
     []
-  )
+  );
 
   // Обработчик поиска
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-    // Здесь можно передать searchQuery в StaffTable для фильтрации
-  }, [])
+    setSearchQuery(e.target.value);
+  }, []);
 
   // Обработчик смены вкладки
   const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value)
-    setSearchQuery("") // Сброс поиска при смене вкладки
-  }, [])
+    setActiveTab(value);
+    setSearchQuery("");
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -153,28 +223,26 @@ export default function StaffPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление персоналом</h2>
-          <Button asChild>
-            <Link href="/staff?new=true">
-              <Plus className="mr-2 h-4 w-4" /> Новый сотрудник
-            </Link>
+          <Button onClick={() => setIsAddOperatorDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Новый оператор
           </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 bg-background p-1 rounded-md shadow-sm">
-            <TabsTrigger value="staff">Сотрудники</TabsTrigger>
+            <TabsTrigger value="staff">Операторы</TabsTrigger>
             <TabsTrigger value="shifts">Смены</TabsTrigger>
             <TabsTrigger value="current">Текущая смена</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Сотрудники" */}
+          {/* Вкладка "Операторы" */}
           <TabsContent value="staff" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Поиск сотрудников..."
+                  placeholder="Поиск операторов..."
                   className="pl-8 border shadow-sm"
                   value={searchQuery}
                   onChange={handleSearch}
@@ -184,12 +252,12 @@ export default function StaffPage() {
                 Фильтры
               </Button>
             </div>
-            <StaffTable />
+            <StaffTable searchQuery={searchQuery} operators={operators} setOperators={setOperators} />
           </TabsContent>
 
           {/* Вкладка "Смены" */}
           <TabsContent value="shifts" className="space-y-4">
-            <ShiftSchedule />
+            <ShiftSchedule operators={operators} />
           </TabsContent>
 
           {/* Вкладка "Текущая смена" */}
@@ -214,7 +282,7 @@ export default function StaffPage() {
                     <div>{currentShift.responsible}</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-sm font-medium">Сотрудники на смене</div>
+                    <div className="text-sm font-medium">Операторы на смене</div>
                     <ul className="list-disc pl-4 space-y-1">
                       {currentShift.employees.map((emp) => (
                         <li key={emp}>{emp}</li>
@@ -235,36 +303,32 @@ export default function StaffPage() {
               <Card className="shadow-sm">
                 <CardHeader>
                   <CardTitle>Передача смены</CardTitle>
-                  <CardDescription>Передача смены другому сотруднику</CardDescription>
+                  <CardDescription>Передача смены другому оператору</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <form onSubmit={handleShiftTransfer}>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        Сотрудник, принимающий смену
-                      </label>
+                      <Label className="text-sm font-medium">
+                        Оператор, принимающий смену
+                      </Label>
                       <Select
                         value={formData.employee}
                         onValueChange={(value) => handleFormChange("employee", value)}
                       >
                         <SelectTrigger className="shadow-sm">
-                          <SelectValue placeholder="Выберите сотрудника" />
+                          <SelectValue placeholder="Выберите оператора" />
                         </SelectTrigger>
                         <SelectContent>
-                          {[
-                            "Екатерина Соколова (Администратор)",
-                            "Дмитрий Волков (Оператор)",
-                            "Алексей Новиков (Техник)",
-                          ].map((emp) => (
-                            <SelectItem key={emp} value={emp}>
-                              {emp}
+                          {operators.map((op) => (
+                            <SelectItem key={op.id} value={op.name}>
+                              {op.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2 mt-4">
-                      <label className="text-sm font-medium">Комментарий</label>
+                      <Label className="text-sm font-medium">Комментарий</Label>
                       <Input
                         placeholder="Добавьте комментарий к передаче смены"
                         value={formData.comment}
@@ -273,7 +337,7 @@ export default function StaffPage() {
                       />
                     </div>
                     <div className="space-y-2 mt-4">
-                      <label className="text-sm font-medium">Остаток в кассе</label>
+                      <Label className="text-sm font-medium">Остаток в кассе</Label>
                       <Input
                         placeholder="Введите сумму"
                         type="number"
@@ -293,7 +357,33 @@ export default function StaffPage() {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
-  )
-}
 
+      {/* Диалог для добавления нового оператора */}
+      <Dialog open={isAddOperatorDialogOpen} onOpenChange={setIsAddOperatorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить нового оператора</DialogTitle>
+            <DialogDescription>Введите данные нового оператора</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="operatorName">Имя оператора</Label>
+              <Input
+                id="operatorName"
+                value={newOperatorName}
+                onChange={(e) => setNewOperatorName(e.target.value)}
+                placeholder="Введите имя оператора"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddOperatorDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleAddOperator}>Добавить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
