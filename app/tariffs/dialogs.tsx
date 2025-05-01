@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Edit, Trash, Save } from "lucide-react";
+import { Edit, Trash, Save } from "lucide-react";
 
 interface Tariff {
   id: string;
@@ -176,7 +176,7 @@ interface DialogsProps {
   setDeleteComputerDialogOpen: (open: boolean) => void;
   setSaleDialogOpen: (open: boolean) => void;
   setEndSessionDialogOpen: (open: boolean) => void;
-  setEditComputer: (computer: Computer | null) => void; // Добавляем setEditComputer в пропсы
+  setEditComputer: (computer: Computer | null) => void;
 }
 
 export function Dialogs({
@@ -338,7 +338,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingTariff}>
                 {isCreatingTariff ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Создать
               </Button>
@@ -430,7 +430,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingTariff}>
                 {isCreatingTariff ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Сохранить
               </Button>
@@ -453,7 +453,7 @@ export function Dialogs({
             </Button>
             <Button variant="destructive" onClick={handleDeleteTariff} disabled={isDeletingTariff !== null}>
               {isDeletingTariff ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading...</span>
               ) : null}
               Удалить
             </Button>
@@ -534,7 +534,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingPromotion}>
                 {isCreatingPromotion ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Создать
               </Button>
@@ -616,7 +616,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingPromotion}>
                 {isCreatingPromotion ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Сохранить
               </Button>
@@ -639,7 +639,7 @@ export function Dialogs({
             </Button>
             <Button variant="destructive" onClick={handleDeletePromotion} disabled={isDeletingPromotion !== null}>
               {isDeletingPromotion ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading...</span>
               ) : null}
               Удалить
             </Button>
@@ -682,7 +682,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
                 {isCreatingZone ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Создать
               </Button>
@@ -726,7 +726,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
                 {isCreatingZone ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Сохранить
               </Button>
@@ -749,7 +749,7 @@ export function Dialogs({
             </Button>
             <Button variant="destructive" onClick={handleDeleteZone} disabled={isDeletingZone !== null}>
               {isDeletingZone ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading...</span>
               ) : null}
               Удалить
             </Button>
@@ -856,7 +856,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
                 {isCreatingZone ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Сохранить
               </Button>
@@ -879,7 +879,7 @@ export function Dialogs({
             </Button>
             <Button variant="destructive" onClick={handleDeleteComputer} disabled={isDeletingComputer !== null}>
               {isDeletingComputer ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading...</span>
               ) : null}
               Удалить
             </Button>
@@ -975,7 +975,7 @@ export function Dialogs({
               </Button>
               <Button type="submit" disabled={isSelling}>
                 {isSelling ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span>Loading...</span>
                 ) : null}
                 Продать
               </Button>
@@ -998,7 +998,7 @@ export function Dialogs({
             </Button>
             <Button variant="destructive" onClick={handleEndSession} disabled={isEndingSession !== null}>
               {isEndingSession ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading...</span>
               ) : null}
               Завершить
             </Button>
