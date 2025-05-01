@@ -191,7 +191,7 @@ export function POSInterface() {
 
   const clearCart = useCallback(() => {
     setCart([]);
-    setCustomerId("none"); // Сбрасываем на "none"
+    setCustomerId("none");
     setGuestName("");
     toast({
       title: "Корзина очищена",
@@ -243,24 +243,27 @@ export function POSInterface() {
     }
 
     // Создаём транзакцию
+    const transactionDataToInsert = {
+      customer_id: customerId === "none" ? null : customerId,
+      amount: total,
+      transaction_date: new Date().toISOString().replace("Z", ""), // Убираем Z
+      payment_type: paymentMethod,
+      guest_name: customerId === "none" ? (guestName || "Гость") : null,
+    };
+
+    console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
+
     const { data: transactionData, error: transactionError } = await supabase
       .from("transactions")
-      .insert([
-        {
-          customer_id: customerId === "none" ? null : customerId, // Если "none", ставим null
-          amount: total,
-          transaction_date: new Date().toISOString(),
-          payment_type: paymentMethod,
-          guest_name: customerId === "none" ? (guestName || "Гость") : null,
-        },
-      ])
+      .insert([transactionDataToInsert])
       .select()
       .single();
 
     if (transactionError) {
+      console.error("Ошибка Supabase:", transactionError); // Для отладки
       toast({
         title: "Ошибка создания транзакции",
-        description: transactionError.message,
+        description: transactionError.message || "Не удалось создать транзакцию",
         variant: "destructive",
       });
       return;
@@ -407,7 +410,7 @@ export function POSInterface() {
                 <SelectValue placeholder="Выберите клиента (или оставьте пустым)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Без клиента</SelectItem> {/* Заменили value="" на value="none" */}
+                <SelectItem value="none">Без клиента</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
@@ -416,7 +419,7 @@ export function POSInterface() {
               </SelectContent>
             </Select>
           </div>
-          {customerId === "none" && ( // Обновили условие
+          {customerId === "none" && (
             <div className="space-y-2">
               <Label htmlFor="guestName">Имя гостя (если без аккаунта)</Label>
               <Input
@@ -431,7 +434,7 @@ export function POSInterface() {
             <div className="p-4">
               <div className="space-y-2">
                 {cart.length === 0 ? (
-                  <div className="text-centerappropriately py-4 text-muted-foreground">Корзина пуста</div>
+                  <div className="text-center py-4 text-muted-foreground">Корзина пуста</div>
                 ) : (
                   cart.map((item) => (
                     <div
