@@ -312,20 +312,69 @@ export default function StaffPage() {
         return;
       }
 
+      const transferData = {
+        shift_id: currentShift.id,
+        from_operator_id: currentShift.responsibleId,
+        to_operator_id: toOperatorId,
+        comment,
+        cash_amount: parseFloat(cashAmount),
+      };
+
+      console.log("Данные для вставки в shift_transfers:", transferData);
+
+      // Проверяем, существуют ли связанные записи
+      const { data: shiftExists } = await supabase
+        .from("shifts")
+        .select("id")
+        .eq("id", currentShift.id)
+        .single();
+
+      if (!shiftExists) {
+        toast({
+          title: "Ошибка",
+          description: "Смена с указанным shift_id не найдена",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data: fromOperatorExists } = await supabase
+        .from("operators")
+        .select("id")
+        .eq("id", currentShift.responsibleId)
+        .single();
+
+      if (!fromOperatorExists) {
+        toast({
+          title: "Ошибка",
+          description: "Оператор (from_operator_id) не найден",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data: toOperatorExists } = await supabase
+        .from("operators")
+        .select("id")
+        .eq("id", toOperatorId)
+        .single();
+
+      if (!toOperatorExists) {
+        toast({
+          title: "Ошибка",
+          description: "Оператор (to_operator_id) не найден",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Фиксируем передачу смены в базе
       const { error } = await supabase
         .from("shift_transfers")
-        .insert([
-          {
-            shift_id: currentShift.id,
-            from_operator_id: currentShift.responsibleId,
-            to_operator_id: toOperatorId,
-            comment,
-            cash_amount: parseFloat(cashAmount),
-          },
-        ]);
+        .insert([transferData]);
 
       if (error) {
+        console.error("Ошибка при вставке в shift_transfers:", error);
         toast({
           title: "Ошибка передачи смены",
           description: error.message,
