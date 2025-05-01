@@ -176,6 +176,7 @@ interface DialogsProps {
   setDeleteComputerDialogOpen: (open: boolean) => void;
   setSaleDialogOpen: (open: boolean) => void;
   setEndSessionDialogOpen: (open: boolean) => void;
+  setEditComputer: (computer: Computer | null) => void; // Добавляем setEditComputer в пропсы
 }
 
 export function Dialogs({
@@ -250,6 +251,7 @@ export function Dialogs({
   setDeleteComputerDialogOpen,
   setSaleDialogOpen,
   setEndSessionDialogOpen,
+  setEditComputer,
 }: DialogsProps) {
   return (
     <>
@@ -768,7 +770,11 @@ export function Dialogs({
                 id="edit-computer-name"
                 placeholder="Введите название"
                 value={editComputer?.name || ""}
-                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                onChange={(e) =>
+                  setEditComputer((prev) =>
+                    prev ? { ...prev, name: e.target.value } : prev
+                  )
+                }
                 className="shadow-sm"
                 disabled={isCreatingZone}
               />
@@ -777,7 +783,11 @@ export function Dialogs({
               <Label htmlFor="edit-computer-type">Тип</Label>
               <Select
                 value={editComputer?.type || ""}
-                onValueChange={(value) => setEditComputer((prev) => prev ? { ...prev, type: value as "PC" | "PlayStation" } : null)}
+                onValueChange={(value) =>
+                  setEditComputer((prev) =>
+                    prev ? { ...prev, type: value as "PC" | "PlayStation" } : prev
+                  )
+                }
                 disabled={isCreatingZone}
               >
                 <SelectTrigger>
@@ -793,7 +803,9 @@ export function Dialogs({
               <Label htmlFor="edit-computer-zone">Зона</Label>
               <Select
                 value={editComputer?.zone_id || ""}
-                onValueChange={(value) => setEditComputer((prev) => prev ? { ...prev, zone_id: value } : null)}
+                onValueChange={(value) =>
+                  setEditComputer((prev) => (prev ? { ...prev, zone_id: value } : prev))
+                }
                 disabled={isCreatingZone}
               >
                 <SelectTrigger>
@@ -814,7 +826,11 @@ export function Dialogs({
                 id="edit-computer-x"
                 type="number"
                 value={editComputer?.position_x || 0}
-                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, position_x: parseInt(e.target.value) } : null)}
+                onChange={(e) =>
+                  setEditComputer((prev) =>
+                    prev ? { ...prev, position_x: parseInt(e.target.value) } : prev
+                  )
+                }
                 className="shadow-sm"
                 disabled={isCreatingZone}
               />
@@ -825,7 +841,11 @@ export function Dialogs({
                 id="edit-computer-y"
                 type="number"
                 value={editComputer?.position_y || 0}
-                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, position_y: parseInt(e.target.value) } : null)}
+                onChange={(e) =>
+                  setEditComputer((prev) =>
+                    prev ? { ...prev, position_y: parseInt(e.target.value) } : prev
+                  )
+                }
                 className="shadow-sm"
                 disabled={isCreatingZone}
               />
