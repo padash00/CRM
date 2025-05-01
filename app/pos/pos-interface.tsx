@@ -1,4 +1,4 @@
-/ pos/POSInterface.tsx
+// pos/POSInterface.tsx
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label"; // Добавляем импорт Label
+import { Label } from "@/components/ui/label"; // Импорт Label добавлен ранее
 import { supabase } from "@/lib/supabaseClient";
 
 interface CartItem {
@@ -401,7 +401,7 @@ export function POSInterface() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Клиент</label>
+            <Label className="text-sm font-medium">Клиент</Label>
             <Select onValueChange={setCustomerId} value={customerId}>
               <SelectTrigger className="shadow-sm">
                 <SelectValue placeholder="Выберите клиента (или оставьте пустым)" />
@@ -503,7 +503,7 @@ export function POSInterface() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right font-medium">Способ оплаты</label>
+              <Label className="text-right font-medium">Способ оплаты</Label>
               <div className="col-span-3">
                 <Tabs
                   value={paymentMethod}
@@ -519,7 +519,7 @@ export function POSInterface() {
             </div>
             {paymentMethod === "cash" && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Получено</label>
+                <Label className="text-right font-medium">Получено</Label>
                 <Input
                   type="number"
                   value={cashReceived}
@@ -532,7 +532,7 @@ export function POSInterface() {
             )}
             {paymentMethod === "cash" && cashReceived && Number.parseInt(cashReceived) >= calculateTotal() && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Сдача</label>
+                <Label className="text-right font-medium">Сдача</Label>
                 <div className="col-span-3 font-medium text-green-600">
                   ₸{Number.parseInt(cashReceived) - calculateTotal()}
                 </div>
