@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, Plus, Search, Users } from "lucide-react";
-import Link from "next/link";
+import { Plus, Search, Users, Loader2 } from "lucide-react";
 import { StaffTable } from "./staff-table";
 import { ShiftSchedule } from "./shift-schedule";
 import {
@@ -34,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
+import { MainNav } from "@/components/main-nav";
 
 // Типизация данных формы передачи смены
 interface ShiftTransferForm {
@@ -80,23 +80,24 @@ export default function StaffPage() {
   const [newOperatorRole, setNewOperatorRole] = useState<"maindev" | "operator">("operator");
   const [isAddOperatorDialogOpen, setIsAddOperatorDialogOpen] = useState<boolean>(false);
   const [currentOperator, setCurrentOperator] = useState<Operator | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isTransferringShift, setIsTransferringShift] = useState<boolean>(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
       // Загружаем операторов
       const { data: operatorsData, error: operatorsError } = await supabase
         .from("operators")
         .select("id, name, position, phone, email, status, working_hours, role");
 
       if (operatorsError) {
-        toast({
-          title: "Ошибка загрузки операторов",
-          description: operatorsError.message,
-          variant: "destructive",
-        });
-      } else {
-        setOperators(operatorsData || []);
+        throw new Error(`Ошибка загрузки операторов: ${operatorsError.message}`);
       }
+      setOperators(operatorsData || []);
 
       // Загружаем текущего оператора (заглушка, в будущем замени на авторизацию)
       const { data: currentOpData, error: currentOpError } = await supabase
@@ -106,21 +107,14 @@ export default function StaffPage() {
         .single();
 
       if (currentOpError) {
-        toast({
-          title: "Ошибка загрузки текущего оператора",
-          description: currentOpError.message,
-          variant: "destructive",
-        });
-      } else {
-        setCurrentOperator(currentOpData || null);
+        throw new Error(`Ошибка загрузки текущего оператора: ${currentOpError.message}`);
       }
+      setCurrentOperator(currentOpData || null);
 
       // Загружаем или создаём текущую смену
       const today = new Date().toISOString().split("T")[0];
       let shiftsData;
-      let shiftsError;
 
-      // Проверяем, есть ли смена за сегодня
       const { data: existingShift, error: fetchError } = await supabase
         .from("shifts")
         .select("id, date, time, shift_operators!inner(operator_id, operators!inner(*))")
@@ -129,17 +123,11 @@ export default function StaffPage() {
         .limit(1)
         .single();
 
-      if (fetchError && fetchError.code !== "PGRST116") { // PGRST116 — "No rows found"
-        toast({
-          title: "Ошибка загрузки текущей смены",
-          description: fetchError.message,
-          variant: "destructive",
-        });
-        return;
+      if (fetchError && fetchError.code !== "PGRST116") {
+        throw new Error(`Ошибка загрузки текущей смены: ${fetchError.message}`);
       }
 
       if (!existingShift) {
-        // Если смены нет, создаём новую
         const { data: newShift, error: createError } = await supabase
           .from("shifts")
           .insert([{ date: today, time: "10:00 - 22:00" }])
@@ -147,29 +135,17 @@ export default function StaffPage() {
           .single();
 
         if (createError) {
-          toast({
-            title: "Ошибка создания смены",
-            description: createError.message,
-            variant: "destructive",
-          });
-          return;
+          throw new Error(`Ошибка создания смены: ${createError.message}`);
         }
 
-        // Связываем смену с текущим оператором
         const { error: linkError } = await supabase
           .from("shift_operators")
           .insert([{ shift_id: newShift.id, operator_id: currentOpData.id }]);
 
         if (linkError) {
-          toast({
-            title: "Ошибка связывания оператора с новой сменой",
-            description: linkError.message,
-            variant: "destructive",
-          });
-          return;
+          throw new Error(`Ошибка связывания оператора с новой сменой: ${linkError.message}`);
         }
 
-        // Формируем данные смены
         shiftsData = {
           ...newShift,
           shift_operators: [{ operator_id: currentOpData.id, operators: currentOpData }],
@@ -186,12 +162,7 @@ export default function StaffPage() {
         .lte("transaction_date", today + "T23:59:59");
 
       if (transactionsError) {
-        toast({
-          title: "Ошибка загрузки транзакций",
-          description: transactionsError.message,
-          variant: "destructive",
-        });
-        return;
+        throw new Error(`Ошибка загрузки транзакций: ${transactionsError.message}`);
       }
 
       const revenue = transactionsData.reduce((sum, tx) => sum + tx.amount, 0);
@@ -208,12 +179,22 @@ export default function StaffPage() {
         revenue,
         customerCount,
       });
-    };
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Ошибка загрузки данных",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
-  // Обработчик добавления нового оператора
   const handleAddOperator = useCallback(async () => {
     if (!currentOperator || currentOperator.role !== "maindev") {
       toast({
@@ -268,7 +249,6 @@ export default function StaffPage() {
     });
   }, [newOperatorName, newOperatorRole, currentOperator]);
 
-  // Обработчик передачи смены
   const handleShiftTransfer = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -312,99 +292,86 @@ export default function StaffPage() {
         return;
       }
 
-      const transferData = {
-        shift_id: currentShift.id,
-        from_operator_id: currentShift.responsibleId,
-        to_operator_id: toOperatorId,
-        comment,
-        cash_amount: parseFloat(cashAmount),
-      };
+      setIsTransferringShift(true);
 
-      console.log("Данные для вставки в shift_transfers:", transferData);
+      try {
+        const transferData = {
+          shift_id: currentShift.id,
+          from_operator_id: currentShift.responsibleId,
+          to_operator_id: toOperatorId,
+          comment,
+          cash_amount: parseFloat(cashAmount),
+        };
 
-      // Проверяем, существуют ли связанные записи
-      const { data: shiftExists } = await supabase
-        .from("shifts")
-        .select("id")
-        .eq("id", currentShift.id)
-        .single();
+        console.log("Данные для вставки в shift_transfers:", transferData);
 
-      if (!shiftExists) {
+        const { data: shiftExists } = await supabase
+          .from("shifts")
+          .select("id")
+          .eq("id", currentShift.id)
+          .single();
+
+        if (!shiftExists) {
+          throw new Error("Смена с указанным shift_id не найдена");
+        }
+
+        const { data: fromOperatorExists } = await supabase
+          .from("operators")
+          .select("id")
+          .eq("id", currentShift.responsibleId)
+          .single();
+
+        if (!fromOperatorExists) {
+          throw new Error("Оператор (from_operator_id) не найден");
+        }
+
+        const { data: toOperatorExists } = await supabase
+          .from("operators")
+          .select("id")
+          .eq("id", toOperatorId)
+          .single();
+
+        if (!toOperatorExists) {
+          throw new Error("Оператор (to_operator_id) не найден");
+        }
+
+        const { error } = await supabase
+          .from("shift_transfers")
+          .insert([transferData]);
+
+        if (error) {
+          throw new Error(`Ошибка при передаче смены: ${error.message}`);
+        }
+
         toast({
-          title: "Ошибка",
-          description: "Смена с указанным shift_id не найдена",
-          variant: "destructive",
+          title: "Смена передана",
+          description: `Смена успешно передана оператору ${employee}. Остаток в кассе: ₸${cashAmount}.`,
         });
-        return;
-      }
 
-      const { data: fromOperatorExists } = await supabase
-        .from("operators")
-        .select("id")
-        .eq("id", currentShift.responsibleId)
-        .single();
+        setCurrentShift((prev) =>
+          prev
+            ? {
+                ...prev,
+                responsible: employee,
+                responsibleId: toOperatorId,
+              }
+            : null
+        );
 
-      if (!fromOperatorExists) {
-        toast({
-          title: "Ошибка",
-          description: "Оператор (from_operator_id) не найден",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data: toOperatorExists } = await supabase
-        .from("operators")
-        .select("id")
-        .eq("id", toOperatorId)
-        .single();
-
-      if (!toOperatorExists) {
-        toast({
-          title: "Ошибка",
-          description: "Оператор (to_operator_id) не найден",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Фиксируем передачу смены в базе
-      const { error } = await supabase
-        .from("shift_transfers")
-        .insert([transferData]);
-
-      if (error) {
-        console.error("Ошибка при вставке в shift_transfers:", error);
+        setFormData({ employee: "", comment: "", cashAmount: "" });
+      } catch (err: any) {
         toast({
           title: "Ошибка передачи смены",
-          description: error.message,
+          description: err.message,
           variant: "destructive",
         });
-        return;
+      } finally {
+        setIsTransferringShift(false);
       }
-
-      toast({
-        title: "Смена передана",
-        description: `Смена успешно передана оператору ${employee}. Остаток в кассе: ₸${cashAmount}.`,
-      });
-
-      // Обновляем текущую смену
-      setCurrentShift((prev) =>
-        prev
-          ? {
-              ...prev,
-              responsible: employee,
-              responsibleId: toOperatorId,
-            }
-          : null
-      );
-
-      setFormData({ employee: "", comment: "", cashAmount: "" });
     },
     [formData, currentShift, operators]
   );
 
-  // Обработчик изменения формы
   const handleFormChange = useCallback(
     (field: keyof ShiftTransferForm, value: string) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -412,48 +379,52 @@ export default function StaffPage() {
     []
   );
 
-  // Обработчик поиска
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   }, []);
 
-  // Обработчик смены вкладки
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     setSearchQuery("");
   }, []);
 
+  const handleRetry = () => {
+    fetchData();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <MainNav />
+        <main className="flex-1 flex items-center justify-center p-4 md:p-8 pt-6">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Загрузка данных...</span>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <MainNav />
+        <main className="flex-1 flex items-center justify-center p-4 md:p-8 pt-6">
+          <div className="text-center">
+            <p className="text-red-500">{error}</p>
+            <Button onClick={handleRetry} className="mt-4">
+              Повторить попытку
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      {/* Шапка */}
-      <header className="border-b bg-background shadow-sm">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="h-6 w-6" />
-            <span className="text-lg font-semibold">GameZone CRM</span>
-          </div>
-          <nav className="ml-auto flex items-center gap-4 sm:gap-6">
-            {[
-              { href: "/", label: "Панель" },
-              { href: "/bookings", label: "Бронирования" },
-              { href: "/customers", label: "Клиенты" },
-              { href: "/staff", label: "Персонал" },
-              { href: "/pos", label: "Касса" },
-              { href: "/games", label: "Игры" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline underline-offset-4"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      {/* Основной контент */}
+      <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление персоналом</h2>
@@ -469,7 +440,6 @@ export default function StaffPage() {
             <TabsTrigger value="current">Текущая смена</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Операторы" */}
           <TabsContent value="staff" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -494,12 +464,10 @@ export default function StaffPage() {
             />
           </TabsContent>
 
-          {/* Вкладка "Смены" */}
           <TabsContent value="shifts" className="space-y-4">
             <ShiftSchedule operators={operators} currentOperator={currentOperator} />
           </TabsContent>
 
-          {/* Вкладка "Текущая смена" */}
           <TabsContent value="current" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="shadow-sm">
@@ -553,6 +521,7 @@ export default function StaffPage() {
                       <Select
                         value={formData.employee}
                         onValueChange={(value) => handleFormChange("employee", value)}
+                        disabled={isTransferringShift}
                       >
                         <SelectTrigger className="shadow-sm">
                           <SelectValue placeholder="Выберите оператора" />
@@ -573,6 +542,7 @@ export default function StaffPage() {
                         value={formData.comment}
                         onChange={(e) => handleFormChange("comment", e.target.value)}
                         className="shadow-sm"
+                        disabled={isTransferringShift}
                       />
                     </div>
                     <div className="space-y-2 mt-4">
@@ -584,9 +554,13 @@ export default function StaffPage() {
                         value={formData.cashAmount}
                         onChange={(e) => handleFormChange("cashAmount", e.target.value)}
                         className="shadow-sm"
+                        disabled={isTransferringShift}
                       />
                     </div>
-                    <Button className="w-full mt-4" type="submit">
+                    <Button className="w-full mt-4" type="submit" disabled={isTransferringShift}>
+                      {isTransferringShift ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
                       Передать смену
                     </Button>
                   </form>
@@ -597,7 +571,6 @@ export default function StaffPage() {
         </Tabs>
       </main>
 
-      {/* Диалог для добавления нового оператора */}
       <Dialog open={isAddOperatorDialogOpen} onOpenChange={setIsAddOperatorDialogOpen}>
         <DialogContent>
           <DialogHeader>
