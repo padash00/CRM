@@ -44,6 +44,7 @@ interface ReportAction {
   buttonText: string;
   variant?: "outline" | "default";
   action: () => void;
+  downloadCsv: () => void; // Добавляем метод для скачивания CSV
 }
 
 interface Customer {
@@ -122,6 +123,10 @@ export default function POSPage() {
     salePrice: "",
     action: "add",
   });
+  // Добавляем состояния для фильтра по периоду в отчётах
+  const [reportDateFrom, setReportDateFrom] = useState<string>("");
+  const [reportDateTo, setReportDateTo] = useState<string>("");
+  const [reportData, setReportData] = useState<ReportData | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -166,22 +171,27 @@ export default function POSPage() {
       } else {
         setServices(servicesData || []);
       }
+
+      // Устанавливаем начальные значения для фильтра дат (например, текущий месяц)
+      const now = new Date();
+      setReportDateFrom(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]); // Начало текущего месяца
+      setReportDateTo(now.toISOString().split("T")[0]); // Сегодня
     };
 
     fetchData();
   }, []);
 
-  const fetchReportData = useCallback(async (isZReport: boolean) => {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      .toISOString()
-      .replace("Z", ""); // Убираем Z для совместимости с Supabase
+  const fetchReportData = useCallback(async (isZReport: boolean, dateFrom: string, dateTo: string) => {
+    // Форматируем даты для Supabase
+    const formattedDateFrom = dateFrom + "T00:00:00";
+    const formattedDateTo = dateTo + "T23:59:59";
 
-    // Получаем транзакции за текущую смену (за день)
+    // Получаем транзакции за выбранный период
     let transactionsQuery = supabase
       .from("transactions")
       .select("id, amount, transaction_date, payment_type, customer_id, guest_name")
-      .gte("transaction_date", startOfDay);
+      .gte("transaction_date", formattedDateFrom)
+      .lte("transaction_date", formattedDateTo);
 
     const { data: transactionsData, error: transactionsError } = await transactionsQuery;
 
@@ -194,11 +204,12 @@ export default function POSPage() {
       return null;
     }
 
-    // Получаем логи операций за текущую смену
+    // Получаем логи операций за выбранный период
     let inventoryQuery = supabase
       .from("inventory_log")
       .select("item_id, item_type, action, quantity, price, sale_price, created_at")
-      .gte("created_at", startOfDay);
+      .gte("created_at", formattedDateFrom)
+      .lte("created_at", formattedDateTo);
 
     const { data: inventoryData, error: inventoryError } = await inventoryQuery;
 
@@ -232,14 +243,16 @@ export default function POSPage() {
   const reportActions: ReportAction[] = [
     {
       title: "Z-отчет",
-      description: "Сформировать Z-отчет за текущую смену",
+      description: "Сформировать Z-отчет за выбранный период",
       buttonText: "Сформировать Z-отчет",
       variant: "default",
       action: async () => {
-        const reportData = await fetchReportData(true);
-        if (!reportData) return;
+        const data = await fetchReportData(true, reportDateFrom, reportDateTo);
+        if (!data) return;
 
-        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+        setReportData(data); // Сохраняем данные для скачивания
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = data;
 
         // Формируем текст отчёта
         const transactionsText = transactions
@@ -255,16 +268,68 @@ export default function POSPage() {
           duration: 10000,
         });
 
-        // Очищаем данные (закрываем смену)
+        // Очищаем данные (закрываем смену), если это Z-отчет
         await supabase
           .from("transactions")
           .delete()
-          .gte("transaction_date", new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString());
+          .gte("transaction_date", reportDateFrom + "T00:00:00")
+          .lte("transaction_date", reportDateTo + "T23:59:59");
 
         await supabase
           .from("inventory_log")
           .delete()
-          .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString());
+          .gte("created_at", reportDateFrom + "T00:00:00")
+          .lte("created_at", reportDateTo + "T23:59:59");
+      },
+      downloadCsv: () => {
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем CSV
+        const headers = ["ID", "Сумма", "Дата", "Тип оплаты", "Клиент"];
+        const csvRows = [
+          headers.join(","),
+          ...transactions.map((tx) =>
+            [
+              tx.id,
+              tx.amount,
+              tx.transaction_date,
+              tx.payment_type,
+              tx.guest_name || "Клиент " + (tx.customer_id || "Не указан"),
+            ].join(",")
+          ),
+          "", // Пустая строка для разделения
+          `Общая выручка,${totalSales}`,
+          `Наличные,${totalCash}`,
+          `Карта,${totalCard}`,
+          "", // Пустая строка
+          "Логи операций",
+          ["Item ID", "Тип", "Действие", "Количество", "Цена", "Цена продажи", "Дата"].join(","),
+          ...inventoryLogs.map((log) =>
+            [
+              log.item_id,
+              log.item_type,
+              log.action,
+              log.quantity,
+              log.price,
+              log.sale_price || "",
+              log.created_at,
+            ].join(",")
+          ),
+        ];
+        const csvString = csvRows.join("\n");
+
+        // Создаём файл для скачивания
+        const BOM = "\uFEFF"; // Для корректного отображения UTF-8 в Excel
+        const blob = new Blob([BOM + csvString], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "z-report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       },
     },
     {
@@ -273,10 +338,12 @@ export default function POSPage() {
       buttonText: "Сформировать X-отчет",
       variant: "outline",
       action: async () => {
-        const reportData = await fetchReportData(false);
-        if (!reportData) return;
+        const data = await fetchReportData(false, reportDateFrom, reportDateTo);
+        if (!data) return;
 
-        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+        setReportData(data); // Сохраняем данные для скачивания
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = data;
 
         // Формируем текст отчёта
         const transactionsText = transactions
@@ -292,6 +359,56 @@ export default function POSPage() {
           duration: 10000,
         });
       },
+      downloadCsv: () => {
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем CSV
+        const headers = ["ID", "Сумма", "Дата", "Тип оплаты", "Клиент"];
+        const csvRows = [
+          headers.join(","),
+          ...transactions.map((tx) =>
+            [
+              tx.id,
+              tx.amount,
+              tx.transaction_date,
+              tx.payment_type,
+              tx.guest_name || "Клиент " + (tx.customer_id || "Не указан"),
+            ].join(",")
+          ),
+          "", // Пустая строка для разделения
+          `Общая выручка,${totalSales}`,
+          `Наличные,${totalCash}`,
+          `Карта,${totalCard}`,
+          "", // Пустая строка
+          "Логи операций",
+          ["Item ID", "Тип", "Действие", "Количество", "Цена", "Цена продажи", "Дата"].join(","),
+          ...inventoryLogs.map((log) =>
+            [
+              log.item_id,
+              log.item_type,
+              log.action,
+              log.quantity,
+              log.price,
+              log.sale_price || "",
+              log.created_at,
+            ].join(",")
+          ),
+        ];
+        const csvString = csvRows.join("\n");
+
+        // Создаём файл для скачивания
+        const BOM = "\uFEFF"; // Для корректного отображения UTF-8 в Excel
+        const blob = new Blob([BOM + csvString], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "x-report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
     },
     {
       title: "Отчет по продажам",
@@ -299,10 +416,12 @@ export default function POSPage() {
       buttonText: "Сформировать отчет",
       variant: "outline",
       action: async () => {
-        const reportData = await fetchReportData(false);
-        if (!reportData) return;
+        const data = await fetchReportData(false, reportDateFrom, reportDateTo);
+        if (!data) return;
 
-        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+        setReportData(data); // Сохраняем данные для скачивания
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = data;
 
         // Формируем текст отчёта
         const transactionsText = transactions
@@ -317,6 +436,56 @@ export default function POSPage() {
           description: `Общая выручка: ₸${totalSales}\nНаличные: ₸${totalCash}\nКарта: ₸${totalCard}\n\nТранзакции:\n${transactionsText || "Нет транзакций"}\n\nОперации:\n${inventoryText || "Нет операций"}`,
           duration: 10000,
         });
+      },
+      downloadCsv: () => {
+        if (!reportData) return;
+
+        const { transactions, inventoryLogs, totalSales, totalCash, totalCard } = reportData;
+
+        // Формируем CSV
+        const headers = ["ID", "Сумма", "Дата", "Тип оплаты", "Клиент"];
+        const csvRows = [
+          headers.join(","),
+          ...transactions.map((tx) =>
+            [
+              tx.id,
+              tx.amount,
+              tx.transaction_date,
+              tx.payment_type,
+              tx.guest_name || "Клиент " + (tx.customer_id || "Не указан"),
+            ].join(",")
+          ),
+          "", // Пустая строка для разделения
+          `Общая выручка,${totalSales}`,
+          `Наличные,${totalCash}`,
+          `Карта,${totalCard}`,
+          "", // Пустая строка
+          "Логи операций",
+          ["Item ID", "Тип", "Действие", "Количество", "Цена", "Цена продажи", "Дата"].join(","),
+          ...inventoryLogs.map((log) =>
+            [
+              log.item_id,
+              log.item_type,
+              log.action,
+              log.quantity,
+              log.price,
+              log.sale_price || "",
+              log.created_at,
+            ].join(",")
+          ),
+        ];
+        const csvString = csvRows.join("\n");
+
+        // Создаём файл для скачивания
+        const BOM = "\uFEFF"; // Для корректного отображения UTF-8 в Excel
+        const blob = new Blob([BOM + csvString], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "sales-report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       },
     },
   ];
@@ -644,6 +813,26 @@ export default function POSPage() {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="space-y-2">
+                <Label htmlFor="reportDateFrom">Дата (с)</Label>
+                <Input
+                  id="reportDateFrom"
+                  type="date"
+                  value={reportDateFrom}
+                  onChange={(e) => setReportDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reportDateTo">Дата (по)</Label>
+                <Input
+                  id="reportDateTo"
+                  type="date"
+                  value={reportDateTo}
+                  onChange={(e) => setReportDateTo(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reportActions.map((action) => (
                 <Card key={action.title} className="shadow-sm hover:shadow-md transition-shadow">
@@ -651,13 +840,21 @@ export default function POSPage() {
                     <CardTitle>{action.title}</CardTitle>
                     <CardDescription>{action.description}</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <Button
                       variant={action.variant || "default"}
                       className="w-full"
                       onClick={action.action}
                     >
                       {action.buttonText}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={action.downloadCsv}
+                      disabled={!reportData}
+                    >
+                      Скачать в CSV
                     </Button>
                   </CardContent>
                 </Card>
