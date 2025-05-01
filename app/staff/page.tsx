@@ -37,17 +37,19 @@ import { supabase } from "@/lib/supabaseClient";
 
 // Типизация данных формы передачи смены
 interface ShiftTransferForm {
-  employee: string;
+  employee: string; // ID оператора, принимающего смену
   comment: string;
   cashAmount: string;
 }
 
-// Типизация данных текущей смены
+// Типизация текущей смены
 interface CurrentShift {
+  id: string;
   date: string;
   time: string;
-  responsible: string;
-  employees: string[];
+  responsible: string; // Имя оператора, открывшего смену
+  responsibleId: string; // ID оператора, открывшего смену
+  operators: string[]; // Список имён операторов на смене
   revenue: number;
   customerCount: number;
 }
@@ -56,6 +58,11 @@ interface CurrentShift {
 interface Operator {
   id: string;
   name: string;
+  position: string;
+  phone: string;
+  email: string;
+  status: "active" | "inactive";
+  working_hours: string;
 }
 
 export default function StaffPage() {
@@ -66,25 +73,17 @@ export default function StaffPage() {
   });
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("staff");
-  const [operators, setOperators] = useState<Operator[]>([]); // Список операторов
-  const [newOperatorName, setNewOperatorName] = useState<string>(""); // Для формы добавления оператора
+  const [operators, setOperators] = useState<Operator[]>([]);
+  const [currentShift, setCurrentShift] = useState<CurrentShift | null>(null);
+  const [newOperatorName, setNewOperatorName] = useState<string>("");
   const [isAddOperatorDialogOpen, setIsAddOperatorDialogOpen] = useState<boolean>(false);
 
-  // Данные текущей смены (пока захардкодим, потом заменим на данные из базы)
-  const currentShift: CurrentShift = {
-    date: "30 марта 2025",
-    time: "10:00 - 22:00",
-    responsible: operators[0]?.name || "Не указан",
-    employees: operators.map(op => op.name),
-    revenue: 15240,
-    customerCount: 32,
-  };
-
   useEffect(() => {
-    const fetchOperators = async () => {
+    const fetchData = async () => {
+      // Загружаем операторов
       const { data: operatorsData, error: operatorsError } = await supabase
         .from("operators")
-        .select("id, name");
+        .select("id, name, position, phone, email, status, working_hours");
 
       if (operatorsError) {
         toast({
@@ -95,9 +94,59 @@ export default function StaffPage() {
       } else {
         setOperators(operatorsData || []);
       }
+
+      // Загружаем текущую смену (последнюю открытую)
+      const today = new Date().toISOString().split("T")[0];
+      const { data: shiftsData, error: shiftsError } = await supabase
+        .from("shifts")
+        .select("id, date, time, shift_operators!inner(operator_id, operators!inner(*))")
+        .eq("date", today)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (shiftsError || !shiftsData) {
+        toast({
+          title: "Ошибка загрузки текущей смены",
+          description: shiftsError?.message || "Текущая смена не найдена",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Загружаем выручку и количество клиентов за день
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("amount, customer_id")
+        .gte("transaction_date", today + "T00:00:00")
+        .lte("transaction_date", today + "T23:59:59");
+
+      if (transactionsError) {
+        toast({
+          title: "Ошибка загрузки транзакций",
+          description: transactionsError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const revenue = transactionsData.reduce((sum, tx) => sum + tx.amount, 0);
+      const customerCount = new Set(transactionsData.map(tx => tx.customer_id)).size;
+
+      const responsibleOperator = shiftsData.shift_operators[0]?.operators;
+      setCurrentShift({
+        id: shiftsData.id,
+        date: shiftsData.date,
+        time: shiftsData.time,
+        responsible: responsibleOperator?.name || "Не указан",
+        responsibleId: responsibleOperator?.id || "",
+        operators: shiftsData.shift_operators.map((so: any) => so.operators.name),
+        revenue,
+        customerCount,
+      });
     };
 
-    fetchOperators();
+    fetchData();
   }, []);
 
   // Обработчик добавления нового оператора
@@ -113,7 +162,16 @@ export default function StaffPage() {
 
     const { data, error } = await supabase
       .from("operators")
-      .insert([{ name: newOperatorName }])
+      .insert([
+        { 
+          name: newOperatorName,
+          position: "Кассир", // Значение по умолчанию
+          phone: "",
+          email: "",
+          status: "active",
+          working_hours: "40 ч/нед",
+        }
+      ])
       .select()
       .single();
 
@@ -137,15 +195,15 @@ export default function StaffPage() {
 
   // Обработчик передачи смены
   const handleShiftTransfer = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
 
-      const { employee, cashAmount } = formData;
+      const { employee, cashAmount, comment } = formData;
 
       if (!employee) {
         toast({
           title: "Ошибка",
-          description: "Выберите сотрудника для передачи смены",
+          description: "Выберите оператора для передачи смены",
           variant: "destructive",
         });
         return;
@@ -160,14 +218,62 @@ export default function StaffPage() {
         return;
       }
 
+      if (!currentShift) {
+        toast({
+          title: "Ошибка",
+          description: "Текущая смена не найдена",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const toOperatorId = operators.find(op => op.name === employee)?.id;
+      if (!toOperatorId) {
+        toast({
+          title: "Ошибка",
+          description: "Оператор для передачи смены не найден",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Фиксируем передачу смены в базе
+      const { error } = await supabase
+        .from("shift_transfers")
+        .insert([
+          {
+            shift_id: currentShift.id,
+            from_operator_id: currentShift.responsibleId,
+            to_operator_id: toOperatorId,
+            comment,
+            cash_amount: parseFloat(cashAmount),
+          },
+        ]);
+
+      if (error) {
+        toast({
+          title: "Ошибка передачи смены",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Смена передана",
-        description: `Смена успешно передана сотруднику ${employee}. Остаток в кассе: ₸${cashAmount}.`,
+        description: `Смена успешно передана оператору ${employee}. Остаток в кассе: ₸${cashAmount}.`,
       });
+
+      // Обновляем текущую смену
+      setCurrentShift((prev) => prev ? ({
+        ...prev,
+        responsible: employee,
+        responsibleId: toOperatorId,
+      }) : null);
 
       setFormData({ employee: "", comment: "", cashAmount: "" });
     },
-    [formData]
+    [formData, currentShift, operators]
   );
 
   // Обработчик изменения формы
@@ -271,31 +377,31 @@ export default function StaffPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Дата</div>
-                    <div>{currentShift.date}</div>
+                    <div>{currentShift?.date || "Не указана"}</div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Время смены</div>
-                    <div>{currentShift.time}</div>
+                    <div>{currentShift?.time || "Не указано"}</div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Ответственный</div>
-                    <div>{currentShift.responsible}</div>
+                    <div>{currentShift?.responsible || "Не указан"}</div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Операторы на смене</div>
                     <ul className="list-disc pl-4 space-y-1">
-                      {currentShift.employees.map((emp) => (
+                      {currentShift?.operators.map((emp) => (
                         <li key={emp}>{emp}</li>
-                      ))}
+                      )) || <li>Нет операторов</li>}
                     </ul>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Выручка за смену</div>
-                    <div>₸{currentShift.revenue.toLocaleString()}</div>
+                    <div>₸{(currentShift?.revenue || 0).toLocaleString()}</div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Количество клиентов</div>
-                    <div>{currentShift.customerCount}</div>
+                    <div>{currentShift?.customerCount || 0}</div>
                   </div>
                 </CardContent>
               </Card>
