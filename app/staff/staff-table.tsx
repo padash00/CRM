@@ -25,7 +25,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// Типизация оператора (синхронизируем с новой структурой таблицы operators)
+// Типизация оператора
 interface Operator {
   id: string;
   name: string;
@@ -34,16 +34,18 @@ interface Operator {
   email: string;
   status: "active" | "inactive";
   working_hours: string;
+  role: "maindev" | "operator";
 }
 
 interface StaffTableProps {
   searchQuery: string;
   operators: Operator[];
   setOperators: React.Dispatch<React.SetStateAction<Operator[]>>;
+  currentOperator: Operator | null;
 }
 
 // Компонент строки таблицы
-const StaffRow = ({ operator, onDelete }: { operator: Operator; onDelete: (id: string) => void }) => {
+const StaffRow = ({ operator, onDelete, canDelete }: { operator: Operator; onDelete: (id: string) => void; canDelete: boolean }) => {
   const handleEdit = () => {
     toast({
       title: "Редактирование",
@@ -52,6 +54,14 @@ const StaffRow = ({ operator, onDelete }: { operator: Operator; onDelete: (id: s
   };
 
   const handleDelete = () => {
+    if (!canDelete) {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может удалять операторов",
+        variant: "destructive",
+      });
+      return;
+    }
     onDelete(operator.id);
   };
 
@@ -98,6 +108,18 @@ const StaffRow = ({ operator, onDelete }: { operator: Operator; onDelete: (id: s
       </TableCell>
       <TableCell>{operator.working_hours}</TableCell>
       <TableCell>
+        <Badge
+          variant={operator.role === "maindev" ? "default" : "secondary"}
+          className={
+            operator.role === "maindev"
+              ? "bg-blue-100 text-blue-800"
+              : "bg-gray-100 text-gray-800"
+          }
+        >
+          {operator.role === "maindev" ? "Maindev" : "Оператор"}
+        </Badge>
+      </TableCell>
+      <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
@@ -121,7 +143,7 @@ const StaffRow = ({ operator, onDelete }: { operator: Operator; onDelete: (id: s
   );
 };
 
-export function StaffTable({ searchQuery, operators, setOperators }: StaffTableProps) {
+export function StaffTable({ searchQuery, operators, setOperators, currentOperator }: StaffTableProps) {
   const filteredOperators = operators.filter((operator) =>
     operator.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -161,13 +183,14 @@ export function StaffTable({ searchQuery, operators, setOperators }: StaffTableP
             <TableHead>Контакты</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Рабочее время</TableHead>
+            <TableHead>Роль</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredOperators.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center">
+              <TableCell colSpan={8} className="text-center">
                 Нет операторов для отображения
               </TableCell>
             </TableRow>
@@ -177,6 +200,7 @@ export function StaffTable({ searchQuery, operators, setOperators }: StaffTableP
                 key={operator.id}
                 operator={operator}
                 onDelete={handleDeleteOperator}
+                canDelete={currentOperator?.role === "maindev"}
               />
             ))
           )}
