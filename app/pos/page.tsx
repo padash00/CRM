@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export const dynamic = "force-dynamic"; // Отключаем prerendering
+
 interface ReportAction {
   title: string;
   description: string;
