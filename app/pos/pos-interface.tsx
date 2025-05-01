@@ -1,4 +1,4 @@
-// pos/POSInterface.tsx
+/ pos/POSInterface.tsx
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label"; // Добавляем импорт Label
 import { supabase } from "@/lib/supabaseClient";
 
 interface CartItem {
