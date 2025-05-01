@@ -99,17 +99,47 @@ export default function StaffPage() {
       }
       setOperators(operatorsData || []);
 
-      // Загружаем текущего оператора (заглушка, в будущем замени на авторизацию)
-      const { data: currentOpData, error: currentOpError } = await supabase
+      // Загружаем текущего оператора
+      let currentOpData: Operator | null = null;
+      const { data: currentOpDataMaybe, error: currentOpError } = await supabase
         .from("operators")
         .select("*")
         .eq("name", "Кассир 1")
-        .single();
+        .maybeSingle();
 
       if (currentOpError) {
         throw new Error(`Ошибка загрузки текущего оператора: ${currentOpError.message}`);
       }
-      setCurrentOperator(currentOpData || null);
+
+      if (!currentOpDataMaybe) {
+        // Если оператора "Кассир 1" нет, создаём его
+        const { data: newOperator, error: createError } = await supabase
+          .from("operators")
+          .insert([
+            {
+              name: "Кассир 1",
+              position: "Кассир",
+              phone: "+7 (999) 123-45-67",
+              email: "kassir1@example.com",
+              status: "active",
+              working_hours: "40 ч/нед",
+              role: "maindev",
+            },
+          ])
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error(`Ошибка создания оператора "Кассир 1": ${createError.message}`);
+        }
+
+        currentOpData = newOperator;
+        setOperators((prev) => [...prev, newOperator]); // Добавляем нового оператора в список
+      } else {
+        currentOpData = currentOpDataMaybe;
+      }
+
+      setCurrentOperator(currentOpData);
 
       // Загружаем или создаём текущую смену
       const today = new Date().toISOString().split("T")[0];
@@ -121,9 +151,9 @@ export default function StaffPage() {
         .eq("date", today)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (fetchError && fetchError.code !== "PGRST116") {
+      if (fetchError) {
         throw new Error(`Ошибка загрузки текущей смены: ${fetchError.message}`);
       }
 
@@ -154,7 +184,6 @@ export default function StaffPage() {
         shiftsData = existingShift;
       }
 
-      // Загружаем выручку и количество клиентов за день
       const { data: transactionsData, error: transactionsError } = await supabase
         .from("transactions")
         .select("amount, customer_id")
@@ -302,8 +331,6 @@ export default function StaffPage() {
           comment,
           cash_amount: parseFloat(cashAmount),
         };
-
-        console.log("Данные для вставки в shift_transfers:", transferData);
 
         const { data: shiftExists } = await supabase
           .from("shifts")
