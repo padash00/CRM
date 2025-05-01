@@ -1947,3 +1947,232 @@ export default function TariffsPage() {
             <DialogDescription>
               Вы уверены, что хотите удалить эту зону? Убедитесь, что в зоне нет компьютеров.
             </DialogDescription>
+                      </DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteZoneDialogOpen(false)} disabled={isDeletingZone !== null}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteZone} disabled={isDeletingZone !== null}>
+              {isDeletingZone ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования компьютера */}
+      <Dialog open={editComputerDialogOpen} onOpenChange={setEditComputerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать компьютер</DialogTitle>
+            <DialogDescription>Измените данные компьютера {editComputer?.name}</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleEditComputer}>
+            <div className="space-y-2">
+              <Label htmlFor="edit-computer-name">Название компьютера</Label>
+              <Input
+                id="edit-computer-name"
+                placeholder="Введите название"
+                value={editComputer?.name || ""}
+                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                className="shadow-sm"
+                disabled={isCreatingZone}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-computer-type">Тип</Label>
+              <Select
+                value={editComputer?.type || ""}
+                onValueChange={(value) => setEditComputer((prev) => prev ? { ...prev, type: value as "PC" | "PlayStation" } : null)}
+                disabled={isCreatingZone}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите тип" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PC">PC</SelectItem>
+                  <SelectItem value="PlayStation">PlayStation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-computer-zone">Зона</Label>
+              <Select
+                value={editComputer?.zone_id || ""}
+                onValueChange={(value) => setEditComputer((prev) => prev ? { ...prev, zone_id: value } : null)}
+                disabled={isCreatingZone}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите зону" />
+                </SelectTrigger>
+                <SelectContent>
+                  {zones.map((zone) => (
+                    <SelectItem key={zone.id} value={zone.id}>
+                      {zone.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-computer-x">Позиция X</Label>
+              <Input
+                id="edit-computer-x"
+                type="number"
+                value={editComputer?.position_x || 0}
+                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, position_x: parseInt(e.target.value) } : null)}
+                className="shadow-sm"
+                disabled={isCreatingZone}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-computer-y">Позиция Y</Label>
+              <Input
+                id="edit-computer-y"
+                type="number"
+                value={editComputer?.position_y || 0}
+                onChange={(e) => setEditComputer((prev) => prev ? { ...prev, position_y: parseInt(e.target.value) } : null)}
+                className="shadow-sm"
+                disabled={isCreatingZone}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditComputerDialogOpen(false)} disabled={isCreatingZone}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isCreatingZone}>
+                {isCreatingZone ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Сохранить
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог удаления компьютера */}
+      <Dialog open={deleteComputerDialogOpen} onOpenChange={setDeleteComputerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтверждение удаления</DialogTitle>
+            <DialogDescription>
+              Вы уверены, что хотите удалить этот компьютер? Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteComputerDialogOpen(false)} disabled={isDeletingComputer !== null}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteComputer} disabled={isDeletingComputer !== null}>
+              {isDeletingComputer ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог продажи тарифа */}
+      <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Продать тариф</DialogTitle>
+            <DialogDescription>Выберите клиента, тариф, компьютер и длительность сессии</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleSellTariff}>
+            <div className="space-y-2">
+              <Label htmlFor="sale-customer">Клиент</Label>
+              <Select
+                value={saleForm.customerId}
+                onValueChange={(value) => handleSaleChange("customerId", value)}
+                disabled={isSelling}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите клиента" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sale-tariff">Тариф</Label>
+              <Select
+                value={saleForm.tariffId}
+                onValueChange={(value) => handleSaleChange("tariffId", value)}
+                disabled={isSelling}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите тариф" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tariffs.map((tariff) => (
+                    <SelectItem key={tariff.id} value={tariff.id}>
+                      {tariff.name} ({tariff.type}) - ₸{tariff.price}/час
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sale-computer">Компьютер</Label>
+              <Select
+                value={saleForm.computerId}
+                onValueChange={(value) => handleSaleChange("computerId", value)}
+                disabled={isSelling}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите компьютер" />
+                </SelectTrigger>
+                <SelectContent>
+                  {computers
+                    .filter((comp) => {
+                      const tariff = tariffs.find((t) => t.id === saleForm.tariffId);
+                      return !tariff || comp.zone_id === tariff.zone_id;
+                    })
+                    .map((computer) => (
+                      <SelectItem key={computer.id} value={computer.id} disabled={computer.status === "occupied"}>
+                        {computer.name} ({computer.type}) - {computer.status === "free" ? "Свободен" : "Занят"}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sale-duration">Длительность (часы)</Label>
+              <Input
+                id="sale-duration"
+                type="number"
+                min="1"
+                placeholder="Введите длительность"
+                value={saleForm.duration}
+                onChange={(e) => handleSaleChange("duration", e.target.value)}
+                className="shadow-sm"
+                disabled={isSelling}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSaleDialogOpen(false)} disabled={isSelling}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isSelling}>
+                {isSelling ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Продать
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
