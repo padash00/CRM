@@ -63,7 +63,7 @@ interface Operator {
   email: string;
   status: "active" | "inactive";
   working_hours: string;
-  role: "maindev" | "operator"; // Добавляем поле role
+  role: "maindev" | "operator";
 }
 
 export default function StaffPage() {
@@ -115,9 +115,13 @@ export default function StaffPage() {
         setCurrentOperator(currentOpData || null);
       }
 
-      // Загружаем текущую смену (последнюю за сегодня)
+      // Загружаем или создаём текущую смену
       const today = new Date().toISOString().split("T")[0];
-      const { data: shiftsData, error: shiftsError } = await supabase
+      let shiftsData;
+      let shiftsError;
+
+      // Проверяем, есть ли смена за сегодня
+      const { data: existingShift, error: fetchError } = await supabase
         .from("shifts")
         .select("id, date, time, shift_operators!inner(operator_id, operators!inner(*))")
         .eq("date", today)
@@ -125,13 +129,53 @@ export default function StaffPage() {
         .limit(1)
         .single();
 
-      if (shiftsError || !shiftsData) {
+      if (fetchError && fetchError.code !== "PGRST116") { // PGRST116 — "No rows found"
         toast({
           title: "Ошибка загрузки текущей смены",
-          description: shiftsError?.message || "Текущая смена не найдена",
+          description: fetchError.message,
           variant: "destructive",
         });
         return;
+      }
+
+      if (!existingShift) {
+        // Если смены нет, создаём новую
+        const { data: newShift, error: createError } = await supabase
+          .from("shifts")
+          .insert([{ date: today, time: "10:00 - 22:00" }])
+          .select()
+          .single();
+
+        if (createError) {
+          toast({
+            title: "Ошибка создания смены",
+            description: createError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Связываем смену с текущим оператором
+        const { error: linkError } = await supabase
+          .from("shift_operators")
+          .insert([{ shift_id: newShift.id, operator_id: currentOpData.id }]);
+
+        if (linkError) {
+          toast({
+            title: "Ошибка связывания оператора с новой сменой",
+            description: linkError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Формируем данные смены
+        shiftsData = {
+          ...newShift,
+          shift_operators: [{ operator_id: currentOpData.id, operators: currentOpData }],
+        };
+      } else {
+        shiftsData = existingShift;
       }
 
       // Загружаем выручку и количество клиентов за день
@@ -229,6 +273,15 @@ export default function StaffPage() {
     async (e: React.FormEvent) => {
       e.preventDefault();
 
+      if (!currentShift) {
+        toast({
+          title: "Ошибка",
+          description: "Текущая смена не найдена",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { employee, cashAmount, comment } = formData;
 
       if (!employee) {
@@ -244,15 +297,6 @@ export default function StaffPage() {
         toast({
           title: "Ошибка",
           description: "Укажите корректный остаток в кассе",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!currentShift) {
-        toast({
-          title: "Ошибка",
-          description: "Текущая смена не найдена",
           variant: "destructive",
         });
         return;
