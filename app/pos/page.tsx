@@ -173,7 +173,9 @@ export default function POSPage() {
 
   const fetchReportData = useCallback(async (isZReport: boolean) => {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      .toISOString()
+      .replace("Z", ""); // Убираем Z для совместимости с Supabase
 
     // Получаем транзакции за текущую смену (за день)
     let transactionsQuery = supabase
