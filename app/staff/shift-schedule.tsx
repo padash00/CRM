@@ -34,6 +34,7 @@ interface Operator {
   email: string;
   status: "active" | "inactive";
   working_hours: string;
+  role: "maindev" | "operator";
 }
 
 // Типизация смены
@@ -46,9 +47,10 @@ interface Shift {
 
 interface ShiftScheduleProps {
   operators: Operator[];
+  currentOperator: Operator | null;
 }
 
-export function ShiftSchedule({ operators }: ShiftScheduleProps) {
+export function ShiftSchedule({ operators, currentOperator }: ShiftScheduleProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [addShiftDialogOpen, setAddShiftDialogOpen] = useState<boolean>(false);
   const [shiftTime, setShiftTime] = useState<string>("10:00 - 22:00");
@@ -98,6 +100,15 @@ export function ShiftSchedule({ operators }: ShiftScheduleProps) {
 
   // Обработчик добавления смены
   const handleAddShift = useCallback(() => {
+    if (!currentOperator || currentOperator.role !== "maindev") {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может добавлять смены",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!date) {
       toast({
         title: "Ошибка",
@@ -109,7 +120,7 @@ export function ShiftSchedule({ operators }: ShiftScheduleProps) {
     setSelectedOperatorIds([]);
     setShiftTime("10:00 - 22:00");
     setAddShiftDialogOpen(true);
-  }, [date]);
+  }, [date, currentOperator]);
 
   // Обработчик выбора операторов
   const handleOperatorSelection = useCallback((operatorId: string) => {
