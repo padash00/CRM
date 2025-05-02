@@ -159,68 +159,7 @@ export default function TariffsPage() {
   const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
   const [promotionSort, setPromotionSort] = useState<"asc" | "desc">("desc");
   const [tariffPage, setTariffPage] = useState<number>(1);
-  const [promotionPage, setPromotionPage] =(duration: string;
-}
-
-export default function TariffsPage() {
-  const [tariffForm, setTariffForm] = useState<TariffForm>({
-    name: "",
-    type: "",
-    price: "",
-    description: "",
-    zoneId: "",
-  });
-  const [promotionForm, setPromotionForm] = useState<PromotionForm>({
-    name: "",
-    discount: "",
-    startDate: "",
-    endDate: "",
-    description: "",
-  });
-  const [saleForm, setSaleForm] = useState<SaleForm>({
-    customerId: "",
-    tariffId: "",
-    computerId: "",
-    duration: "1",
-  });
-  const [activeTab, setActiveTab] = useState<string>("tariffs");
-  const [tariffs, setTariffs] = useState<Tariff[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [computers, setComputers] = useState<Computer[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isCreatingTariff, setIsCreatingTariff] = useState<boolean>(false);
-  const [isCreatingPromotion, setIsCreatingPromotion] = useState<boolean>(false);
-  const [createTariffDialogOpen, setCreateTariffDialogOpen] = useState<boolean>(false);
-  const [createPromotionDialogOpen, setCreatePromotionDialogOpen] = useState<boolean>(false);
-  const [editTariffDialogOpen, setEditTariffDialogOpen] = useState<boolean>(false);
-  const [editPromotionDialogOpen, setEditPromotionDialogOpen] = useState<boolean>(false);
-  const [editComputerDialogOpen, setEditComputerDialogOpen] = useState<boolean>(false);
-  const [deleteTariffDialogOpen, setDeleteTariffDialogOpen] = useState<boolean>(false);
-  const [deletePromotionDialogOpen, setDeletePromotionDialogOpen] = useState<boolean>(false);
-  const [deleteComputerDialogOpen, setDeleteComputerDialogOpen] = useState<boolean>(false);
-  const [saleDialogOpen, setSaleDialogOpen] = useState<boolean>(false);
-  const [endSessionDialogOpen, setEndSessionDialogOpen] = useState<boolean>(false);
-  const [editTariff, setEditTariff] = useState<Tariff | null>(null);
-  const [editPromotion, setEditPromotion] = useState<Promotion | null>(null);
-  const [editComputer, setEditComputer] = useState<Computer | null>(null);
-  const [deleteTariffId, setDeleteTariffId] = useState<string | null>(null);
-  const [deletePromotionId, setDeletePromotionId] = useState<string | null>(null);
-  const [deleteComputerId, setDeleteComputerId] = useState<string | null>(null);
-  const [endSessionId, setEndSessionId] = useState<string | null>(null);
-  const [isDeletingTariff, setIsDeletingTariff] = useState<string | null>(null);
-  const [isDeletingPromotion, setIsDeletingPromotion] = useState<string | null>(null);
-  const [isDeletingComputer, setIsDeletingComputer] = useState<string | null>(null);
-  const [isSelling, setIsSelling] = useState<boolean>(false);
-  const [isEndingSession, setIsEndingSession] = useState<string | null>(null);
-
-  const [tariffSort, setTariffSort] = useState<"asc" | "desc">("desc");
-  const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
-  const [promotionSort, setPromotionSort] = useState<"asc" | "desc">("desc");
-  const [tariffPage, setTariffPage] = useState<number>(1);
-  const [promotionPage, setPromotionPage] = useState<number>(1);
+  const [promotionPage, setPromotionPage] = useState<number>(1); // Исправлено: добавлена запятая и правильный синтаксис
   const itemsPerPage = 3;
 
   const fetchData = async () => {
@@ -275,7 +214,7 @@ export default function TariffsPage() {
       const transformedComputers = computersData?.map((comp) => ({
         ...comp,
         status: comp.status === "free" ? "available" : (comp.status as "available" | "occupied" | "reserved" | "maintenance"),
-        zone: comp.zone === "vip" ? "vip" : comp.zone === "console" ? "console" : "standard", // Используем поле zone
+        zone: comp.zone === "vip" ? "vip" : comp.zone === "console" ? "console" : "standard",
       })) || [];
       setComputers(transformedComputers);
 
@@ -725,7 +664,7 @@ export default function TariffsPage() {
           name: editComputer.name,
           type: editComputer.type,
           status: editComputer.status === "available" ? "free" : editComputer.status,
-          zone: editComputer.zone, // Используем zone вместо zone_id
+          zone: editComputer.zone,
         })
         .eq("id", editComputer.id);
 
