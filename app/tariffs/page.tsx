@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ChevronLeft, ChevronRight, DollarSign, Edit, Trash } from "lucide-react"; // Добавляем импорт Trash
+import { Plus, ChevronLeft, ChevronRight, DollarSign, Edit, Trash } from "lucide-react";
 import { MainNav } from "@/components/main-nav";
 import { ClubMap } from "@/components/club-map";
 import { TariffList } from "./tariff-list";
@@ -296,6 +296,7 @@ export default function TariffsPage() {
 
   const handleTariffChange = useCallback(
     (field: keyof TariffForm, value: string) => {
+      console.log(`Изменение поля тарифа ${field}: ${value}`);
       setTariffForm((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -303,6 +304,7 @@ export default function TariffsPage() {
 
   const handlePromotionChange = useCallback(
     (field: keyof PromotionForm, value: string) => {
+      console.log(`Изменение поля акции ${field}: ${value}`);
       setPromotionForm((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -310,6 +312,7 @@ export default function TariffsPage() {
 
   const handleSaleChange = useCallback(
     (field: keyof SaleForm, value: string) => {
+      console.log(`Изменение поля продажи ${field}: ${value}`);
       setSaleForm((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -318,9 +321,11 @@ export default function TariffsPage() {
   const handleCreateTariff = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      console.log("Создание тарифа:", tariffForm);
       const { name, type, price, description, zoneId } = tariffForm;
 
       if (!name || !type || !price || !zoneId || Number(price) <= 0) {
+        console.log("Ошибка валидации:", { name, type, price, zoneId });
         toast({
           title: "Ошибка",
           description: "Заполните все обязательные поля корректно",
@@ -345,6 +350,7 @@ export default function TariffsPage() {
           ]);
 
         if (error) {
+          console.log("Ошибка Supabase:", error);
           throw new Error(`Ошибка создания тарифа: ${error.message}`);
         }
 
@@ -355,6 +361,7 @@ export default function TariffsPage() {
         setCreateTariffDialogOpen(false);
         setTariffForm({ name: "", type: "", price: "", description: "", zoneId: "" });
       } catch (err: any) {
+        console.log("Исключение:", err);
         toast({
           title: "Ошибка",
           description: err.message,
@@ -370,11 +377,13 @@ export default function TariffsPage() {
   const handleEditTariff = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      console.log("Редактирование тарифа:", editTariff);
       if (!editTariff) return;
 
       const { name, type, price, description, zoneId } = tariffForm;
 
       if (!name || !type || !price || !zoneId || Number(price) <= 0) {
+        console.log("Ошибка валидации:", { name, type, price, zoneId });
         toast({
           title: "Ошибка",
           description: "Заполните все обязательные поля корректно",
@@ -398,6 +407,7 @@ export default function TariffsPage() {
           .eq("id", editTariff.id);
 
         if (error) {
+          console.log("Ошибка Supabase:", error);
           throw new Error(`Ошибка редактирования тарифа: ${error.message}`);
         }
 
@@ -407,6 +417,7 @@ export default function TariffsPage() {
         });
         setEditTariffDialogOpen(false);
       } catch (err: any) {
+        console.log("Исключение:", err);
         toast({
           title: "Ошибка",
           description: err.message,
@@ -422,6 +433,7 @@ export default function TariffsPage() {
   const handleDeleteTariff = async () => {
     if (!deleteTariffId) return;
 
+    console.log("Удаление тарифа:", deleteTariffId);
     setIsDeletingTariff(deleteTariffId);
 
     try {
@@ -431,6 +443,7 @@ export default function TariffsPage() {
         .eq("id", deleteTariffId);
 
       if (error) {
+        console.log("Ошибка Supabase:", error);
         throw new Error(`Ошибка удаления тарифа: ${error.message}`);
       }
 
@@ -440,6 +453,7 @@ export default function TariffsPage() {
       });
       setDeleteTariffDialogOpen(false);
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка удаления тарифа",
         description: err.message,
@@ -454,9 +468,11 @@ export default function TariffsPage() {
   const handleCreatePromotion = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      console.log("Создание акции:", promotionForm);
       const { name, discount, startDate, endDate, description } = promotionForm;
 
       if (!name || !discount || !startDate || !endDate || Number(discount) <= 0 || Number(discount) > 100) {
+        console.log("Ошибка валидации:", { name, discount, startDate, endDate });
         toast({
           title: "Ошибка",
           description: "Заполните все обязательные поля корректно",
@@ -466,6 +482,7 @@ export default function TariffsPage() {
       }
 
       if (new Date(endDate) < new Date(startDate)) {
+        console.log("Ошибка дат:", { startDate, endDate });
         toast({
           title: "Ошибка",
           description: "Дата окончания не может быть раньше даты начала",
@@ -490,6 +507,7 @@ export default function TariffsPage() {
           ]);
 
         if (error) {
+          console.log("Ошибка Supabase:", error);
           throw new Error(`Ошибка создания акции: ${error.message}`);
         }
 
@@ -500,6 +518,7 @@ export default function TariffsPage() {
         setCreatePromotionDialogOpen(false);
         setPromotionForm({ name: "", discount: "", startDate: "", endDate: "", description: "" });
       } catch (err: any) {
+        console.log("Исключение:", err);
         toast({
           title: "Ошибка",
           description: err.message,
@@ -515,11 +534,13 @@ export default function TariffsPage() {
   const handleEditPromotion = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      console.log("Редактирование акции:", editPromotion);
       if (!editPromotion) return;
 
       const { name, discount, startDate, endDate, description } = promotionForm;
 
       if (!name || !discount || !startDate || !endDate || Number(discount) <= 0 || Number(discount) > 100) {
+        console.log("Ошибка валидации:", { name, discount, startDate, endDate });
         toast({
           title: "Ошибка",
           description: "Заполните все обязательные поля корректно",
@@ -529,6 +550,7 @@ export default function TariffsPage() {
       }
 
       if (new Date(endDate) < new Date(startDate)) {
+        console.log("Ошибка дат:", { startDate, endDate });
         toast({
           title: "Ошибка",
           description: "Дата окончания не может быть раньше даты начала",
@@ -552,6 +574,7 @@ export default function TariffsPage() {
           .eq("id", editPromotion.id);
 
         if (error) {
+          console.log("Ошибка Supabase:", error);
           throw new Error(`Ошибка редактирования акции: ${error.message}`);
         }
 
@@ -561,6 +584,7 @@ export default function TariffsPage() {
         });
         setEditPromotionDialogOpen(false);
       } catch (err: any) {
+        console.log("Исключение:", err);
         toast({
           title: "Ошибка",
           description: err.message,
@@ -576,6 +600,7 @@ export default function TariffsPage() {
   const handleDeletePromotion = async () => {
     if (!deletePromotionId) return;
 
+    console.log("Удаление акции:", deletePromotionId);
     setIsDeletingPromotion(deletePromotionId);
 
     try {
@@ -585,6 +610,7 @@ export default function TariffsPage() {
         .eq("id", deletePromotionId);
 
       if (error) {
+        console.log("Ошибка Supabase:", error);
         throw new Error(`Ошибка удаления акции: ${error.message}`);
       }
 
@@ -594,6 +620,7 @@ export default function TariffsPage() {
       });
       setDeletePromotionDialogOpen(false);
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка удаления акции",
         description: err.message,
@@ -607,7 +634,9 @@ export default function TariffsPage() {
 
   const handleEditComputer = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Редактирование компьютера:", editComputer);
     if (!editComputer) {
+      console.log("Компьютер не выбран");
       toast({
         title: "Ошибка",
         description: "Компьютер не выбран",
@@ -628,6 +657,7 @@ export default function TariffsPage() {
         .eq("id", editComputer.id);
 
       if (error) {
+        console.log("Ошибка Supabase:", error);
         throw new Error(`Ошибка редактирования компьютера: ${error.message}`);
       }
 
@@ -645,6 +675,7 @@ export default function TariffsPage() {
       });
       setEditComputerDialogOpen(false);
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка",
         description: err.message,
@@ -656,6 +687,7 @@ export default function TariffsPage() {
   const handleDeleteComputer = async () => {
     if (!deleteComputerId) return;
 
+    console.log("Удаление компьютера:", deleteComputerId);
     setIsDeletingComputer(deleteComputerId);
 
     try {
@@ -667,6 +699,7 @@ export default function TariffsPage() {
         .limit(1);
 
       if (activeSessions && activeSessions.length > 0) {
+        console.log("Компьютер имеет активные сессии:", activeSessions);
         throw new Error("Нельзя удалить компьютер, на котором активна сессия");
       }
 
@@ -676,6 +709,7 @@ export default function TariffsPage() {
         .eq("id", deleteComputerId);
 
       if (error) {
+        console.log("Ошибка Supabase:", error);
         throw new Error(`Ошибка удаления компьютера: ${error.message}`);
       }
 
@@ -687,6 +721,7 @@ export default function TariffsPage() {
       });
       setDeleteComputerDialogOpen(false);
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка удаления компьютера",
         description: err.message,
@@ -700,9 +735,11 @@ export default function TariffsPage() {
 
   const handleSellTariff = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Продажа тарифа:", saleForm);
     const { customerId, tariffId, computerId, duration } = saleForm;
 
     if (!customerId || !tariffId || !computerId || !duration || Number(duration) <= 0) {
+      console.log("Ошибка валидации:", { customerId, tariffId, computerId, duration });
       toast({
         title: "Ошибка",
         description: "Заполните все поля корректно",
@@ -719,14 +756,17 @@ export default function TariffsPage() {
       const customer = customers.find((c) => c.id === customerId);
 
       if (!tariff || !computer || !customer) {
+        console.log("Не найдены данные:", { tariff, computer, customer });
         throw new Error("Тариф, компьютер или клиент не найдены");
       }
 
       if (computer.status !== "available") {
+        console.log("Компьютер занят:", computer);
         throw new Error("Этот компьютер уже занят");
       }
 
       if (computer.zone !== tariff.zone_id) {
+        console.log("Несоответствие зоны:", { computerZone: computer.zone, tariffZone: tariff.zone_id });
         throw new Error(`Этот тариф можно использовать только в зоне "${tariff.zone_id}"`);
       }
 
@@ -788,6 +828,7 @@ export default function TariffsPage() {
         ]);
 
       if (sessionError) {
+        console.log("Ошибка Supabase (сессия):", sessionError);
         throw new Error(`Ошибка создания сессии: ${sessionError.message}`);
       }
 
@@ -797,6 +838,7 @@ export default function TariffsPage() {
         .eq("id", computerId);
 
       if (computerError) {
+        console.log("Ошибка Supabase (компьютер):", computerError);
         throw new Error(`Ошибка обновления статуса компьютера: ${computerError.message}`);
       }
 
@@ -816,6 +858,7 @@ export default function TariffsPage() {
       setSaleDialogOpen(false);
       setSaleForm({ customerId: "", tariffId: "", computerId: "", duration: "1" });
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка продажи тарифа",
         description: err.message,
@@ -829,11 +872,13 @@ export default function TariffsPage() {
   const handleEndSession = async () => {
     if (!endSessionId) return;
 
+    console.log("Завершение сессии:", endSessionId);
     setIsEndingSession(endSessionId);
 
     try {
       const session = sessions.find((s) => s.id === endSessionId);
       if (!session) {
+        console.log("Сессия не найдена:", endSessionId);
         throw new Error("Сессия не найдена");
       }
 
@@ -843,6 +888,7 @@ export default function TariffsPage() {
         .eq("id", endSessionId);
 
       if (sessionError) {
+        console.log("Ошибка Supabase (сессия):", sessionError);
         throw new Error(`Ошибка завершения сессии: ${sessionError.message}`);
       }
 
@@ -852,6 +898,7 @@ export default function TariffsPage() {
         .eq("id", session.computer_id);
 
       if (computerError) {
+        console.log("Ошибка Supabase (компьютер):", computerError);
         throw new Error(`Ошибка обновления статуса компьютера: ${computerError.message}`);
       }
 
@@ -869,6 +916,7 @@ export default function TariffsPage() {
       });
       setEndSessionDialogOpen(false);
     } catch (err: any) {
+      console.log("Исключение:", err);
       toast({
         title: "Ошибка завершения сессии",
         description: err.message,
@@ -881,10 +929,12 @@ export default function TariffsPage() {
   };
 
   const handleTabChange = useCallback((value: string) => {
+    console.log("Смена вкладки:", value);
     setActiveTab(value);
   }, []);
 
   const handleEditTariffOpen = (tariff: Tariff) => {
+    console.log("Открытие редактирования тарифа:", tariff);
     setEditTariff(tariff);
     setTariffForm({
       name: tariff.name,
@@ -897,6 +947,7 @@ export default function TariffsPage() {
   };
 
   const handleEditPromotionOpen = (promotion: Promotion) => {
+    console.log("Открытие редактирования акции:", promotion);
     setEditPromotion(promotion);
     setPromotionForm({
       name: promotion.name,
@@ -909,26 +960,31 @@ export default function TariffsPage() {
   };
 
   const handleEditComputerOpen = (computer: Computer) => {
+    console.log("Открытие редактирования компьютера:", computer);
     setEditComputer(computer);
     setEditComputerDialogOpen(true);
   };
 
   const handleDeleteTariffOpen = (tariffId: string) => {
+    console.log("Открытие удаления тарифа:", tariffId);
     setDeleteTariffId(tariffId);
     setDeleteTariffDialogOpen(true);
   };
 
   const handleDeletePromotionOpen = (promotionId: string) => {
+    console.log("Открытие удаления акции:", promotionId);
     setDeletePromotionId(promotionId);
     setDeletePromotionDialogOpen(true);
   };
 
   const handleDeleteComputerOpen = (computerId: string) => {
+    console.log("Открытие удаления компьютера:", computerId);
     setDeleteComputerId(computerId);
     setDeleteComputerDialogOpen(true);
   };
 
   const handleSellTariffOpen = () => {
+    console.log("Открытие продажи тарифа");
     setSaleForm({ customerId: "", tariffId: "", computerId: "", duration: "1" });
     setSaleDialogOpen(true);
   };
