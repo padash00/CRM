@@ -1,10 +1,10 @@
-// components/loyalty-program.tsx
+"use client";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, Edit, Trash } from "lucide-react";
+import { Edit, Trash } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -73,10 +73,10 @@ export function LoyaltyProgram() {
   }, []);
 
   const handleSave = async () => {
-    if (!name || !discount || Number(discount) < 0 || Number(discount) > 100) {
+    if (!name.trim() || !discount || isNaN(Number(discount)) || Number(discount) < 0 || Number(discount) > 100) {
       toast({
         title: "Ошибка",
-        description: "Заполните все поля корректно (скидка от 0 до 100%)",
+        description: "Заполните название и корректную скидку (0–100%)",
         variant: "destructive",
       });
       return;
@@ -85,13 +85,14 @@ export function LoyaltyProgram() {
     setIsSaving(true);
 
     try {
+      const discountValue = parseFloat(discount);
       if (program) {
         const { error } = await supabase
           .from("loyalty_programs")
           .update({
-            name,
-            discount: parseFloat(discount),
-            description: description || null,
+            name: name.trim(),
+            discount: discountValue,
+            description: description.trim() || null,
           })
           .eq("id", program.id);
 
@@ -99,7 +100,7 @@ export function LoyaltyProgram() {
           throw new Error(`Ошибка обновления программы лояльности: ${error.message}`);
         }
 
-        setProgram({ ...program, name, discount: parseFloat(discount), description: description || "" });
+        setProgram({ ...program, name: name.trim(), discount: discountValue, description: description.trim() || "" });
         toast({
           title: "Программа лояльности обновлена",
           description: "Данные успешно сохранены.",
@@ -109,9 +110,9 @@ export function LoyaltyProgram() {
           .from("loyalty_programs")
           .insert([
             {
-              name,
-              discount: parseFloat(discount),
-              description: description || null,
+              name: name.trim(),
+              discount: discountValue,
+              description: description.trim() || null,
             },
           ])
           .select()
@@ -182,7 +183,7 @@ export function LoyaltyProgram() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="animate-spin">⏳</span>
             <span>Загрузка...</span>
           </div>
         </CardContent>
@@ -227,7 +228,7 @@ export function LoyaltyProgram() {
               disabled={isSaving || isDeleting}
             >
               {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="animate-spin mr-2">⏳</span>
               ) : (
                 <Trash className="mr-2 h-4 w-4" />
               )}
@@ -297,9 +298,11 @@ export function LoyaltyProgram() {
               variant="outline"
               onClick={() => {
                 setIsEditing(false);
-                setName(program!.name);
-                setDiscount(program!.discount.toString());
-                setDescription(program!.description || "");
+                if (program) {
+                  setName(program.name);
+                  setDiscount(program.discount.toString());
+                  setDescription(program.description || "");
+                }
               }}
               disabled={isSaving || isDeleting}
               className="mr-2"
@@ -308,10 +311,7 @@ export function LoyaltyProgram() {
             </Button>
           )}
           <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Сохранить
+            {isSaving ? <span className="animate-spin mr-2">⏳</span> : "Сохранить"}
           </Button>
         </CardFooter>
       )}
@@ -328,10 +328,7 @@ export function LoyaltyProgram() {
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Удалить
+              {isDeleting ? <span className="animate-spin mr-2">⏳</span> : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
