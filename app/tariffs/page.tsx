@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter, // Добавляем импорт CardFooter
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label"; // Добавляем импорт Label
+import { Label } from "@/components/ui/label";
 import { Dialogs } from "./dialogs";
 
 interface Tariff {
