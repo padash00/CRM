@@ -159,7 +159,7 @@ export default function TariffsPage() {
   const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
   const [promotionSort, setPromotionSort] = useState<"asc" | "desc">("desc");
   const [tariffPage, setTariffPage] = useState<number>(1);
-  const [promotionPage, setPromotionPage] = useState<number>(1); // Исправлено: добавлена запятая и правильный синтаксис
+  const [promotionPage, setPromotionPage] = useState<number>(1);
   const itemsPerPage = 3;
 
   const fetchData = async () => {
@@ -214,7 +214,7 @@ export default function TariffsPage() {
       const transformedComputers = computersData?.map((comp) => ({
         ...comp,
         status: comp.status === "free" ? "available" : (comp.status as "available" | "occupied" | "reserved" | "maintenance"),
-        zone: comp.zone === "vip" ? "vip" : comp.zone === "console" ? "console" : "standard",
+        zone: comp.zone_id === "vip" ? "vip" : comp.zone_id === "console" ? "console" : "standard",
       })) || [];
       setComputers(transformedComputers);
 
@@ -664,7 +664,7 @@ export default function TariffsPage() {
           name: editComputer.name,
           type: editComputer.type,
           status: editComputer.status === "available" ? "free" : editComputer.status,
-          zone: editComputer.zone,
+          zone_id: editComputer.zone, // Используем zone_id
         })
         .eq("id", editComputer.id);
 
@@ -777,8 +777,10 @@ export default function TariffsPage() {
         throw new Error("Этот компьютер уже занят");
       }
 
-      if (computer.zone !== tariff.zone_id) {
-        console.log("Несоответствие зоны:", { computerZone: computer.zone, tariffZone: tariff.zone_id });
+      // Используем zone_id из базы для сравнения
+      const computerZone = computer.zone; // Это уже преобразовано в fetchData
+      if (computerZone !== tariff.zone_id) {
+        console.log("Несоответствие зоны:", { computerZone, tariffZone: tariff.zone_id });
         throw new Error(`Этот тариф можно использовать только в зоне "${tariff.zone_id}"`);
       }
 
@@ -809,11 +811,27 @@ export default function TariffsPage() {
         });
       }
 
-      const { data: loyaltyData } = await supabase
-        .from("loyalty_programs")
-        .select("discount")
-        .limit(1)
-        .single();
+      let loyaltyData = null;
+      try {
+        const { data, error } = await supabase
+          .from("loyalty_programs")
+          .select("discount")
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.log("Ошибка получения данных лояльности:", error);
+          throw new Error(`Ошибка получения программы лояльности: ${error.message}`);
+        }
+        loyaltyData = data;
+      } catch (err: any) {
+        console.log("Не удалось получить программу лояльности:", err.message);
+        toast({
+          title: "Предупреждение",
+          description: "Не удалось применить программу лояльности. Продолжаем без скидки.",
+          variant: "default",
+        });
+      }
 
       if (loyaltyData) {
         totalCost = totalCost * (1 - loyaltyData.discount / 100);
