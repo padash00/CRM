@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ChevronLeft, ChevronRight, DollarSign, Edit } from "lucide-react"; // Добавляем импорт Edit
+import { Plus, ChevronLeft, ChevronRight, DollarSign, Edit, Trash } from "lucide-react"; // Добавляем импорт Trash
 import { MainNav } from "@/components/main-nav";
 import { ClubMap } from "@/components/club-map";
 import { TariffList } from "./tariff-list";
