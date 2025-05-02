@@ -60,26 +60,14 @@ interface Customer {
   name: string;
 }
 
-interface Zone {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-}
-
-interface ZoneForm {
-  name: string;
-  description: string;
-}
-
 interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "free" | "occupied";
-  zone_id: string;
-  position_x: number;
-  position_y: number;
+  status: "available" | "occupied" | "reserved" | "maintenance";
+  zone: "standard" | "vip" | "console";
+  timeLeft?: string;
+  customer?: string;
   created_at: string;
 }
 
@@ -107,48 +95,39 @@ interface SaleForm {
 interface DialogsProps {
   tariffForm: TariffForm;
   promotionForm: PromotionForm;
-  zoneForm: ZoneForm;
   saleForm: SaleForm;
   tariffs: Tariff[];
   promotions: Promotion[];
   customers: Customer[];
-  zones: Zone[];
   computers: Computer[];
+  setComputers: React.Dispatch<React.SetStateAction<Computer[]>>;
   sessions: Session[];
   isCreatingTariff: boolean;
   isCreatingPromotion: boolean;
-  isCreatingZone: boolean;
   createTariffDialogOpen: boolean;
   createPromotionDialogOpen: boolean;
-  createZoneDialogOpen: boolean;
   editTariffDialogOpen: boolean;
   editPromotionDialogOpen: boolean;
-  editZoneDialogOpen: boolean;
   editComputerDialogOpen: boolean;
   deleteTariffDialogOpen: boolean;
   deletePromotionDialogOpen: boolean;
-  deleteZoneDialogOpen: boolean;
   deleteComputerDialogOpen: boolean;
   saleDialogOpen: boolean;
   endSessionDialogOpen: boolean;
   editTariff: Tariff | null;
   editPromotion: Promotion | null;
-  editZone: Zone | null;
   editComputer: Computer | null;
   deleteTariffId: string | null;
   deletePromotionId: string | null;
-  deleteZoneId: string | null;
   deleteComputerId: string | null;
   endSessionId: string | null;
   isDeletingTariff: string | null;
   isDeletingPromotion: string | null;
-  isDeletingZone: string | null;
   isDeletingComputer: string | null;
   isSelling: boolean;
   isEndingSession: string | null;
   handleTariffChange: (field: keyof TariffForm, value: string) => void;
   handlePromotionChange: (field: keyof PromotionForm, value: string) => void;
-  handleZoneChange: (field: keyof ZoneForm, value: string) => void;
   handleSaleChange: (field: keyof SaleForm, value: string) => void;
   handleCreateTariff: (e: React.FormEvent) => Promise<void>;
   handleEditTariff: (e: React.FormEvent) => Promise<void>;
@@ -156,23 +135,17 @@ interface DialogsProps {
   handleCreatePromotion: (e: React.FormEvent) => Promise<void>;
   handleEditPromotion: (e: React.FormEvent) => Promise<void>;
   handleDeletePromotion: () => Promise<void>;
-  handleCreateZone: (e: React.FormEvent) => Promise<void>;
-  handleEditZone: (e: React.FormEvent) => Promise<void>;
-  handleDeleteZone: () => Promise<void>;
   handleEditComputer: (e: React.FormEvent) => Promise<void>;
   handleDeleteComputer: () => Promise<void>;
   handleSellTariff: (e: React.FormEvent) => Promise<void>;
   handleEndSession: () => Promise<void>;
   setCreateTariffDialogOpen: (open: boolean) => void;
   setCreatePromotionDialogOpen: (open: boolean) => void;
-  setCreateZoneDialogOpen: (open: boolean) => void;
   setEditTariffDialogOpen: (open: boolean) => void;
   setEditPromotionDialogOpen: (open: boolean) => void;
-  setEditZoneDialogOpen: (open: boolean) => void;
   setEditComputerDialogOpen: (open: boolean) => void;
   setDeleteTariffDialogOpen: (open: boolean) => void;
   setDeletePromotionDialogOpen: (open: boolean) => void;
-  setDeleteZoneDialogOpen: (open: boolean) => void;
   setDeleteComputerDialogOpen: (open: boolean) => void;
   setSaleDialogOpen: (open: boolean) => void;
   setEndSessionDialogOpen: (open: boolean) => void;
@@ -182,48 +155,39 @@ interface DialogsProps {
 export function Dialogs({
   tariffForm,
   promotionForm,
-  zoneForm,
   saleForm,
   tariffs,
   promotions,
   customers,
-  zones,
   computers,
+  setComputers,
   sessions,
   isCreatingTariff,
   isCreatingPromotion,
-  isCreatingZone,
   createTariffDialogOpen,
   createPromotionDialogOpen,
-  createZoneDialogOpen,
   editTariffDialogOpen,
   editPromotionDialogOpen,
-  editZoneDialogOpen,
   editComputerDialogOpen,
   deleteTariffDialogOpen,
   deletePromotionDialogOpen,
-  deleteZoneDialogOpen,
   deleteComputerDialogOpen,
   saleDialogOpen,
   endSessionDialogOpen,
   editTariff,
   editPromotion,
-  editZone,
   editComputer,
   deleteTariffId,
   deletePromotionId,
-  deleteZoneId,
   deleteComputerId,
   endSessionId,
   isDeletingTariff,
   isDeletingPromotion,
-  isDeletingZone,
   isDeletingComputer,
   isSelling,
   isEndingSession,
   handleTariffChange,
   handlePromotionChange,
-  handleZoneChange,
   handleSaleChange,
   handleCreateTariff,
   handleEditTariff,
@@ -231,23 +195,17 @@ export function Dialogs({
   handleCreatePromotion,
   handleEditPromotion,
   handleDeletePromotion,
-  handleCreateZone,
-  handleEditZone,
-  handleDeleteZone,
   handleEditComputer,
   handleDeleteComputer,
   handleSellTariff,
   handleEndSession,
   setCreateTariffDialogOpen,
   setCreatePromotionDialogOpen,
-  setCreateZoneDialogOpen,
   setEditTariffDialogOpen,
   setEditPromotionDialogOpen,
-  setEditZoneDialogOpen,
   setEditComputerDialogOpen,
   setDeleteTariffDialogOpen,
   setDeletePromotionDialogOpen,
-  setDeleteZoneDialogOpen,
   setDeleteComputerDialogOpen,
   setSaleDialogOpen,
   setEndSessionDialogOpen,
@@ -300,11 +258,9 @@ export function Dialogs({
                   <SelectValue placeholder="Выберите зону" />
                 </SelectTrigger>
                 <SelectContent>
-                  {zones.map((zone) => (
-                    <SelectItem key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="standard">Стандарт</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                  <SelectItem value="console">Консоль</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -389,11 +345,9 @@ export function Dialogs({
                   <SelectValue placeholder="Выберите зону" />
                 </SelectTrigger>
                 <SelectContent>
-                  {zones.map((zone) => (
-                    <SelectItem key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="standard">Стандарт</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                  <SelectItem value="console">Консоль</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -629,107 +583,6 @@ export function Dialogs({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={createZoneDialogOpen} onOpenChange={setCreateZoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Создать зону</DialogTitle>
-            <DialogDescription>Добавьте новую зону в клуб</DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateZone}>
-            <div className="space-y-2">
-              <Label htmlFor="zone-name">Название зоны</Label>
-              <Input
-                id="zone-name"
-                placeholder="Введите название"
-                value={zoneForm.name}
-                onChange={(e) => handleZoneChange("name", e.target.value)}
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="zone-description">Описание</Label>
-              <Input
-                id="zone-description"
-                placeholder="Описание зоны"
-                value={zoneForm.description}
-                onChange={(e) => handleZoneChange("description", e.target.value)}
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateZoneDialogOpen(false)} disabled={isCreatingZone}>
-                Отмена
-              </Button>
-              <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Создать"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editZoneDialogOpen} onOpenChange={setEditZoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Редактировать зону</DialogTitle>
-            <DialogDescription>Измените данные зоны {editZone?.name || ""}</DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleEditZone}>
-            <div className="space-y-2">
-              <Label htmlFor="edit-zone-name">Название зоны</Label>
-              <Input
-                id="edit-zone-name"
-                placeholder="Введите название"
-                value={zoneForm.name}
-                onChange={(e) => handleZoneChange("name", e.target.value)}
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-zone-description">Описание</Label>
-              <Input
-                id="edit-zone-description"
-                placeholder="Описание зоны"
-                value={zoneForm.description}
-                onChange={(e) => handleZoneChange("description", e.target.value)}
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditZoneDialogOpen(false)} disabled={isCreatingZone}>
-                Отмена
-              </Button>
-              <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Сохранить"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deleteZoneDialogOpen} onOpenChange={setDeleteZoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Подтверждение удаления</DialogTitle>
-            <DialogDescription>
-              Вы уверены, что хотите удалить эту зону? Убедитесь, что в зоне нет компьютеров.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteZoneDialogOpen(false)} disabled={isDeletingZone !== null}>
-              Отмена
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteZone} disabled={isDeletingZone !== null}>
-              {isDeletingZone !== null ? <span className="animate-spin">⏳</span> : "Удалить"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={editComputerDialogOpen} onOpenChange={setEditComputerDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -749,7 +602,6 @@ export function Dialogs({
                   )
                 }
                 className="shadow-sm"
-                disabled={isCreatingZone}
               />
             </div>
             <div className="space-y-2">
@@ -761,7 +613,6 @@ export function Dialogs({
                     prev ? { ...prev, type: value as "PC" | "PlayStation" } : prev
                   )
                 }
-                disabled={isCreatingZone}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите тип" />
@@ -775,61 +626,78 @@ export function Dialogs({
             <div className="space-y-2">
               <Label htmlFor="edit-computer-zone">Зона</Label>
               <Select
-                value={editComputer?.zone_id || ""}
+                value={editComputer?.zone || ""}
                 onValueChange={(value) =>
-                  setEditComputer((prev) => (prev ? { ...prev, zone_id: value } : prev))
+                  setEditComputer((prev) => (prev ? { ...prev, zone: value as "standard" | "vip" | "console" } : prev))
                 }
-                disabled={isCreatingZone}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите зону" />
                 </SelectTrigger>
                 <SelectContent>
-                  {zones.map((zone) => (
-                    <SelectItem key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="standard">Стандарт</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                  <SelectItem value="console">Консоль</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-computer-x">Позиция X</Label>
-              <Input
-                id="edit-computer-x"
-                type="number"
-                value={editComputer?.position_x || 0}
-                onChange={(e) =>
-                  setEditComputer((prev) =>
-                    prev ? { ...prev, position_x: parseInt(e.target.value) || 0 } : prev
-                  )
+              <Label htmlFor="edit-computer-status">Статус</Label>
+              <Select
+                value={editComputer?.status || ""}
+                onValueChange={(value) =>
+                  setEditComputer((prev) => (prev ? { ...prev, status: value as "available" | "occupied" | "reserved" | "maintenance" } : prev))
                 }
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Бос</SelectItem>
+                  <SelectItem value="occupied">Бос емес</SelectItem>
+                  <SelectItem value="reserved">Брондалған</SelectItem>
+                  <SelectItem value="maintenance">Қызмет көрсетуде</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-computer-y">Позиция Y</Label>
-              <Input
-                id="edit-computer-y"
-                type="number"
-                value={editComputer?.position_y || 0}
-                onChange={(e) =>
-                  setEditComputer((prev) =>
-                    prev ? { ...prev, position_y: parseInt(e.target.value) || 0 } : prev
-                  )
-                }
-                className="shadow-sm"
-                disabled={isCreatingZone}
-              />
-            </div>
+            {(editComputer?.status === "occupied" || editComputer?.status === "reserved") && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-computer-customer">Клиент</Label>
+                <Input
+                  id="edit-computer-customer"
+                  placeholder="Введите имя клиента"
+                  value={editComputer?.customer || ""}
+                  onChange={(e) =>
+                    setEditComputer((prev) =>
+                      prev ? { ...prev, customer: e.target.value } : prev
+                    )
+                  }
+                  className="shadow-sm"
+                />
+              </div>
+            )}
+            {editComputer?.status === "occupied" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-computer-timeLeft">Оставшееся время (часы)</Label>
+                <Input
+                  id="edit-computer-timeLeft"
+                  type="number"
+                  min="1"
+                  value={editComputer?.timeLeft ? editComputer.timeLeft.split(":")[0] : "1"}
+                  onChange={(e) =>
+                    setEditComputer((prev) =>
+                      prev ? { ...prev, timeLeft: `${e.target.value}:00` } : prev
+                    )
+                  }
+                  className="shadow-sm"
+                />
+              </div>
+            )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditComputerDialogOpen(false)} disabled={isCreatingZone}>
+              <Button variant="outline" onClick={() => setEditComputerDialogOpen(false)}>
                 Отмена
               </Button>
-              <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Сохранить"}
-              </Button>
+              <Button type="submit">Сохранить</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -913,11 +781,11 @@ export function Dialogs({
                   {computers
                     .filter((comp) => {
                       const tariff = tariffs.find((t) => t.id === saleForm.tariffId);
-                      return !tariff || comp.zone_id === tariff.zone_id;
+                      return !tariff || comp.zone === tariff.zone_id;
                     })
                     .map((computer) => (
-                      <SelectItem key={computer.id} value={computer.id} disabled={computer.status === "occupied"}>
-                        {computer.name} ({computer.type}) - {computer.status === "free" ? "Свободен" : "Занят"}
+                      <SelectItem key={computer.id} value={computer.id} disabled={computer.status !== "available"}>
+                        {computer.name} ({computer.type}) - {computer.status === "available" ? "Свободен" : computer.status === "occupied" ? "Занят" : computer.status}
                       </SelectItem>
                     ))}
                 </SelectContent>
