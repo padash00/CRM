@@ -73,10 +73,10 @@ interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "available" | "occupied"; // Обновлено в соответствии с новой схемой
+  status: "available" | "occupied";
   zone: "standard" | "vip" | "console";
-  position_x: number; // Новое поле
-  position_y: number; // Новое поле
+  position_x: number;
+  position_y: number;
   timeLeft?: string;
   customer?: string;
   created_at: string;
@@ -214,12 +214,44 @@ export default function TariffsPage() {
         throw new Error(`Ошибка загрузки компьютеров: ${computersError.message}`);
       }
 
-      // Маппим данные компьютеров в соответствии с новой схемой
+      // Получаем zone_id для каждой зоны заранее
+      const { data: vipZone, error: vipZoneError } = await supabase
+        .from("zones")
+        .select("id")
+        .eq("name", "VIP")
+        .single();
+      if (vipZoneError) {
+        throw new Error(`Ошибка получения зоны VIP: ${vipZoneError.message}`);
+      }
+      const vipZoneId = vipZone?.id;
+
+      const { data: consoleZone, error: consoleZoneError } = await supabase
+        .from("zones")
+        .select("id")
+        .eq("name", "PlayStation")
+        .single();
+      if (consoleZoneError) {
+        throw new Error(`Ошибка получения зоны PlayStation: ${consoleZoneError.message}`);
+      }
+      const consoleZoneId = consoleZone?.id;
+
+      const { data: standardZone, error: standardZoneError } = await supabase
+        .from("zones")
+        .select("id")
+        .eq("name", "Standard")
+        .single();
+      if (standardZoneError) {
+        throw new Error(`Ошибка получения зоны Standard: ${standardZoneError.message}`);
+      }
+      const standardZoneId = standardZone?.id;
+
+      // Маппим данные компьютеров
       const transformedComputers = computersData?.map((comp) => ({
         ...comp,
-        status: comp.status === "free" ? "available" : "occupied", // Преобразуем status из базы в интерфейс
-        zone: comp.zone_id === (await supabase.from("zones").select("id").eq("name", "VIP").single()).data?.id ? "vip" :
-              comp.zone_id === (await supabase.from("zones").select("id").eq("name", "PlayStation").single()).data?.id ? "console" : "standard",
+        status: comp.status === "free" ? "available" : "occupied",
+        zone: comp.zone_id === vipZoneId ? "vip" :
+              comp.zone_id === consoleZoneId ? "console" :
+              comp.zone_id === standardZoneId ? "standard" : "standard", // По умолчанию standard
       })) || [];
       setComputers(transformedComputers);
 
@@ -668,8 +700,8 @@ export default function TariffsPage() {
         .update({
           name: editComputer.name,
           type: editComputer.type,
-          status: editComputer.status === "available" ? "free" : "occupied", // Преобразуем status для базы
-          zone_id: editComputer.zone, // Используем zone_id
+          status: editComputer.status === "available" ? "free" : "occupied",
+          zone_id: editComputer.zone,
           position_x: editComputer.position_x,
           position_y: editComputer.position_y,
         })
@@ -870,7 +902,7 @@ export default function TariffsPage() {
 
       const { error: computerError } = await supabase
         .from("computers")
-        .update({ status: "occupied" }) // Используем значение из схемы базы
+        .update({ status: "occupied" })
         .eq("id", computerId);
 
       if (computerError) {
@@ -930,7 +962,7 @@ export default function TariffsPage() {
 
       const { error: computerError } = await supabase
         .from("computers")
-        .update({ status: "free" }) // Используем значение из схемы базы
+        .update({ status: "free" })
         .eq("id", session.computer_id);
 
       if (computerError) {
@@ -1156,8 +1188,7 @@ export default function TariffsPage() {
                 </Select>
                 <Label>Сортировка:</Label>
                 <Select value={promotionSort} onValueChange={(value: "asc" | "desc") => setPromotionSort(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Сортировка" />
+                  <SelectTrigger className="w-[180 Hor: "Сортировка" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="desc">Новые первыми</SelectItem>
