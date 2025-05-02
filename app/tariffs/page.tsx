@@ -10,9 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Filter, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
 import { MainNav } from "@/components/main-nav";
-import { ClubMap } from "@/components/ClubMap";
+import { ClubMap } from "@/components/club-map";
 import { TariffList } from "./tariff-list";
 import { LoyaltyProgram } from "./loyalty-program";
 import { toast } from "@/components/ui/use-toast";
@@ -67,26 +67,14 @@ interface Customer {
   name: string;
 }
 
-interface Zone {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-}
-
-interface ZoneForm {
-  name: string;
-  description: string;
-}
-
 interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "free" | "occupied";
-  zone_id: string;
-  position_x: number;
-  position_y: number;
+  status: "available" | "occupied" | "reserved" | "maintenance";
+  zone: "standard" | "vip" | "console";
+  timeLeft?: string;
+  customer?: string;
   created_at: string;
 }
 
@@ -126,10 +114,6 @@ export default function TariffsPage() {
     endDate: "",
     description: "",
   });
-  const [zoneForm, setZoneForm] = useState<ZoneForm>({
-    name: "",
-    description: "",
-  });
   const [saleForm, setSaleForm] = useState<SaleForm>({
     customerId: "",
     tariffId: "",
@@ -140,43 +124,34 @@ export default function TariffsPage() {
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
   const [computers, setComputers] = useState<Computer[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingTariff, setIsCreatingTariff] = useState<boolean>(false);
   const [isCreatingPromotion, setIsCreatingPromotion] = useState<boolean>(false);
-  const [isCreatingZone, setIsCreatingZone] = useState<boolean>(false);
   const [createTariffDialogOpen, setCreateTariffDialogOpen] = useState<boolean>(false);
   const [createPromotionDialogOpen, setCreatePromotionDialogOpen] = useState<boolean>(false);
-  const [createZoneDialogOpen, setCreateZoneDialogOpen] = useState<boolean>(false);
   const [editTariffDialogOpen, setEditTariffDialogOpen] = useState<boolean>(false);
   const [editPromotionDialogOpen, setEditPromotionDialogOpen] = useState<boolean>(false);
-  const [editZoneDialogOpen, setEditZoneDialogOpen] = useState<boolean>(false);
   const [editComputerDialogOpen, setEditComputerDialogOpen] = useState<boolean>(false);
   const [deleteTariffDialogOpen, setDeleteTariffDialogOpen] = useState<boolean>(false);
   const [deletePromotionDialogOpen, setDeletePromotionDialogOpen] = useState<boolean>(false);
-  const [deleteZoneDialogOpen, setDeleteZoneDialogOpen] = useState<boolean>(false);
   const [deleteComputerDialogOpen, setDeleteComputerDialogOpen] = useState<boolean>(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState<boolean>(false);
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState<boolean>(false);
   const [editTariff, setEditTariff] = useState<Tariff | null>(null);
   const [editPromotion, setEditPromotion] = useState<Promotion | null>(null);
-  const [editZone, setEditZone] = useState<Zone | null>(null);
   const [editComputer, setEditComputer] = useState<Computer | null>(null);
   const [deleteTariffId, setDeleteTariffId] = useState<string | null>(null);
   const [deletePromotionId, setDeletePromotionId] = useState<string | null>(null);
-  const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [deleteComputerId, setDeleteComputerId] = useState<string | null>(null);
   const [endSessionId, setEndSessionId] = useState<string | null>(null);
   const [isDeletingTariff, setIsDeletingTariff] = useState<string | null>(null);
   const [isDeletingPromotion, setIsDeletingPromotion] = useState<string | null>(null);
-  const [isDeletingZone, setIsDeletingZone] = useState<string | null>(null);
   const [isDeletingComputer, setIsDeletingComputer] = useState<string | null>(null);
   const [isSelling, setIsSelling] = useState<boolean>(false);
   const [isEndingSession, setIsEndingSession] = useState<string | null>(null);
-  const [hoveredZone, setHoveredZone] = useState<string | null>(null);
 
   const [tariffSort, setTariffSort] = useState<"asc" | "desc">("desc");
   const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
@@ -227,15 +202,6 @@ export default function TariffsPage() {
       }
       setCustomers(customersData || []);
 
-      const { data: zonesData, error: zonesError } = await supabase
-        .from("zones")
-        .select("*");
-
-      if (zonesError) {
-        throw new Error(`Ошибка загрузки зон: ${zonesError.message}`);
-      }
-      setZones(zonesData || []);
-
       const { data: computersData, error: computersError } = await supabase
         .from("computers")
         .select("*");
@@ -243,7 +209,12 @@ export default function TariffsPage() {
       if (computersError) {
         throw new Error(`Ошибка загрузки компьютеров: ${computersError.message}`);
       }
-      setComputers(computersData || []);
+      const transformedComputers = computersData?.map((comp) => ({
+        ...comp,
+        status: comp.status === "free" ? "available" : (comp.status as "available" | "occupied" | "reserved" | "maintenance"),
+        zone: comp.zone_id === "vip" ? "vip" : comp.zone_id === "console" ? "console" : "standard",
+      })) || [];
+      setComputers(transformedComputers);
 
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
@@ -291,17 +262,6 @@ export default function TariffsPage() {
       )
       .subscribe();
 
-    const zoneSubscription = supabase
-      .channel("zones-channel")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "zones" },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
     const computerSubscription = supabase
       .channel("computers-channel")
       .on(
@@ -327,7 +287,6 @@ export default function TariffsPage() {
     return () => {
       supabase.removeChannel(tariffSubscription);
       supabase.removeChannel(promotionSubscription);
-      supabase.removeChannel(zoneSubscription);
       supabase.removeChannel(computerSubscription);
       supabase.removeChannel(sessionSubscription);
     };
@@ -343,13 +302,6 @@ export default function TariffsPage() {
   const handlePromotionChange = useCallback(
     (field: keyof PromotionForm, value: string) => {
       setPromotionForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
-
-  const handleZoneChange = useCallback(
-    (field: keyof ZoneForm, value: string) => {
-      setZoneForm((prev) => ({ ...prev, [field]: value }));
     },
     []
   );
@@ -651,140 +603,6 @@ export default function TariffsPage() {
     }
   };
 
-  const handleCreateZone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { name, description } = zoneForm;
-
-    if (!name) {
-      toast({
-        title: "Ошибка",
-        description: "Введите название зоны",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCreatingZone(true);
-
-    try {
-      const { error } = await supabase
-        .from("zones")
-        .insert([
-          {
-            name,
-            description: description || null,
-          },
-        ]);
-
-      if (error) {
-        throw new Error(`Ошибка создания зоны: ${error.message}`);
-      }
-
-      toast({
-        title: "Зона создана",
-        description: `Зона "${name}" успешно добавлена.`,
-      });
-      setCreateZoneDialogOpen(false);
-      setZoneForm({ name: "", description: "" });
-    } catch (err: any) {
-      toast({
-        title: "Ошибка",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingZone(false);
-    }
-  };
-
-  const handleEditZone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editZone) return;
-
-    const { name, description } = zoneForm;
-
-    if (!name) {
-      toast({
-        title: "Ошибка",
-        description: "Введите название зоны",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCreatingZone(true);
-
-    try {
-      const { error } = await supabase
-        .from("zones")
-        .update({
-          name,
-          description: description || null,
-        })
-        .eq("id", editZone.id);
-
-      if (error) {
-        throw new Error(`Ошибка редактирования зоны: ${error.message}`);
-      }
-
-      toast({
-        title: "Зона обновлена",
-        description: `Зона "${name}" успешно обновлена.`,
-      });
-      setEditZoneDialogOpen(false);
-    } catch (err: any) {
-      toast({
-        title: "Ошибка",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingZone(false);
-    }
-  };
-
-  const handleDeleteZone = async () => {
-    if (!deleteZoneId) return;
-
-    setIsDeletingZone(deleteZoneId);
-
-    try {
-      const { data: computersInZone } = await supabase
-        .from("computers")
-        .select("id")
-        .eq("zone_id", deleteZoneId)
-        .limit(1);
-
-      if (computersInZone && computersInZone.length > 0) {
-        throw new Error("Нельзя удалить зону, в которой есть компьютеры");
-      }
-
-      const { error } = await supabase
-        .from("zones")
-        .delete()
-        .eq("id", deleteZoneId);
-
-      if (error) {
-        throw new Error(`Ошибка удаления зоны: ${error.message}`);
-      }
-
-      toast({
-        title: "Зона удалена",
-        description: "Зона успешно удалена.",
-      });
-      setDeleteZoneDialogOpen(false);
-    } catch (err: any) {
-      toast({
-        title: "Ошибка удаления зоны",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeletingZone(null);
-      setDeleteZoneId(null);
-    }
-  };
-
   const handleEditComputer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editComputer) {
@@ -796,20 +614,14 @@ export default function TariffsPage() {
       return;
     }
 
-    const positionX = Math.max(10, Math.min(480, editComputer.position_x));
-    const positionY = Math.max(10, Math.min(70, editComputer.position_y));
-
-    setIsCreatingZone(true);
-
     try {
       const { error } = await supabase
         .from("computers")
         .update({
           name: editComputer.name,
           type: editComputer.type,
-          zone_id: editComputer.zone_id,
-          position_x: positionX,
-          position_y: positionY,
+          status: editComputer.status === "available" ? "free" : editComputer.status,
+          zone_id: editComputer.zone,
         })
         .eq("id", editComputer.id);
 
@@ -820,7 +632,7 @@ export default function TariffsPage() {
       setComputers((prev) =>
         prev.map((comp) =>
           comp.id === editComputer.id
-            ? { ...comp, position_x: positionX, position_y: positionY }
+            ? { ...comp, name: editComputer.name, type: editComputer.type, status: editComputer.status, zone: editComputer.zone }
             : comp
         )
       );
@@ -836,8 +648,6 @@ export default function TariffsPage() {
         description: err.message,
         variant: "destructive",
       });
-    } finally {
-      setIsCreatingZone(false);
     }
   };
 
@@ -866,6 +676,8 @@ export default function TariffsPage() {
       if (error) {
         throw new Error(`Ошибка удаления компьютера: ${error.message}`);
       }
+
+      setComputers((prev) => prev.filter((comp) => comp.id !== deleteComputerId));
 
       toast({
         title: "Компьютер удалён",
@@ -908,13 +720,12 @@ export default function TariffsPage() {
         throw new Error("Тариф, компьютер или клиент не найдены");
       }
 
-      if (computer.status === "occupied") {
+      if (computer.status !== "available") {
         throw new Error("Этот компьютер уже занят");
       }
 
-      if (computer.zone_id !== tariff.zone_id) {
-        const zone = zones.find((z) => z.id === tariff.zone_id);
-        throw new Error(`Этот тариф можно использовать только в зоне "${zone?.name}"`);
+      if (computer.zone !== tariff.zone_id) {
+        throw new Error(`Этот тариф можно использовать только в зоне "${tariff.zone_id}"`);
       }
 
       const durationHours = parseFloat(duration);
@@ -989,7 +800,9 @@ export default function TariffsPage() {
 
       setComputers((prev) =>
         prev.map((comp) =>
-          comp.id === computerId ? { ...comp, status: "occupied" } : comp
+          comp.id === computerId
+            ? { ...comp, status: "occupied", customer: customer.name, timeLeft: `${duration}:00` }
+            : comp
         )
       );
 
@@ -1042,7 +855,9 @@ export default function TariffsPage() {
 
       setComputers((prev) =>
         prev.map((comp) =>
-          comp.id === session.computer_id ? { ...comp, status: "free" } : comp
+          comp.id === session.computer_id
+            ? { ...comp, status: "available", customer: undefined, timeLeft: undefined }
+            : comp
         )
       );
 
@@ -1091,15 +906,6 @@ export default function TariffsPage() {
     setEditPromotionDialogOpen(true);
   };
 
-  const handleEditZoneOpen = (zone: Zone) => {
-    setEditZone(zone);
-    setZoneForm({
-      name: zone.name,
-      description: zone.description || "",
-    });
-    setEditZoneDialogOpen(true);
-  };
-
   const handleEditComputerOpen = (computer: Computer) => {
     setEditComputer(computer);
     setEditComputerDialogOpen(true);
@@ -1113,11 +919,6 @@ export default function TariffsPage() {
   const handleDeletePromotionOpen = (promotionId: string) => {
     setDeletePromotionId(promotionId);
     setDeletePromotionDialogOpen(true);
-  };
-
-  const handleDeleteZoneOpen = (zoneId: string) => {
-    setDeleteZoneId(zoneId);
-    setDeleteZoneDialogOpen(true);
   };
 
   const handleDeleteComputerOpen = (computerId: string) => {
@@ -1148,7 +949,7 @@ export default function TariffsPage() {
         <MainNav />
         <main className="flex-1 flex items-center justify-center p-4 md:p-8 pt-6">
           <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="animate-spin">⏳</span>
             <span>Загрузка данных...</span>
           </div>
         </main>
@@ -1322,7 +1123,7 @@ export default function TariffsPage() {
                       disabled={isDeletingPromotion === promotion.id}
                     >
                       {isDeletingPromotion === promotion.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span className="animate-spin mr-2">⏳</span>
                       ) : (
                         <Trash className="mr-2 h-4 w-4" />
                       )}
@@ -1356,70 +1157,17 @@ export default function TariffsPage() {
           <TabsContent value="zones" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-bold">Зоны и компьютеры</h3>
-              <Button onClick={() => setCreateZoneDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Новая зона
-              </Button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Список зон</CardTitle>
-                  <CardDescription>Управляйте зонами клуба</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {zones.length === 0 ? (
-                    <div className="text-center text-muted-foreground">Нет зон для отображения</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {zones.map((zone) => (
-                        <div key={zone.id} className="flex items-center justify-between p-2 border rounded-md">
-                          <div>
-                            <div className="font-medium">{zone.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {zone.description || "Нет описания"} | Компьютеров: {computers.filter((comp) => comp.zone_id === zone.id).length}
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditZoneOpen(zone)}
-                              disabled={isDeletingZone === zone.id}
-                            >
-                              <Edit className="mr-2 h-4 w-4" /> Редактировать
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteZoneOpen(zone.id)}
-                              disabled={isDeletingZone === zone.id}
-                            >
-                              {isDeletingZone === zone.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <Trash className="mr-2 h-4 w-4" />
-                              )}
-                              Удалить
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="grid gap-4">
               <Card className="shadow-sm">
                 <CardHeader>
                   <CardTitle>Карта клуба</CardTitle>
-                  <CardDescription>Расположение компьютеров (кликните, чтобы редактировать)</CardDescription>
+                  <CardDescription>Список компьютеров (кликните, чтобы редактировать)</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ClubMap
-                    zones={zones}
                     computers={computers}
-                    hoveredZone={hoveredZone}
-                    onEditComputer={handleEditComputerOpen}
-                    onHoverZone={setHoveredZone}
+                    setComputers={setComputers}
                   />
                 </CardContent>
               </Card>
@@ -1461,7 +1209,7 @@ export default function TariffsPage() {
                           disabled={isEndingSession === session.id}
                         >
                           {isEndingSession === session.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span className="animate-spin mr-2">⏳</span>
                           ) : null}
                           Завершить
                         </Button>
@@ -1478,48 +1226,39 @@ export default function TariffsPage() {
       <Dialogs
         tariffForm={tariffForm}
         promotionForm={promotionForm}
-        zoneForm={zoneForm}
         saleForm={saleForm}
         tariffs={tariffs}
         promotions={promotions}
         customers={customers}
-        zones={zones}
         computers={computers}
+        setComputers={setComputers}
         sessions={sessions}
         isCreatingTariff={isCreatingTariff}
         isCreatingPromotion={isCreatingPromotion}
-        isCreatingZone={isCreatingZone}
         createTariffDialogOpen={createTariffDialogOpen}
         createPromotionDialogOpen={createPromotionDialogOpen}
-        createZoneDialogOpen={createZoneDialogOpen}
         editTariffDialogOpen={editTariffDialogOpen}
         editPromotionDialogOpen={editPromotionDialogOpen}
-        editZoneDialogOpen={editZoneDialogOpen}
         editComputerDialogOpen={editComputerDialogOpen}
         deleteTariffDialogOpen={deleteTariffDialogOpen}
         deletePromotionDialogOpen={deletePromotionDialogOpen}
-        deleteZoneDialogOpen={deleteZoneDialogOpen}
         deleteComputerDialogOpen={deleteComputerDialogOpen}
         saleDialogOpen={saleDialogOpen}
         endSessionDialogOpen={endSessionDialogOpen}
         editTariff={editTariff}
         editPromotion={editPromotion}
-        editZone={editZone}
         editComputer={editComputer}
         deleteTariffId={deleteTariffId}
         deletePromotionId={deletePromotionId}
-        deleteZoneId={deleteZoneId}
         deleteComputerId={deleteComputerId}
         endSessionId={endSessionId}
         isDeletingTariff={isDeletingTariff}
         isDeletingPromotion={isDeletingPromotion}
-        isDeletingZone={isDeletingZone}
         isDeletingComputer={isDeletingComputer}
         isSelling={isSelling}
         isEndingSession={isEndingSession}
         handleTariffChange={handleTariffChange}
         handlePromotionChange={handlePromotionChange}
-        handleZoneChange={handleZoneChange}
         handleSaleChange={handleSaleChange}
         handleCreateTariff={handleCreateTariff}
         handleEditTariff={handleEditTariff}
@@ -1527,23 +1266,17 @@ export default function TariffsPage() {
         handleCreatePromotion={handleCreatePromotion}
         handleEditPromotion={handleEditPromotion}
         handleDeletePromotion={handleDeletePromotion}
-        handleCreateZone={handleCreateZone}
-        handleEditZone={handleEditZone}
-        handleDeleteZone={handleDeleteZone}
         handleEditComputer={handleEditComputer}
         handleDeleteComputer={handleDeleteComputer}
         handleSellTariff={handleSellTariff}
         handleEndSession={handleEndSession}
         setCreateTariffDialogOpen={setCreateTariffDialogOpen}
         setCreatePromotionDialogOpen={setCreatePromotionDialogOpen}
-        setCreateZoneDialogOpen={setCreateZoneDialogOpen}
         setEditTariffDialogOpen={setEditTariffDialogOpen}
         setEditPromotionDialogOpen={setEditPromotionDialogOpen}
-        setEditZoneDialogOpen={setEditZoneDialogOpen}
         setEditComputerDialogOpen={setEditComputerDialogOpen}
         setDeleteTariffDialogOpen={setDeleteTariffDialogOpen}
         setDeletePromotionDialogOpen={setDeletePromotionDialogOpen}
-        setDeleteZoneDialogOpen={setDeleteZoneDialogOpen}
         setDeleteComputerDialogOpen={setDeleteComputerDialogOpen}
         setSaleDialogOpen={setSaleDialogOpen}
         setEndSessionDialogOpen={setEndSessionDialogOpen}
