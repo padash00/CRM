@@ -13,8 +13,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Filter, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
 import { MainNav } from "@/components/main-nav";
-import { TariffList } from "@/components/tariff-list";
-import { LoyaltyProgram } from "@/components/loyalty-program";
+import { TariffList } from "./tariff-list";
+import { LoyaltyProgram } from "./loyalty-program";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import {
