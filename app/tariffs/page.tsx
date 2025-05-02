@@ -1226,6 +1226,7 @@ export default function TariffsPage() {
                   <ClubMap
                     computers={computers}
                     setComputers={setComputers}
+                    onEdit={handleEditComputerOpen} // Добавляем пропс onEdit
                   />
                 </CardContent>
               </Card>
