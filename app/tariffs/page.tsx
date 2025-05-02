@@ -251,7 +251,7 @@ export default function TariffsPage() {
         status: comp.status === "free" ? "available" : "occupied",
         zone: comp.zone_id === vipZoneId ? "vip" :
               comp.zone_id === consoleZoneId ? "console" :
-              comp.zone_id === standardZoneId ? "standard" : "standard", // По умолчанию standard
+              comp.zone_id === standardZoneId ? "standard" : "standard",
       })) || [];
       setComputers(transformedComputers);
 
@@ -306,7 +306,7 @@ export default function TariffsPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "computers" },
-        () => {
+        ()zapros => {
           fetchData();
         }
       )
@@ -1188,7 +1188,8 @@ export default function TariffsPage() {
                 </Select>
                 <Label>Сортировка:</Label>
                 <Select value={promotionSort} onValueChange={(value: "asc" | "desc") => setPromotionSort(value)}>
-                  <SelectTrigger className="w-[180 Hor: "Сортировка" />
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Сортировка" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="desc">Новые первыми</SelectItem>
