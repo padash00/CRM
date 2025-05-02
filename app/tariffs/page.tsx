@@ -6,12 +6,12 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter, // Добавляем импорт CardFooter
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, DollarSign, Edit } from "lucide-react"; // Добавляем импорт Edit
 import { MainNav } from "@/components/main-nav";
 import { ClubMap } from "@/components/club-map";
 import { TariffList } from "./tariff-list";
