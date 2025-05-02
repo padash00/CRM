@@ -4,8 +4,10 @@ interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "available" | "occupied" | "reserved" | "maintenance";
+  status: "available" | "occupied"; // Обновлено в соответствии с page.tsx
   zone: "standard" | "vip" | "console";
+  position_x: number; // Новое поле
+  position_y: number; // Новое поле
   timeLeft?: string;
   customer?: string;
   created_at: string;
@@ -46,74 +48,77 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
       {/* Зона "Крыло Ингбор" (Стандарт) */}
       <div className="absolute top-4 left-4">
         <h3 className="text-lg font-bold text-white">Крыло Ингбор</h3>
-        <div className="grid grid-cols-6 gap-2 mt-2">
-          {standardComputers.map((computer) => (
-            <Button
-              key={computer.id}
-              variant="outline"
-              className={`
-                w-12 h-12 rounded-md text-sm font-bold
-                ${computer.status === "available" ? "bg-green-500 hover:bg-green-600" : ""}
-                ${computer.status === "occupied" ? "bg-red-500 hover:bg-red-600 animate-pulse" : ""}
-                ${computer.status === "reserved" ? "bg-yellow-500 hover:bg-yellow-600" : ""}
-                ${computer.status === "maintenance" ? "bg-gray-500 hover:bg-gray-600" : ""}
-                text-white border-none
-              `}
-              onClick={() => handleEditComputer(computer)}
-            >
-              {computer.name}
-            </Button>
-          ))}
-        </div>
       </div>
+      {standardComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-green-500 hover:bg-green-600" : ""}
+            ${computer.status === "occupied" ? "bg-red-500 hover:bg-red-600 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / 600) * 100}%`, // Масштабируем координаты
+            left: `${(computer.position_x / 1200) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
 
       {/* Зона "Гаронин" (VIP) */}
       <div className="absolute top-4 right-4">
         <h3 className="text-lg font-bold text-white">Гаронин</h3>
-        <div className="grid grid-cols-3 gap-2 mt-2">
-          {vipComputers.map((computer) => (
-            <Button
-              key={computer.id}
-              variant="outline"
-              className={`
-                w-12 h-12 rounded-md text-sm font-bold
-                ${computer.status === "available" ? "bg-purple-500 hover:bg-purple-600" : ""}
-                ${computer.status === "occupied" ? "bg-purple-700 hover:bg-purple-800 animate-pulse" : ""}
-                ${computer.status === "reserved" ? "bg-purple-600 hover:bg-purple-700" : ""}
-                ${computer.status === "maintenance" ? "bg-gray-500 hover:bg-gray-600" : ""}
-                text-white border-none
-              `}
-              onClick={() => handleEditComputer(computer)}
-            >
-              {computer.name}
-            </Button>
-          ))}
-        </div>
       </div>
+      {vipComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-purple-500 hover:bg-purple-600" : ""}
+            ${computer.status === "occupied" ? "bg-purple-700 hover:bg-purple-800 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / 600) * 100}%`,
+            left: `${(computer.position_x / 1200) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
 
       {/* Зона "Соффааб" (Консоль) */}
       <div className="absolute bottom-4 left-4">
         <h3 className="text-lg font-bold text-white">Соффааб</h3>
-        <div className="grid grid-cols-3 gap-2 mt-2">
-          {consoleComputers.map((computer) => (
-            <Button
-              key={computer.id}
-              variant="outline"
-              className={`
-                w-12 h-12 rounded-md text-sm font-bold
-                ${computer.status === "available" ? "bg-blue-500 hover:bg-blue-600" : ""}
-                ${computer.status === "occupied" ? "bg-blue-700 hover:bg-blue-800 animate-pulse" : ""}
-                ${computer.status === "reserved" ? "bg-blue-600 hover:bg-blue-700" : ""}
-                ${computer.status === "maintenance" ? "bg-gray-500 hover:bg-gray-600" : ""}
-                text-white border-none
-              `}
-              onClick={() => handleEditComputer(computer)}
-            >
-              {computer.name}
-            </Button>
-          ))}
-        </div>
       </div>
+      {consoleComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-blue-500 hover:bg-blue-600" : ""}
+            ${computer.status === "occupied" ? "bg-blue-700 hover:bg-blue-800 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / 600) * 100}%`,
+            left: `${(computer.position_x / 1200) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
     </div>
   );
 }
