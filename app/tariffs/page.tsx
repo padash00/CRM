@@ -1,6 +1,5 @@
-// app/tariffs/page.tsx
 "use client";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Filter, ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
 import { MainNav } from "@/components/main-nav";
+import { ClubMap } from "@/components/ClubMap";
 import { TariffList } from "./tariff-list";
 import { LoyaltyProgram } from "./loyalty-program";
 import { toast } from "@/components/ui/use-toast";
@@ -1130,76 +1130,6 @@ export default function TariffsPage() {
     setSaleDialogOpen(true);
   };
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    zones.forEach((zone, index) => {
-      const y = 50 + index * 120;
-      ctx.fillStyle = hoveredZone === zone.id ? "#d0d0d0" : "#e0e0e0";
-      ctx.fillRect(10, y - 30, 480, 100);
-      ctx.fillStyle = "#000";
-      ctx.font = "16px Arial";
-      ctx.fillText(zone.name, 20, y - 10);
-
-      const zoneComputers = computers.filter((comp) => comp.zone_id === zone.id);
-      zoneComputers.forEach((comp) => {
-        const x = comp.position_x;
-        const yPos = y + comp.position_y - 30;
-        ctx.fillStyle = comp.status === "free" ? "green" : "red";
-        ctx.beginPath();
-        ctx.arc(x, yPos, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.font = "12px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(comp.name, x, yPos + 4);
-      });
-    });
-  }, [zones, computers, hoveredZone]);
-
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const clickedComputer = computers.find((comp) => {
-      const dx = x - comp.position_x;
-      const dy = y - (50 + zones.findIndex((z) => z.id === comp.zone_id) * 120 + comp.position_y - 30);
-      return Math.sqrt(dx * dx + dy * dy) < 15;
-    });
-
-    if (clickedComputer) {
-      handleEditComputerOpen(clickedComputer);
-    }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-
-    const hoveredZoneIndex = Math.floor((y - 20) / 120);
-    const zone = zones[hoveredZoneIndex];
-    setHoveredZone(zone ? zone.id : null);
-  };
-
-  const handleCanvasMouseLeave = () => {
-    setHoveredZone(null);
-  };
-
   const paginatedTariffs = tariffs.slice(
     (tariffPage - 1) * itemsPerPage,
     tariffPage * itemsPerPage
@@ -1484,14 +1414,12 @@ export default function TariffsPage() {
                   <CardDescription>Расположение компьютеров (кликните, чтобы редактировать)</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <canvas
-                    ref={canvasRef}
-                    width={500}
-                    height={zones.length * 120 + 50}
-                    className="border rounded-md"
-                    onClick={handleCanvasClick}
-                    onMouseMove={handleCanvasMouseMove}
-                    onMouseLeave={handleCanvasMouseLeave}
+                  <ClubMap
+                    zones={zones}
+                    computers={computers}
+                    hoveredZone={hoveredZone}
+                    onEditComputer={handleEditComputerOpen}
+                    onHoverZone={setHoveredZone}
                   />
                 </CardContent>
               </Card>
@@ -1619,6 +1547,7 @@ export default function TariffsPage() {
         setDeleteComputerDialogOpen={setDeleteComputerDialogOpen}
         setSaleDialogOpen={setSaleDialogOpen}
         setEndSessionDialogOpen={setEndSessionDialogOpen}
+        setEditComputer={setEditComputer}
       />
     </div>
   );
