@@ -1,9 +1,10 @@
-// components/tariff-list.tsx
+"use client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash, Loader2 } from "lucide-react";
+import { Edit, Trash } from "lucide-react";
 
+// Интерфейс Tariff синхронизирован с page.tsx и dialogs.tsx
 interface Tariff {
   id: string;
   name: string;
@@ -11,6 +12,7 @@ interface Tariff {
   price: number;
   description: string;
   created_at: string;
+  zone_id: string;
 }
 
 interface TariffListProps {
@@ -63,7 +65,7 @@ export function TariffList({ tariffs, onEdit, onDelete, isDeleting }: TariffList
               disabled={isDeleting === tariff.id}
             >
               {isDeleting === tariff.id ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="animate-spin mr-2">⏳</span>
               ) : (
                 <Trash className="mr-2 h-4 w-4" />
               )}
