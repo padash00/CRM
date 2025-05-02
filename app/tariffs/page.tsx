@@ -73,8 +73,10 @@ interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "available" | "occupied" | "reserved" | "maintenance";
+  status: "available" | "occupied"; // Обновлено в соответствии с новой схемой
   zone: "standard" | "vip" | "console";
+  position_x: number; // Новое поле
+  position_y: number; // Новое поле
   timeLeft?: string;
   customer?: string;
   created_at: string;
@@ -211,10 +213,13 @@ export default function TariffsPage() {
       if (computersError) {
         throw new Error(`Ошибка загрузки компьютеров: ${computersError.message}`);
       }
+
+      // Маппим данные компьютеров в соответствии с новой схемой
       const transformedComputers = computersData?.map((comp) => ({
         ...comp,
-        status: comp.status === "free" ? "available" : (comp.status as "available" | "occupied" | "reserved" | "maintenance"),
-        zone: comp.zone_id === "vip" ? "vip" : comp.zone_id === "console" ? "console" : "standard",
+        status: comp.status === "free" ? "available" : "occupied", // Преобразуем status из базы в интерфейс
+        zone: comp.zone_id === (await supabase.from("zones").select("id").eq("name", "VIP").single()).data?.id ? "vip" :
+              comp.zone_id === (await supabase.from("zones").select("id").eq("name", "PlayStation").single()).data?.id ? "console" : "standard",
       })) || [];
       setComputers(transformedComputers);
 
@@ -663,8 +668,10 @@ export default function TariffsPage() {
         .update({
           name: editComputer.name,
           type: editComputer.type,
-          status: editComputer.status === "available" ? "free" : editComputer.status,
+          status: editComputer.status === "available" ? "free" : "occupied", // Преобразуем status для базы
           zone_id: editComputer.zone, // Используем zone_id
+          position_x: editComputer.position_x,
+          position_y: editComputer.position_y,
         })
         .eq("id", editComputer.id);
 
@@ -676,7 +683,7 @@ export default function TariffsPage() {
       setComputers((prev) =>
         prev.map((comp) =>
           comp.id === editComputer.id
-            ? { ...comp, name: editComputer.name, type: editComputer.type, status: editComputer.status, zone: editComputer.zone }
+            ? { ...comp, name: editComputer.name, type: editComputer.type, status: editComputer.status, zone: editComputer.zone, position_x: editComputer.position_x, position_y: editComputer.position_y }
             : comp
         )
       );
@@ -777,8 +784,7 @@ export default function TariffsPage() {
         throw new Error("Этот компьютер уже занят");
       }
 
-      // Используем zone_id из базы для сравнения
-      const computerZone = computer.zone; // Это уже преобразовано в fetchData
+      const computerZone = computer.zone;
       if (computerZone !== tariff.zone_id) {
         console.log("Несоответствие зоны:", { computerZone, tariffZone: tariff.zone_id });
         throw new Error(`Этот тариф можно использовать только в зоне "${tariff.zone_id}"`);
@@ -864,7 +870,7 @@ export default function TariffsPage() {
 
       const { error: computerError } = await supabase
         .from("computers")
-        .update({ status: "occupied" })
+        .update({ status: "occupied" }) // Используем значение из схемы базы
         .eq("id", computerId);
 
       if (computerError) {
@@ -924,7 +930,7 @@ export default function TariffsPage() {
 
       const { error: computerError } = await supabase
         .from("computers")
-        .update({ status: "free" })
+        .update({ status: "free" }) // Используем значение из схемы базы
         .eq("id", session.computer_id);
 
       if (computerError) {
