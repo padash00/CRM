@@ -1,4 +1,4 @@
-// app/tariffs/dialogs.tsx
+"use client";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Edit, Trash, Save } from "lucide-react";
+import { Edit, Trash } from "lucide-react";
 
 interface Tariff {
   id: string;
@@ -337,10 +337,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingTariff}>
-                {isCreatingTariff ? (
-                  <span>Loading...</span>
-                ) : null}
-                Создать
+                {isCreatingTariff ? <span className="animate-spin">⏳</span> : "Создать"}
               </Button>
             </DialogFooter>
           </form>
@@ -351,7 +348,7 @@ export function Dialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактировать тариф</DialogTitle>
-            <DialogDescription>Измените данные тарифа {editTariff?.name}</DialogDescription>
+            <DialogDescription>Измените данные тарифа {editTariff?.name || ""}</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleEditTariff}>
             <div className="space-y-2">
@@ -429,10 +426,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingTariff}>
-                {isCreatingTariff ? (
-                  <span>Loading...</span>
-                ) : null}
-                Сохранить
+                {isCreatingTariff ? <span className="animate-spin">⏳</span> : "Сохранить"}
               </Button>
             </DialogFooter>
           </form>
@@ -452,10 +446,7 @@ export function Dialogs({
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleDeleteTariff} disabled={isDeletingTariff !== null}>
-              {isDeletingTariff ? (
-                <span>Loading...</span>
-              ) : null}
-              Удалить
+              {isDeletingTariff !== null ? <span className="animate-spin">⏳</span> : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -533,10 +524,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingPromotion}>
-                {isCreatingPromotion ? (
-                  <span>Loading...</span>
-                ) : null}
-                Создать
+                {isCreatingPromotion ? <span className="animate-spin">⏳</span> : "Создать"}
               </Button>
             </DialogFooter>
           </form>
@@ -547,7 +535,7 @@ export function Dialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактировать акцию</DialogTitle>
-            <DialogDescription>Измените данные акции {editPromotion?.name}</DialogDescription>
+            <DialogDescription>Измените данные акции {editPromotion?.name || ""}</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleEditPromotion}>
             <div className="space-y-2">
@@ -615,10 +603,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingPromotion}>
-                {isCreatingPromotion ? (
-                  <span>Loading...</span>
-                ) : null}
-                Сохранить
+                {isCreatingPromotion ? <span className="animate-spin">⏳</span> : "Сохранить"}
               </Button>
             </DialogFooter>
           </form>
@@ -638,10 +623,7 @@ export function Dialogs({
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleDeletePromotion} disabled={isDeletingPromotion !== null}>
-              {isDeletingPromotion ? (
-                <span>Loading...</span>
-              ) : null}
-              Удалить
+              {isDeletingPromotion !== null ? <span className="animate-spin">⏳</span> : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -681,10 +663,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? (
-                  <span>Loading...</span>
-                ) : null}
-                Создать
+                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Создать"}
               </Button>
             </DialogFooter>
           </form>
@@ -695,7 +674,7 @@ export function Dialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактировать зону</DialogTitle>
-            <DialogDescription>Измените данные зоны {editZone?.name}</DialogDescription>
+            <DialogDescription>Измените данные зоны {editZone?.name || ""}</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleEditZone}>
             <div className="space-y-2">
@@ -725,10 +704,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? (
-                  <span>Loading...</span>
-                ) : null}
-                Сохранить
+                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Сохранить"}
               </Button>
             </DialogFooter>
           </form>
@@ -748,10 +724,7 @@ export function Dialogs({
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleDeleteZone} disabled={isDeletingZone !== null}>
-              {isDeletingZone ? (
-                <span>Loading...</span>
-              ) : null}
-              Удалить
+              {isDeletingZone !== null ? <span className="animate-spin">⏳</span> : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -761,7 +734,7 @@ export function Dialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактировать компьютер</DialogTitle>
-            <DialogDescription>Измените данные компьютера {editComputer?.name}</DialogDescription>
+            <DialogDescription>Измените данные компьютера {editComputer?.name || ""}</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleEditComputer}>
             <div className="space-y-2">
@@ -828,7 +801,7 @@ export function Dialogs({
                 value={editComputer?.position_x || 0}
                 onChange={(e) =>
                   setEditComputer((prev) =>
-                    prev ? { ...prev, position_x: parseInt(e.target.value) } : prev
+                    prev ? { ...prev, position_x: parseInt(e.target.value) || 0 } : prev
                   )
                 }
                 className="shadow-sm"
@@ -843,7 +816,7 @@ export function Dialogs({
                 value={editComputer?.position_y || 0}
                 onChange={(e) =>
                   setEditComputer((prev) =>
-                    prev ? { ...prev, position_y: parseInt(e.target.value) } : prev
+                    prev ? { ...prev, position_y: parseInt(e.target.value) || 0 } : prev
                   )
                 }
                 className="shadow-sm"
@@ -855,10 +828,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isCreatingZone}>
-                {isCreatingZone ? (
-                  <span>Loading...</span>
-                ) : null}
-                Сохранить
+                {isCreatingZone ? <span className="animate-spin">⏳</span> : "Сохранить"}
               </Button>
             </DialogFooter>
           </form>
@@ -878,10 +848,7 @@ export function Dialogs({
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleDeleteComputer} disabled={isDeletingComputer !== null}>
-              {isDeletingComputer ? (
-                <span>Loading...</span>
-              ) : null}
-              Удалить
+              {isDeletingComputer !== null ? <span className="animate-spin">⏳</span> : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -974,10 +941,7 @@ export function Dialogs({
                 Отмена
               </Button>
               <Button type="submit" disabled={isSelling}>
-                {isSelling ? (
-                  <span>Loading...</span>
-                ) : null}
-                Продать
+                {isSelling ? <span className="animate-spin">⏳</span> : "Продать"}
               </Button>
             </DialogFooter>
           </form>
@@ -997,10 +961,7 @@ export function Dialogs({
               Отмена
             </Button>
             <Button variant="destructive" onClick={handleEndSession} disabled={isEndingSession !== null}>
-              {isEndingSession ? (
-                <span>Loading...</span>
-              ) : null}
-              Завершить
+              {isEndingSession !== null ? <span className="animate-spin">⏳</span> : "Завершить"}
             </Button>
           </DialogFooter>
         </DialogContent>
