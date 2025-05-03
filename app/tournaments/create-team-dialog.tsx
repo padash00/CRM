@@ -41,6 +41,8 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
 
+  const MAX_DESCRIPTION_LENGTH = 1000
+
   useEffect(() => {
     const fetchTeams = async () => {
       const { data, error } = await supabase.from("teams").select("*")
@@ -87,6 +89,10 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     }
     if (bracketUrl && !isValidUrl(bracketUrl)) {
       toast.error("Ссылка на сетку говно, введи нормальный URL!")
+      return
+    }
+    if (description.trim() && description.length > MAX_DESCRIPTION_LENGTH) {
+      toast.error(`Описание слишком длинное, до ${MAX_DESCRIPTION_LENGTH} символов, б*ять!`)
       return
     }
 
@@ -235,7 +241,11 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Опишите турнир"
+              className={description.length > MAX_DESCRIPTION_LENGTH ? "border-red-500" : ""}
             />
+            <p className={`text-sm ${description.length > MAX_DESCRIPTION_LENGTH ? "text-red-500" : "text-muted-foreground"}`}>
+              {description.length}/{MAX_DESCRIPTION_LENGTH} символов
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Команды</Label>
