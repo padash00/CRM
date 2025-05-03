@@ -15,9 +15,9 @@ import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "./tournament-list"
 import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
-import { CreateTeamDialog } from "./create-team-dialog"
+import { CreateTeamDialog } from "./create-team-dialog.tsx" // Явно указываем расширение
 import { supabase } from "@/lib/supabaseClient"
-import { toast } from "sonner" // Для тостов, если не юзаешь, замени на alert
+import { toast } from "sonner"
 
 interface StatCard {
   title: string
