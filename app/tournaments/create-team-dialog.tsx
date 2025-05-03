@@ -11,9 +11,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea" // Добавляем для description
+import { Textarea } from "@/components/ui/textarea"
 import { supabase } from "@/lib/supabaseClient"
-import { toast } from "sonner" // Для тостов, если не используешь, замени на alert
+import { toast } from "sonner"
 
 interface CreateTournamentDialogProps {
   open: boolean
@@ -53,6 +53,12 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     if (open) fetchTeams()
   }, [open])
 
+  const isValidUrl = (url: string) => {
+    if (!url.trim()) return true // Пустой URL ок, станет null
+    const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/i
+    return urlPattern.test(url)
+  }
+
   const handleCreate = async () => {
     // Валидация
     if (!name.trim()) {
@@ -73,6 +79,14 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     }
     if (Number(participantsCount) < 0) {
       toast.error("Участников не может быть меньше нуля, что за херня?")
+      return
+    }
+    if (coverUrl && !isValidUrl(coverUrl)) {
+      toast.error("Ссылка на обложку говно, введи нормальный URL!")
+      return
+    }
+    if (bracketUrl && !isValidUrl(bracketUrl)) {
+      toast.error("Ссылка на сетку говно, введи нормальный URL!")
       return
     }
 
@@ -162,7 +176,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             />
           </div>
           <div className="space-y-2">
-            <Label>ПризовMENTой фонд (₸)</Label>
+            <Label>Призовой фонд (₸)</Label>
             <Input
               type="number"
               value={prize}
@@ -204,7 +218,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
-              placeholder="URL изображения"
+              placeholder="https://example.com/cover.jpg"
             />
           </div>
           <div className="space-y-2">
@@ -212,7 +226,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               value={bracketUrl}
               onChange={(e) => setBracketUrl(e.target.value)}
-              placeholder="URL сетки (Challonge, Smash.gg)"
+              placeholder="https://challonge.com/tournament"
             />
           </div>
           <div className="space-y-2">
