@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Search, Trophy, Users, Calendar } from "lucide-react"
 import { MainNav } from "@/components/main-nav"
-import { TournamentList } from "@/components/tournament-list"
-import { TournamentCalendar } from "@/components/tournament-calendar"
-import { CreateTournamentDialog } from "@/components/create-tournament-dialog"
+import { TournamentList } from "./tournament-list"
+import { TournamentCalendar } from "./tournament-calendar"
+import { CreateTournamentDialog } from "./create-tournament-dialog"
 import { supabase } from "@/lib/supabaseClient"
 
 interface StatCard {
