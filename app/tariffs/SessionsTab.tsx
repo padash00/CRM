@@ -1,5 +1,9 @@
 import { Session } from "./types";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CardHeader } from "@/components/ui/card-header";
+import { CardTitle } from "@/components/ui/card-title";
+import { CardDescription } from "@/components/ui/card-description";
+import { CardContent } from "@/components/ui/card-content";
 import { Button } from "@/components/ui/button";
 
 interface SessionsTabProps {
