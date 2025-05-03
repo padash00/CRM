@@ -1,7 +1,7 @@
 import { Promotion } from "./types";
-import { Badge } from "@/components/ui/badge";
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from "@/components/ui";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from "../components/ui";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
 import { ChevronLeft, ChevronRight, Plus, Edit, Trash } from "lucide-react";
 
 interface PromotionsTabProps {
