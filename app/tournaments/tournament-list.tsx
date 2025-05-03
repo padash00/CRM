@@ -12,25 +12,44 @@ export function TournamentList({ tournaments, searchQuery = "" }: TournamentList
   )
 
   if (filtered.length === 0) {
-    return <div className="text-muted-foreground text-center">Нет турниров</div>
+    return (
+      <div className="text-muted-foreground text-center">
+        {searchQuery ? `Ничего не найдено по "${searchQuery}"` : "Турниров нет, б*ять!"}
+      </div>
+    )
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {filtered.map((tournament) => (
-        <Card key={tournament.id}>
-          <CardHeader>
-            <CardTitle>{tournament.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {new Date(tournament.start_time).toLocaleDateString()} —{" "}
-              {new Date(tournament.end_time).toLocaleDateString()}
-            </p>
-            <p className="text-sm mt-2">Призовой фонд: ₸{tournament.prize_pool}</p>
-          </CardContent>
-        </Card>
-      ))}
+      {filtered.map((tournament) => {
+        const startDate = new Date(tournament.start_date)
+        const endDate = new Date(tournament.end_date)
+        const isValidDates = !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())
+
+        return (
+          <Card key={tournament.id}>
+            <CardHeader>
+              <CardTitle>{tournament.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {isValidDates
+                  ? `${startDate.toLocaleDateString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })} — ${endDate.toLocaleDateString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}`
+                  : "Даты не указаны, б*ять"}
+              </p>
+              <p className="text-sm mt-2">Призовой фонд: ₸{tournament.prize.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }
