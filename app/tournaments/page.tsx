@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Trophy, Users, Calendar } from "lucide-react"
+import { Plus, Search, Trophy, Users, Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "./tournament-list"
 import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
 // import { CreateTeamDialog } from "./create-team-dialog.tsx" // Временно закомментировано
+
 import { supabase } from "@/lib/supabaseClient"
 import { toast } from "sonner"
 
@@ -47,24 +48,44 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   // const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false) // Временно закомментировано
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const tournamentsPerPage = 20
 
-  const fetchTournaments = async () => {
-    const { data, error } = await supabase
+  const fetchTournaments = async (page: number) => {
+    const start = (page - 1) * tournamentsPerPage
+    const end = start + tournamentsPerPage - 1
+
+    const { data, error, count } = await supabase
       .from("tournaments")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("start_date", { ascending: true })
+      .range(start, end)
 
     if (error) {
       console.error("Ошибка загрузки турниров:", error.message)
       toast.error(`Пиздец, не загрузили турниры: ${error.message}`)
     } else {
       setTournaments(data || [])
+      setTotalPages(Math.ceil((count || 0) / tournamentsPerPage))
     }
   }
 
   useEffect(() => {
-    fetchTournaments()
-  }, [])
+    fetchTournaments(currentPage)
+  }, [currentPage])
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1)
+    }
+  }
 
   const stats: StatCard[] = [
     {
@@ -95,11 +116,13 @@ export default function TournamentsPage() {
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
+    setCurrentPage(1) // Сбрасываем на первую страницу при поиске
   }, [])
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
     setSearchQuery("")
+    setCurrentPage(1) // Сбрасываем на первую страницу при смене вкладки
   }, [])
 
   return (
@@ -109,7 +132,7 @@ export default function TournamentsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
           <div className="flex gap-2">
-            {/* Временно закомментировано для дебаггинга */}
+            {/* Временно закомментировано для деплоя */}
             {/* <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
               <Users className="mr-2 h-4 w-4" /> Создать команду
             </Button> */}
@@ -157,6 +180,29 @@ export default function TournamentsPage() {
               </Button>
             </div>
             <TournamentList tournaments={tournaments} search={searchQuery} />
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-4 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" /> Назад
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Страница {currentPage} из {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Вперёд <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-4">
@@ -171,7 +217,7 @@ export default function TournamentsPage() {
         onTournamentCreated={fetchTournaments}
       />
 
-      {/* Временно закомментировано для дебаггинга */}
+      {/* Временно закомментировано для деплоя */}
       {/* <CreateTeamDialog
         open={createTeamDialogOpen}
         onOpenChange={setCreateTeamDialogOpen}
@@ -179,4 +225,3 @@ export default function TournamentsPage() {
     </div>
   )
 }
-```
