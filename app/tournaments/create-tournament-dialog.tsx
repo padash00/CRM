@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabaseClient"
+import { toast } from "sonner" // Если не юзаешь sonner, замени на alert
 
 interface CreateTournamentDialogProps {
   open: boolean
@@ -26,10 +27,11 @@ interface Team {
 
 export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated }: CreateTournamentDialogProps) {
   const [name, setName] = useState("")
-  const [date, setDate] = useState("")
-  const [prizePool, setPrizePool] = useState("")
-  const [participants, setParticipants] = useState("")
-  const [status, setStatus] = useState<"active" | "past" | "upcoming">("upcoming")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [prize, setPrize] = useState("")
+  const [participantsCount, setParticipantsCount] = useState("")
+  const [status, setStatus] = useState<"upcoming" | "ongoing" | "finished">("upcoming")
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
@@ -37,52 +39,81 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   useEffect(() => {
     const fetchTeams = async () => {
       const { data, error } = await supabase.from("teams").select("*")
-      if (!error) setTeams(data || [])
+      if (error) {
+        toast.error(`Пиздец, не загрузили команды: ${error.message}`)
+      } else {
+        setTeams(data || [])
+      }
     }
     if (open) fetchTeams()
   }, [open])
 
   const handleCreate = async () => {
-    if (!name || !date || !prizePool || !participants || !status) return
+    // Валидация
+    if (!name.trim()) {
+      toast.error("Назови турнир нормально, б*ять!")
+      return
+    }
+    if (!startDate || !endDate) {
+      toast.error("Даты начала и конца нужны, не трынди!")
+      return
+    }
+    if (new Date(endDate) <= new Date(startDate)) {
+      toast.error("Конец турнира должен быть позже начала, б*ять!")
+      return
+    }
+    if (Number(prize) < 0) {
+      toast.error("Призовой фонд не может быть отрицательным, дебил!")
+      return
+    }
+    if (Number(participantsCount) < 0) {
+      toast.error("Участников не может быть меньше нуля, что за херня?")
+      return
+    }
 
     setLoading(true)
     const { data, error } = await supabase.from("tournaments").insert([
       {
-        name,
-        date,
-        prize_pool: Number(prizePool),
-        participants: Number(participants),
+        name: name.trim(),
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        prize: Number(prize) || 0,
+        participants_count: Number(participantsCount) || 0,
         status,
       },
     ]).select()
 
     if (error || !data || data.length === 0) {
-      alert("Ошибка при создании турнира: " + (error?.message || ""))
+      toast.error(`Пиздец, не создали турнир: ${error?.message || "Херня какая-то"}`)
       setLoading(false)
       return
     }
 
     const tournamentId = data[0].id
-
     if (selectedTeamIds.length > 0) {
       const insertData = selectedTeamIds.map((teamId) => ({ tournament_id: tournamentId, team_id: teamId }))
-      await supabase.from("tournament_teams").insert(insertData)
+      const { error: teamError } = await supabase.from("tournament_teams").insert(insertData)
+      if (teamError) {
+        toast.error(`Команды не добавились, пиздец: ${teamError.message}`)
+      }
     }
 
     setLoading(false)
     onOpenChange(false)
     onTournamentCreated()
+    toast.success("Турнир создан, как труба новая!")
     setName("")
-    setDate("")
-    setPrizePool("")
-    setParticipants("")
+    setStartDate("")
+    setEndDate("")
+    setPrize("")
+    setParticipantsCount("")
     setStatus("upcoming")
     setSelectedTeamIds([])
   }
 
   const toggleTeamSelection = (teamId: string) => {
-    setSelectedTeamIds(prev =>
-      prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
     )
   }
 
@@ -95,30 +126,56 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label>Название</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Введите название турнира" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Введите название турнира"
+            />
           </div>
           <div className="space-y-2">
-            <Label>Дата</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Label>Дата начала</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Дата окончания</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Призовой фонд (₸)</Label>
-            <Input type="number" value={prizePool} onChange={(e) => setPrizePool(e.target.value)} />
+            <Input
+              type="number"
+              value={prize}
+              onChange={(e) => setPrize(e.target.value)}
+              min="0"
+            />
           </div>
           <div className="space-y-2">
-            <Label>Участники</Label>
-            <Input type="number" value={participants} onChange={(e) => setParticipants(e.target.value)} />
+            <Label>Количество участников</Label>
+            <Input
+              type="number"
+              value={participantsCount}
+              onChange={(e) => setParticipantsCount(e.target.value)}
+              min="0"
+            />
           </div>
           <div className="space-y-2">
             <Label>Статус</Label>
             <select
               className="w-full border rounded-md px-3 py-2 text-sm"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as "upcoming" | "ongoing" | "finished")}
             >
-              <option value="active">Активный</option>
               <option value="upcoming">Запланирован</option>
-              <option value="past">Прошедший</option>
+              <option value="ongoing">Идёт</option>
+              <option value="finished">Завершён</option>
             </select>
           </div>
           <div className="space-y-2">
@@ -128,7 +185,9 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
                 <button
                   key={team.id}
                   type="button"
-                  className={`px-3 py-1 text-sm rounded border ${selectedTeamIds.includes(team.id) ? "bg-primary text-white" : "bg-muted"}`}
+                  className={`px-3 py-1 text-sm rounded border ${
+                    selectedTeamIds.includes(team.id) ? "bg-primary text-white" : "bg-muted"
+                  }`}
                   onClick={() => toggleTeamSelection(team.id)}
                 >
                   {team.name}
@@ -139,7 +198,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={loading}>
-            {loading ? "Создание..." : "Создать"}
+            {loading ? "Создаём, б*ять..." : "Создать"}
           </Button>
         </DialogFooter>
       </DialogContent>
