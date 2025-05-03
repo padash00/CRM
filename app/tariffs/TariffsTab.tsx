@@ -1,7 +1,6 @@
-// TariffsTab.tsx
 import { Tariff } from "./types";
 import { TariffList } from "./tariff-list";
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from "@/components/ui";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from "../components/ui";
 import { ChevronLeft, ChevronRight, DollarSign, Plus } from "lucide-react";
 
 interface TariffsTabProps {
