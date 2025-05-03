@@ -46,13 +46,10 @@ export function SessionsTab({
                   <div>
                     <div className="font-medium">{session.customers.name}</div>
                     <div className="text-sm text-muted-foreground">
-                      Компьютер: {session.computers.name}, Тариф:{" "}
-                      {session.tariffs.name}, Стоимость: ₸{session.cost}
+                      Компьютер: {session.computers.name}, Тариф: {session.tariffs.name}, Стоимость: ₸{session.cost}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Начало:{" "}
-                      {new Date(session.start_time).toLocaleString()}, Конец:{" "}
-                      {new Date(session.end_time).toLocaleString()}
+                      Начало: {new Date(session.start_time).toLocaleString()}, Конец: {new Date(session.end_time).toLocaleString()}
                     </div>
                   </div>
                   <Button
@@ -64,9 +61,9 @@ export function SessionsTab({
                     }}
                     disabled={isEndingSession === session.id}
                   >
-                    {isEndingSession === session.id ? (
+                    {isEndingSession === session.id && (
                       <span className="animate-spin mr-2">⏳</span>
-                    ) : null}
+                    )}
                     Завершить
                   </Button>
                 </div>
