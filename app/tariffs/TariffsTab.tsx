@@ -1,6 +1,12 @@
 import { Tariff } from "./types";
 import { TariffList } from "./tariff-list";
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { SelectContent } from "@/components/ui/select-content";
+import { SelectItem } from "@/components/ui/select-item";
+import { SelectTrigger } from "@/components/ui/select-trigger";
+import { SelectValue } from "@/components/ui/select-value";
+import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, DollarSign, Plus } from "lucide-react";
 
 interface TariffsTabProps {
