@@ -17,6 +17,7 @@ import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
 import { CreateTeamDialog } from "./create-team-dialog"
 import { supabase } from "@/lib/supabaseClient"
+import { toast } from "sonner" // Для тостов, если не юзаешь, замени на alert
 
 interface StatCard {
   title: string
@@ -28,10 +29,15 @@ interface StatCard {
 interface Tournament {
   id: string
   name: string
-  date: string
-  prize_pool: number
-  participants: number
-  status: "active" | "past" | "upcoming"
+  start_date: string
+  end_date: string
+  prize: number
+  participants_count: number
+  status: "upcoming" | "ongoing" | "finished"
+  organizer: string | null
+  cover_url: string | null
+  bracket_url: string | null
+  description: string | null
   created_at: string
 }
 
@@ -46,10 +52,11 @@ export default function TournamentsPage() {
     const { data, error } = await supabase
       .from("tournaments")
       .select("*")
-      .order("date", { ascending: true })
+      .order("start_date", { ascending: true })
 
     if (error) {
       console.error("Ошибка загрузки турниров:", error.message)
+      toast.error(`Пиздец, не загрузили турниры: ${error.message}`)
     } else {
       setTournaments(data || [])
     }
@@ -61,26 +68,26 @@ export default function TournamentsPage() {
 
   const stats: StatCard[] = [
     {
-      title: "Активные турниры",
-      value: `${tournaments.filter(t => t.status === "active").length}`,
+      title: "Идёт турниров",
+      value: `${tournaments.filter((t) => t.status === "ongoing").length}`,
       description: "Обновлено автоматически",
       icon: Trophy,
     },
     {
       title: "Участники",
-      value: `${tournaments.reduce((acc, t) => acc + (t.participants || 0), 0)}`,
+      value: `${tournaments.reduce((acc, t) => acc + (t.participants_count || 0), 0)}`,
       description: "Общее число участников",
       icon: Users,
     },
     {
       title: "Призовой фонд",
-      value: `₸${tournaments.reduce((acc, t) => acc + (t.prize_pool || 0), 0).toLocaleString()}`,
+      value: `₸${tournaments.reduce((acc, t) => acc + (t.prize || 0), 0).toLocaleString()}`,
       description: "Суммарный фонд всех турниров",
       icon: Trophy,
     },
     {
       title: "Запланировано",
-      value: `${tournaments.filter(t => t.status === "upcoming").length}`,
+      value: `${tournaments.filter((t) => t.status === "upcoming").length}`,
       description: "Турниров в будущем",
       icon: Calendar,
     },
