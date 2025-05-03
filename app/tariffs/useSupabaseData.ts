@@ -14,8 +14,10 @@ export function useSupabaseData(
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [computers, setComputers] = useState<Computer[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const today = new Date().toISOString().split("T")[0];
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -33,11 +35,13 @@ export function useSupabaseData(
         .from("promotions")
         .select("*")
         .order("created_at", { ascending: promotionSort === "asc" });
+
       if (promotionFilter === "active") {
-        promotionsQuery = promotionsQuery.gte("end_date", new Date().toISOString().split("T")[0]);
+        promotionsQuery = promotionsQuery.gte("end_date", today);
       } else if (promotionFilter === "expired") {
-        promotionsQuery = promotionsQuery.lt("end_date", new Date().toISOString().split("T")[0]);
+        promotionsQuery = promotionsQuery.lt("end_date", today);
       }
+
       const { data: promotionsData, error: promotionsError } = await promotionsQuery;
       if (promotionsError) throw new Error(`Ошибка загрузки акций: ${promotionsError.message}`);
       setPromotions(promotionsData || []);
@@ -53,22 +57,23 @@ export function useSupabaseData(
         .select("*");
       if (computersError) throw new Error(`Ошибка загрузки компьютеров: ${computersError.message}`);
 
-      const { data: vipZone } = await supabase.from("zones").select("id").eq("name", "VIP").single();
-      const { data: consoleZone } = await supabase.from("zones").select("id").eq("name", "PlayStation").single();
-      const { data: standardZone } = await supabase.from("zones").select("id").eq("name", "Standard").single();
+      const [vipZone, consoleZone, standardZone] = await Promise.all([
+        supabase.from("zones").select("id").eq("name", "VIP").single(),
+        supabase.from("zones").select("id").eq("name", "PlayStation").single(),
+        supabase.from("zones").select("id").eq("name", "Standard").single(),
+      ]);
 
       const transformedComputers = computersData?.map((comp) => ({
         ...comp,
         status: comp.status === "free" ? "available" : "occupied",
         zone:
-          comp.zone_id === vipZone?.id
+          comp.zone_id === vipZone.data?.id
             ? "vip"
-            : comp.zone_id === consoleZone?.id
+            : comp.zone_id === consoleZone.data?.id
             ? "console"
-            : comp.zone_id === standardZone?.id
-            ? "standard"
             : "standard",
       })) || [];
+
       setComputers(transformedComputers);
 
       const { data: sessionsData, error: sessionsError } = await supabase
@@ -92,31 +97,22 @@ export function useSupabaseData(
   useEffect(() => {
     fetchData();
 
-    const tariffSubscription = supabase
-      .channel("tariffs-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tariffs" }, fetchData)
-      .subscribe();
+    const subscribeToTableChanges = (channel: string, table: string) =>
+      supabase
+        .channel(channel)
+        .on("postgres_changes", { event: "*", schema: "public", table }, fetchData)
+        .subscribe();
 
-    const promotionSubscription = supabase
-      .channel("promotions-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "promotions" }, fetchData)
-      .subscribe();
-
-    const computerSubscription = supabase
-      .channel("computers-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "computers" }, fetchData)
-      .subscribe();
-
-    const sessionSubscription = supabase
-      .channel("sessions-channel")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, fetchData)
-      .subscribe();
+    const tariffSub = subscribeToTableChanges("tariffs-channel", "tariffs");
+    const promoSub = subscribeToTableChanges("promotions-channel", "promotions");
+    const computerSub = subscribeToTableChanges("computers-channel", "computers");
+    const sessionSub = subscribeToTableChanges("sessions-channel", "sessions");
 
     return () => {
-      supabase.removeChannel(tariffSubscription);
-      supabase.removeChannel(promotionSubscription);
-      supabase.removeChannel(computerSubscription);
-      supabase.removeChannel(sessionSubscription);
+      supabase.removeChannel(tariffSub);
+      supabase.removeChannel(promoSub);
+      supabase.removeChannel(computerSub);
+      supabase.removeChannel(sessionSub);
     };
   }, [tariffSort, promotionFilter, promotionSort]);
 
