@@ -11,8 +11,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea" // Добавляем для description
 import { supabase } from "@/lib/supabaseClient"
-import { toast } from "sonner" // Если не юзаешь sonner, замени на alert
+import { toast } from "sonner"
 
 interface CreateTournamentDialogProps {
   open: boolean
@@ -32,6 +33,10 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   const [prize, setPrize] = useState("")
   const [participantsCount, setParticipantsCount] = useState("")
   const [status, setStatus] = useState<"upcoming" | "ongoing" | "finished">("upcoming")
+  const [organizer, setOrganizer] = useState("")
+  const [coverUrl, setCoverUrl] = useState("")
+  const [bracketUrl, setBracketUrl] = useState("")
+  const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
@@ -70,6 +75,14 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
       toast.error("Участников не может быть меньше нуля, что за херня?")
       return
     }
+    if (organizer.trim() && organizer.length > 50) {
+      toast.error("Организатор слишком длинный, до 50 символов, б*ять!")
+      return
+    }
+    if (description.trim() && description.length > 1000) {
+      toast.error("Описание слишком длинное, до 1000 символов, не трынди!")
+      return
+    }
 
     setLoading(true)
     const { data, error } = await supabase.from("tournaments").insert([
@@ -80,6 +93,10 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
         prize: Number(prize) || 0,
         participants_count: Number(participantsCount) || 0,
         status,
+        organizer: organizer.trim() || null,
+        cover_url: coverUrl.trim() || null,
+        bracket_url: bracketUrl.trim() || null,
+        description: description.trim() || null,
       },
     ]).select()
 
@@ -108,6 +125,10 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     setPrize("")
     setParticipantsCount("")
     setStatus("upcoming")
+    setOrganizer("")
+    setCoverUrl("")
+    setBracketUrl("")
+    setDescription("")
     setSelectedTeamIds([])
   }
 
@@ -177,6 +198,38 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
               <option value="ongoing">Идёт</option>
               <option value="finished">Завершён</option>
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Организатор</Label>
+            <Input
+              value={organizer}
+              onChange={(e) => setOrganizer(e.target.value)}
+              placeholder="Имя или никнейм организатора"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Ссылка на обложку</Label>
+            <Input
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              placeholder="https://example.com/cover.jpg"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Ссылка на турнирную сетку</Label>
+            <Input
+              value={bracketUrl}
+              onChange={(e) => setBracketUrl(e.target.value)}
+              placeholder="https://challonge.com/tournament"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Описание</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Опишите турнир"
+            />
           </div>
           <div className="space-y-2">
             <Label>Команды</Label>
