@@ -1,4 +1,3 @@
-// useTariffHandlers.ts
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "@/components/ui/use-toast";
@@ -20,24 +19,20 @@ export function useTariffHandlers(
   setSaleDialogOpen: (open: boolean) => void
 ) {
   const handleTariffChange = useCallback((field: keyof TariffForm, value: string) => {
-    console.log(`Изменение поля тарифа ${field}: ${value}`);
     setTariffForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handlePromotionChange = useCallback((field: keyof PromotionForm, value: string) => {
-    console.log(`Изменение поля акции ${field}: ${value}`);
     setPromotionForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handleSaleChange = useCallback((field: keyof SaleForm, value: string) => {
-    console.log(`Изменение поля продажи ${field}: ${value}`);
     setSaleForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handleCreateTariff = useCallback(
     async (e: React.FormEvent, tariffForm: TariffForm) => {
       e.preventDefault();
-      console.log("Создание тарифа:", tariffForm);
       const { name, type, price, description, zoneId } = tariffForm;
 
       if (!name || !type || !price || !zoneId || Number(price) <= 0) {
@@ -50,7 +45,8 @@ export function useTariffHandlers(
           .from("tariffs")
           .insert([{ name, type, price: parseFloat(price), description: description || null, zone_id: zoneId }]);
         if (error) throw new Error(`Ошибка создания тарифа: ${error.message}`);
-        toast({ title: "Тариф создан", description: `Тариф "${name}" успешно добавлен в систему.` });
+
+        toast({ title: "Тариф создан", description: `Тариф "${name}" успешно добавлен.` });
         setCreateTariffDialogOpen(false);
         setTariffForm({ name: "", type: "", price: "", description: "", zoneId: "" });
       } catch (err: any) {
@@ -60,13 +56,103 @@ export function useTariffHandlers(
     []
   );
 
-  // Добавь остальные handlers (handleEditTariff, handleDeleteTariff, handleSellTariff и т.д.)
+  const handleEditTariff = useCallback(
+    async (e: React.FormEvent, tariffForm: TariffForm, editTariffId: string) => {
+      e.preventDefault();
+      const { name, type, price, description, zoneId } = tariffForm;
+
+      if (!name || !type || !price || !zoneId || Number(price) <= 0) {
+        toast({ title: "Ошибка", description: "Заполните все поля корректно", variant: "destructive" });
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from("tariffs")
+          .update({ name, type, price: parseFloat(price), description: description || null, zone_id: zoneId })
+          .eq("id", editTariffId);
+
+        if (error) throw new Error(`Ошибка обновления тарифа: ${error.message}`);
+
+        toast({ title: "Тариф обновлён", description: `Тариф "${name}" успешно обновлён.` });
+        setEditTariffDialogOpen(false);
+      } catch (err: any) {
+        toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+      }
+    },
+    []
+  );
+
+  const handleDeleteTariff = useCallback(
+    async (tariffId: string) => {
+      try {
+        const { error } = await supabase.from("tariffs").delete().eq("id", tariffId);
+        if (error) throw new Error(`Ошибка удаления тарифа: ${error.message}`);
+
+        toast({ title: "Тариф удалён", description: "Тариф успешно удалён." });
+      } catch (err: any) {
+        toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+      }
+    },
+    []
+  );
+
+  const handleSellTariff = useCallback(
+    async (e: React.FormEvent, saleForm: SaleForm) => {
+      e.preventDefault();
+      const { customerId, tariffId, computerId, duration } = saleForm;
+
+      if (!customerId || !tariffId || !computerId || Number(duration) <= 0) {
+        toast({ title: "Ошибка", description: "Заполните все поля корректно", variant: "destructive" });
+        return;
+      }
+
+      try {
+        const now = new Date();
+        const end = new Date(now);
+        end.setHours(now.getHours() + Number(duration));
+
+        const { error: sessionError } = await supabase.from("sessions").insert([
+          {
+            customer_id: customerId,
+            tariff_id: tariffId,
+            computer_id: computerId,
+            start_time: now.toISOString(),
+            end_time: end.toISOString(),
+            cost: calculateCost(tariffs, tariffId, duration),
+          },
+        ]);
+
+        if (sessionError) throw new Error(`Ошибка создания сессии: ${sessionError.message}`);
+
+        const { error: compError } = await supabase
+          .from("computers")
+          .update({ status: "occupied" })
+          .eq("id", computerId);
+        if (compError) throw new Error(`Ошибка обновления компьютера: ${compError.message}`);
+
+        toast({ title: "Сессия началась", description: "Тариф успешно продан." });
+        setSaleDialogOpen(false);
+        setSaleForm({ customerId: "", tariffId: "", computerId: "", duration: "" });
+      } catch (err: any) {
+        toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+      }
+    },
+    [tariffs]
+  );
+
+  const calculateCost = (tariffs: Tariff[], tariffId: string, duration: string): number => {
+    const tariff = tariffs.find((t) => t.id === tariffId);
+    return tariff ? tariff.price * parseInt(duration) : 0;
+  };
 
   return {
     handleTariffChange,
     handlePromotionChange,
     handleSaleChange,
     handleCreateTariff,
-    // другие handlers
+    handleEditTariff,
+    handleDeleteTariff,
+    handleSellTariff,
   };
 }
