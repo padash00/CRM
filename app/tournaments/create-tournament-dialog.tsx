@@ -40,6 +40,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [coverUrlError, setCoverUrlError] = useState<string | null>(null)
 
   const MAX_DESCRIPTION_LENGTH = 1000
 
@@ -55,20 +56,24 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     if (open) fetchTeams()
   }, [open])
 
-  const isValidUrl = (url: string) => {
+  const isValidUrl = (url: string, isImage: boolean = false) => {
     if (!url.trim()) return true // Пустой URL ок, станет null
     const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/i
-    return urlPattern.test(url)
+    if (!urlPattern.test(url)) return false
+    if (isImage) {
+      const imagePattern = /\.(jpg|jpeg|png|gif)$/i
+      return imagePattern.test(url)
+    }
+    return true
   }
 
-  const isValidOrganizer = (organizer: string) => {
-    if (!organizer.trim()) return true // Пустой организатор ок, станет null
-    const organizerPattern = /^[A-Za-z0-9][A-Za-z0-9 -_]*[A-Za-z0-9]$/
-    return (
-      organizerPattern.test(organizer) &&
-      organizer.length <= 50 &&
-      !/\s{2,}/.test(organizer) // Запрещаем множественные пробелы
-    )
+  const handleCoverUrlChange = (value: string) => {
+    setCoverUrl(value)
+    if (value && !isValidUrl(value, true)) {
+      setCoverUrlError("URL должен вести на картинку (.jpg, .jpeg, .png, .gif)")
+    } else {
+      setCoverUrlError(null)
+    }
   }
 
   const handleCreate = async () => {
@@ -93,18 +98,16 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
       toast.error("Участников не может быть меньше нуля, что за херня?")
       return
     }
-    if (organizer.trim() && !isValidOrganizer(organizer)) {
-      toast.error(
-        "Организатор должен быть до 50 символов, только буквы, цифры, пробелы, дефисы, подчёркивания, без лишних пробелов, б*ять!"
-      )
+    if (organizer.trim() && organizer.length > 50) {
+      toast.error("Организатор слишком длинный, до 50 символов, б*ять!")
       return
     }
     if (description.trim() && description.length > MAX_DESCRIPTION_LENGTH) {
       toast.error(`Описание слишком длинное, до ${MAX_DESCRIPTION_LENGTH} символов, б*ять!`)
       return
     }
-    if (coverUrl && !isValidUrl(coverUrl)) {
-      toast.error("Ссылка на обложку говно, введи нормальный URL!")
+    if (coverUrl && !isValidUrl(coverUrl, true)) {
+      toast.error("Ссылка на обложку должна вести на картинку (.jpg, .jpeg, .png, .gif), б*ять!")
       return
     }
     if (bracketUrl && !isValidUrl(bracketUrl)) {
@@ -232,16 +235,18 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               value={organizer}
               onChange={(e) => setOrganizer(e.target.value)}
-              placeholder="Имя или никнейм организатора (буквы, цифры, пробелы, дефисы)"
+              placeholder="Имя или никнейм организатора"
             />
           </div>
           <div className="space-y-2">
             <Label>Ссылка на обложку</Label>
             <Input
               value={coverUrl}
-              onChange={(e) => setCoverUrl(e.target.value)}
+              onChange={(e) => handleCoverUrlChange(e.target.value)}
               placeholder="https://example.com/cover.jpg"
+              className={coverUrlError ? "border-red-500" : ""}
             />
+            {coverUrlError && <p className="text-sm text-red-500">{coverUrlError}</p>}
           </div>
           <div className="space-y-2">
             <Label>Ссылка на турнирную сетку</Label>
@@ -290,4 +295,3 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     </Dialog>
   )
 }
-```
