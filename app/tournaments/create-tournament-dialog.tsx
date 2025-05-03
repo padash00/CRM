@@ -1,3 +1,4 @@
+```tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -40,6 +41,8 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+
+  const MAX_DESCRIPTION_LENGTH = 1000
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -85,8 +88,8 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
       toast.error("Организатор слишком длинный, до 50 символов, б*ять!")
       return
     }
-    if (description.trim() && description.length > 1000) {
-      toast.error("Описание слишком длинное, до 1000 символов, не трынди!")
+    if (description.trim() && description.length > MAX_DESCRIPTION_LENGTH) {
+      toast.error(`Описание слишком длинное, до ${MAX_DESCRIPTION_LENGTH} символов, б*ять!`)
       return
     }
     if (coverUrl && !isValidUrl(coverUrl)) {
@@ -180,7 +183,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => setEndDate(e.target.value)} // Исправлено: setEndDate вместо setStartDate
             />
           </div>
           <div className="space-y-2">
@@ -218,7 +221,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               value={organizer}
               onChange={(e) => setOrganizer(e.target.value)}
-              placeholder="Имя или никнейм организатора"
+              placeholder="Имя или ник)--нейм организатора"
             />
           </div>
           <div className="space-y-2">
@@ -243,7 +246,11 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Опишите турнир"
+              className={description.length > MAX_DESCRIPTION_LENGTH ? "border-red-500" : ""}
             />
+            <p className={`text-sm ${description.length > MAX_DESCRIPTION_LENGTH ? "text-red-500" : "text-muted-foreground"}`}>
+              {description.length}/{MAX_DESCRIPTION_LENGTH} символов
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Команды</Label>
