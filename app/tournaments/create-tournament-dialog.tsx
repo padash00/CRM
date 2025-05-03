@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea" // Добавляем для description
+import { Textarea } from "@/components/ui/textarea"
 import { supabase } from "@/lib/supabaseClient"
 import { toast } from "sonner"
 
@@ -53,6 +53,12 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     if (open) fetchTeams()
   }, [open])
 
+  const isValidUrl = (url: string) => {
+    if (!url.trim()) return true // Пустой URL ок, станет null
+    const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/i
+    return urlPattern.test(url)
+  }
+
   const handleCreate = async () => {
     // Валидация
     if (!name.trim()) {
@@ -81,6 +87,14 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     }
     if (description.trim() && description.length > 1000) {
       toast.error("Описание слишком длинное, до 1000 символов, не трынди!")
+      return
+    }
+    if (coverUrl && !isValidUrl(coverUrl)) {
+      toast.error("Ссылка на обложку говно, введи нормальный URL!")
+      return
+    }
+    if (bracketUrl && !isValidUrl(bracketUrl)) {
+      toast.error("Ссылка на сетку говно, введи нормальный URL!")
       return
     }
 
@@ -166,7 +180,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
           <div className="space-y-2">
