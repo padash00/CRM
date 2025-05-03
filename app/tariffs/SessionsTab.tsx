@@ -1,9 +1,11 @@
 import { Session } from "./types";
-import { Card } from "@/components/ui/card";
-import { CardHeader } from "@/components/ui/card-header";
-import { CardTitle } from "@/components/ui/card-title";
-import { CardDescription } from "@/components/ui/card-description";
-import { CardContent } from "@/components/ui/card-content";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface SessionsTabProps {
@@ -31,18 +33,26 @@ export function SessionsTab({
         </CardHeader>
         <CardContent>
           {sessions.length === 0 ? (
-            <div className="text-center text-muted-foreground">Нет активных сессий</div>
+            <div className="text-center text-muted-foreground">
+              Нет активных сессий
+            </div>
           ) : (
             <div className="space-y-2">
               {sessions.map((session) => (
-                <div key={session.id} className="flex items-center justify-between p-2 border rounded-md">
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between p-2 border rounded-md"
+                >
                   <div>
                     <div className="font-medium">{session.customers.name}</div>
                     <div className="text-sm text-muted-foreground">
-                      Компьютер: {session.computers.name}, Тариф: {session.tariffs.name}, Стоимость: ₸{session.cost}
+                      Компьютер: {session.computers.name}, Тариф:{" "}
+                      {session.tariffs.name}, Стоимость: ₸{session.cost}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Начало: {new Date(session.start_time).toLocaleString()}, Конец: {new Date(session.end_time).toLocaleString()}
+                      Начало:{" "}
+                      {new Date(session.start_time).toLocaleString()}, Конец:{" "}
+                      {new Date(session.end_time).toLocaleString()}
                     </div>
                   </div>
                   <Button
