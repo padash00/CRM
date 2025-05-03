@@ -1,5 +1,9 @@
 import { Computer } from "./types";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CardHeader } from "@/components/ui/card-header";
+import { CardTitle } from "@/components/ui/card-title";
+import { CardDescription } from "@/components/ui/card-description";
+import { CardContent } from "@/components/ui/card-content";
 import { ClubMap } from "@/components/club-map";
 
 interface ZonesTabProps {
@@ -8,7 +12,11 @@ interface ZonesTabProps {
   handleEditComputerOpen: (computer: Computer) => void;
 }
 
-export function ZonesTab({ computers, setComputers, handleEditComputerOpen }: ZonesTabProps) {
+export function ZonesTab({
+  computers,
+  setComputers,
+  handleEditComputerOpen,
+}: ZonesTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
