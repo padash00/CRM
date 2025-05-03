@@ -1,3 +1,4 @@
+```tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -40,6 +41,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [coverUrlError, setCoverUrlError] = useState<string | null>(null)
 
   const MAX_DESCRIPTION_LENGTH = 1000
 
@@ -55,10 +57,15 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     if (open) fetchTeams()
   }, [open])
 
-  const isValidUrl = (url: string) => {
+  const isValidUrl = (url: string, isImage: boolean = false) => {
     if (!url.trim()) return true // Пустой URL ок, станет null
     const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/i
-    return urlPattern.test(url)
+    if (!urlPattern.test(url)) return false
+    if (isImage) {
+      const imagePattern = /\.(jpg|jpeg|png|gif)$/i
+      return imagePattern.test(url)
+    }
+    return true
   }
 
   const isValidOrganizer = (organizer: string) => {
@@ -69,6 +76,15 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
       organizer.length <= 50 &&
       !/\s{2,}/.test(organizer) // Запрещаем множественные пробелы
     )
+  }
+
+  const handleCoverUrlChange = (value: string) => {
+    setCoverUrl(value)
+    if (value && !isValidUrl(value, true)) {
+      setCoverUrlError("URL должен вести на картинку (.jpg, .jpeg, .png, .gif)")
+    } else {
+      setCoverUrlError(null)
+    }
   }
 
   const handleCreate = async () => {
@@ -99,8 +115,8 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
       )
       return
     }
-    if (coverUrl && !isValidUrl(coverUrl)) {
-      toast.error("Ссылка на обложку говно, введи нормальный URL!")
+    if (coverUrl && !isValidUrl(coverUrl, true)) {
+      toast.error("Ссылка на обложку должна вести на картинку (.jpg, .jpeg, .png, .gif), б*ять!")
       return
     }
     if (bracketUrl && !isValidUrl(bracketUrl)) {
@@ -239,9 +255,11 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Label>Ссылка на обложку</Label>
             <Input
               value={coverUrl}
-              onChange={(e) => setCoverUrl(e.target.value)}
+              onChange={(e) => handleCoverUrlChange(e.target.value)}
               placeholder="https://example.com/cover.jpg"
+              className={coverUrlError ? "border-red-500" : ""}
             />
+            {coverUrlError && <p className="text-sm text-red-500">{coverUrlError}</p>}
           </div>
           <div className="space-y-2">
             <Label>Ссылка на турнирную сетку</Label>
@@ -290,3 +308,4 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     </Dialog>
   )
 }
+```
