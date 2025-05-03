@@ -1,6 +1,5 @@
 import { Tariff } from "./types";
 import { TariffList } from "./tariff-list";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, DollarSign, Plus } from "lucide-react";
 
@@ -57,13 +57,16 @@ export function TariffsTab({
         </div>
         <div className="flex space-x-2">
           <Button onClick={handleSellTariffOpen}>
-            <DollarSign className="mr-2 h-4 w-4" /> Продать тариф
+            <DollarSign className="mr-2 h-4 w-4" />
+            Продать тариф
           </Button>
           <Button onClick={() => setCreateTariffDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Новый тариф
+            <Plus className="mr-2 h-4 w-4" />
+            Новый тариф
           </Button>
         </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <TariffList
           tariffs={paginatedTariffs}
@@ -72,6 +75,7 @@ export function TariffsTab({
           isDeleting={isDeletingTariff}
         />
       </div>
+
       {totalTariffPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <Button
@@ -79,17 +83,21 @@ export function TariffsTab({
             onClick={() => setTariffPage((prev) => Math.max(prev - 1, 1))}
             disabled={tariffPage === 1}
           >
-            <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Назад
           </Button>
           <span>
             Страница {tariffPage} из {totalTariffPages}
           </span>
           <Button
             variant="outline"
-            onClick={() => setTariffPage((prev) => Math.min(prev + 1, totalTariffPages))}
+            onClick={() =>
+              setTariffPage((prev) => Math.min(prev + 1, totalTariffPages))
+            }
             disabled={tariffPage === totalTariffPages}
           >
-            Вперед <ChevronRight className="h-4 w-4 ml-2" />
+            Вперед
+            <ChevronRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
       )}
