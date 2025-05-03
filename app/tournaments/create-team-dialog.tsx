@@ -61,6 +61,16 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     return urlPattern.test(url)
   }
 
+  const isValidOrganizer = (organizer: string) => {
+    if (!organizer.trim()) return true // Пустой организатор ок, станет null
+    const organizerPattern = /^[A-Za-z0-9][A-Za-z0-9 -_]*[A-Za-z0-9]$/
+    return (
+      organizerPattern.test(organizer) &&
+      organizer.length <= 50 &&
+      !/\s{2,}/.test(organizer) // Запрещаем множественные пробелы
+    )
+  }
+
   const handleCreate = async () => {
     // Валидация
     if (!name.trim()) {
@@ -81,6 +91,12 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     }
     if (Number(participantsCount) < 0) {
       toast.error("Участников не может быть меньше нуля, что за херня?")
+      return
+    }
+    if (organizer.trim() && !isValidOrganizer(organizer)) {
+      toast.error(
+        "Организатор должен быть до 50 символов, только буквы, цифры, пробелы, дефисы, подчёркивания, без лишних пробелов, б*ять!"
+      )
       return
     }
     if (coverUrl && !isValidUrl(coverUrl)) {
@@ -216,7 +232,7 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
             <Input
               value={organizer}
               onChange={(e) => setOrganizer(e.target.value)}
-              placeholder="Имя или никнейм организатора"
+              placeholder="Имя или никнейм организатора (буквы, цифры, пробелы, дефисы)"
             />
           </div>
           <div className="space-y-2">
