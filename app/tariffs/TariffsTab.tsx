@@ -1,11 +1,13 @@
 import { Tariff } from "./types";
 import { TariffList } from "./tariff-list";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
-import { SelectContent } from "@/components/ui/select-content";
-import { SelectItem } from "@/components/ui/select-item";
-import { SelectTrigger } from "@/components/ui/select-trigger";
-import { SelectValue } from "@/components/ui/select-value";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, DollarSign, Plus } from "lucide-react";
 
@@ -79,7 +81,9 @@ export function TariffsTab({
           >
             <ChevronLeft className="h-4 w-4 mr-2" /> Назад
           </Button>
-          <span>Страница {tariffPage} из {totalTariffPages}</span>
+          <span>
+            Страница {tariffPage} из {totalTariffPages}
+          </span>
           <Button
             variant="outline"
             onClick={() => setTariffPage((prev) => Math.min(prev + 1, totalTariffPages))}
