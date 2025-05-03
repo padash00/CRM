@@ -15,6 +15,7 @@ import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "./tournament-list"
 import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
+import { CreateTeamDialog } from "./create-team-dialog"
 import { supabase } from "@/lib/supabaseClient"
 
 interface StatCard {
@@ -39,6 +40,7 @@ export default function TournamentsPage() {
   const [activeTab, setActiveTab] = useState<string>("list")
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false)
 
   const fetchTournaments = async () => {
     const { data, error } = await supabase
@@ -99,9 +101,14 @@ export default function TournamentsPage() {
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Новый турнир
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
+              <Users className="mr-2 h-4 w-4" /> Создать команду
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Новый турнир
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -154,6 +161,11 @@ export default function TournamentsPage() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onTournamentCreated={fetchTournaments}
+      />
+
+      <CreateTeamDialog
+        open={createTeamDialogOpen}
+        onOpenChange={setCreateTeamDialogOpen}
       />
     </div>
   )
