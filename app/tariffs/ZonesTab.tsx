@@ -1,9 +1,11 @@
 import { Computer } from "./types";
-import { Card } from "@/components/ui/card";
-import { CardHeader } from "@/components/ui/card-header";
-import { CardTitle } from "@/components/ui/card-title";
-import { CardDescription } from "@/components/ui/card-description";
-import { CardContent } from "@/components/ui/card-content";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { ClubMap } from "@/components/club-map";
 
 interface ZonesTabProps {
