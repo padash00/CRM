@@ -1,3 +1,4 @@
+```tsx
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
@@ -15,7 +16,7 @@ import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "./tournament-list"
 import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
-import { CreateTeamDialog } from "./create-team-dialog.tsx" // Явно указываем расширение
+// import { CreateTeamDialog } from "./create-team-dialog.tsx" // Временно закомментировано
 import { supabase } from "@/lib/supabaseClient"
 import { toast } from "sonner"
 
@@ -46,7 +47,7 @@ export default function TournamentsPage() {
   const [activeTab, setActiveTab] = useState<string>("list")
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false)
+  // const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false) // Временно закомментировано
 
   const fetchTournaments = async () => {
     const { data, error } = await supabase
@@ -109,9 +110,10 @@ export default function TournamentsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
+            {/* Временно закомментировано для дебаггинга */}
+            {/* <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
               <Users className="mr-2 h-4 w-4" /> Создать команду
-            </Button>
+            </Button> */}
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Новый турнир
             </Button>
@@ -170,10 +172,12 @@ export default function TournamentsPage() {
         onTournamentCreated={fetchTournaments}
       />
 
-      <CreateTeamDialog
+      {/* Временно закомментировано для дебаггинга */}
+      {/* <CreateTeamDialog
         open={createTeamDialogOpen}
         onOpenChange={setCreateTeamDialogOpen}
-      />
+      /> */}
     </div>
   )
 }
+```
