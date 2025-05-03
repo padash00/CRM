@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -14,8 +14,8 @@ import { Plus, Search, Trophy, Users, Calendar } from "lucide-react"
 import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "@/components/tournament-list"
 import { TournamentCalendar } from "@/components/tournament-calendar"
+import { supabase } from "@/lib/supabaseClient"
 
-// Типизация данных статистики
 interface StatCard {
   title: string
   value: string
@@ -23,48 +23,72 @@ interface StatCard {
   icon: React.ComponentType<{ className?: string }>
 }
 
+interface Tournament {
+  id: string
+  name: string
+  date: string
+  prize_pool: number
+  participants: number
+  status: "active" | "past" | "upcoming"
+  created_at: string
+}
+
 export default function TournamentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("list")
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
 
-  // Данные статистики
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("*")
+        .order("date", { ascending: true })
+
+      if (error) {
+        console.error("Ошибка загрузки турниров:", error.message)
+      } else {
+        setTournaments(data || [])
+      }
+    }
+
+    fetchTournaments()
+  }, [])
+
   const stats: StatCard[] = [
     {
       title: "Активные турниры",
-      value: "3",
-      description: "2 турнира на этой неделе",
+      value: `${tournaments.filter(t => t.status === "active").length}`,
+      description: "Обновлено автоматически",
       icon: Trophy,
     },
     {
       title: "Участники",
-      value: "48",
-      description: "+12 с прошлого месяца",
+      value: `${tournaments.reduce((acc, t) => acc + (t.participants || 0), 0)}`,
+      description: "Общее число участников",
       icon: Users,
     },
     {
       title: "Призовой фонд",
-      value: "₸150,000",
-      description: "За все активные турниры",
+      value: `₸${tournaments.reduce((acc, t) => acc + (t.prize_pool || 0), 0).toLocaleString()}`,
+      description: "Суммарный фонд всех турниров",
       icon: Trophy,
     },
     {
       title: "Запланировано",
-      value: "5",
-      description: "На следующие 30 дней",
+      value: `${tournaments.filter(t => t.status === "upcoming").length}`,
+      description: "Турниров в будущем",
       icon: Calendar,
     },
   ]
 
-  // Обработчик поиска
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    // Здесь можно передать searchQuery в TournamentList для фильтрации
   }, [])
 
-  // Обработчик смены вкладки
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    setSearchQuery("") // Сброс поиска при смене вкладки
+    setSearchQuery("")
   }, [])
 
   return (
@@ -78,7 +102,6 @@ export default function TournamentsPage() {
           </Button>
         </div>
 
-        {/* Статистика */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
             <Card key={stat.title} className="shadow-sm">
@@ -94,14 +117,12 @@ export default function TournamentsPage() {
           ))}
         </div>
 
-        {/* Вкладки */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 bg-background p-1 rounded-md shadow-sm">
             <TabsTrigger value="list">Список турниров</TabsTrigger>
             <TabsTrigger value="calendar">Календарь</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Список турниров" */}
           <TabsContent value="list" className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -118,16 +139,14 @@ export default function TournamentsPage() {
                 Фильтры
               </Button>
             </div>
-            <TournamentList />
+            <TournamentList tournaments={tournaments} search={searchQuery} />
           </TabsContent>
 
-          {/* Вкладка "Календарь" */}
           <TabsContent value="calendar" className="space-y-4">
-            <TournamentCalendar />
+            <TournamentCalendar tournaments={tournaments} />
           </TabsContent>
         </Tabs>
       </main>
     </div>
   )
 }
-
