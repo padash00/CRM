@@ -1,306 +1,200 @@
+// create-team-dialog.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+  DialogClose, // Импортируем DialogClose для кнопки Отмена
+} from "@/components/ui/dialog" // Убедись, что пути корректны
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { supabase } from "@/lib/supabaseClient"
-import { toast } from "sonner"
+import { supabase } from "@/lib/supabaseClient" // Убедись, что путь корректен
+import { toast } from "sonner" // Убедись, что sonner настроен
 
-interface CreateTournamentDialogProps {
+// Интерфейс для пропсов компонента
+interface CreateTeamDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onTournamentCreated: () => void
+  onTeamCreated?: () => void // Необязательный коллбэк после успешного создания
 }
 
-interface Team {
-  id: string
-  name: string
-}
-
-export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated }: CreateTournamentDialogProps) {
-  const [name, setName] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [prize, setPrize] = useState("")
-  const [participantsCount, setParticipantsCount] = useState("")
-  const [status, setStatus] = useState<"upcoming" | "ongoing" | "finished">("upcoming")
-  const [organizer, setOrganizer] = useState("")
-  const [coverUrl, setCoverUrl] = useState("")
-  const [bracketUrl, setBracketUrl] = useState("")
-  const [description, setDescription] = useState("")
+// Компонент диалога для создания команды
+export function CreateTeamDialog({ open, onOpenChange, onTeamCreated }: CreateTeamDialogProps) {
+  // Состояния для полей формы и загрузки
+  const [teamName, setTeamName] = useState("")
+  const [logoUrl, setLogoUrl] = useState("")
   const [loading, setLoading] = useState(false)
-  const [teams, setTeams] = useState<Team[]>([])
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
-  const [coverUrlError, setCoverUrlError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null) // Для отображения ошибок в форме
 
-  const MAX_DESCRIPTION_LENGTH = 1000
-
+  // Сброс формы при открытии/закрытии диалога
   useEffect(() => {
-    const fetchTeams = async () => {
-      const { data, error } = await supabase.from("teams").select("*")
-      if (error) {
-        toast.error(`Пиздец, не загрузили команды: ${error.message}`)
-      } else {
-        setTeams(data || [])
-      }
+    if (!open) {
+      // Задержка сброса, чтобы пользователь не видел очистку полей при закрытии
+      const timer = setTimeout(() => {
+          setTeamName("")
+          setLogoUrl("")
+          setLoading(false)
+          setFormError(null)
+      }, 150); // Небольшая задержка
+      return () => clearTimeout(timer);
+    } else {
+        // Можно сбросить сразу при открытии, если нужно
+        setTeamName("")
+        setLogoUrl("")
+        setLoading(false)
+        setFormError(null)
     }
-    if (open) fetchTeams()
   }, [open])
 
-  const isValidUrl = (url: string, isImage: boolean = false) => {
-    if (!url.trim()) return true // Пустой URL ок, станет null
-    const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w-./?%&=]*)?$/i
-    if (!urlPattern.test(url)) return false
-    if (isImage) {
-      const imagePattern = /\.(jpg|jpeg|png|gif)$/i
-      return imagePattern.test(url)
-    }
-    return true
-  }
-
-  const isValidOrganizer = (organizer: string) => {
-    if (!organizer.trim()) return true // Пустой организатор ок, станет null
-    const organizerPattern = /^[A-Za-z0-9][A-Za-z0-9 -_]*[A-Za-z0-9]$/
-    return (
-      organizerPattern.test(organizer) &&
-      organizer.length <= 50 &&
-      !/\s{2,}/.test(organizer) // Запрещаем множественные пробелы
-    )
-  }
-
-  const handleCoverUrlChange = (value: string) => {
-    setCoverUrl(value)
-    if (value && !isValidUrl(value, true)) {
-      setCoverUrlError("URL должен вести на картинку (.jpg, .jpeg, .png, .gif)")
-    } else {
-      setCoverUrlError(null)
+  // Функция для валидации URL (простая проверка)
+  const isValidUrl = (url: string): boolean => {
+    if (!url.trim()) return true // Пустой URL разрешен (необязательное поле)
+    try {
+      // Проверяем, что это валидный URL
+      const parsedUrl = new URL(url)
+      // Дополнительно проверяем, что протокол http или https
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          return false;
+      }
+      // Простая проверка на наличие расширения картинки в пути
+      const imagePattern = /\.(jpg|jpeg|png|gif|svg|webp)$/i
+      return imagePattern.test(parsedUrl.pathname)
+    } catch (_) {
+      // Если new URL() выбросил исключение, URL невалиден
+      return false
     }
   }
 
-  const handleCreate = async () => {
-    // Валидация
-    if (!name.trim()) {
-      toast.error("Назови турнир нормально, б*ять!")
+  // Обработчик создания команды
+  const handleCreateTeam = async () => {
+    setFormError(null) // Сброс предыдущих ошибок
+
+    // Валидация полей
+    const trimmedName = teamName.trim()
+    const trimmedLogoUrl = logoUrl.trim()
+
+    if (!trimmedName) {
+      const errorMsg = "Название команды не может быть пустым."
+      setFormError(errorMsg)
+      toast.error(errorMsg)
       return
     }
-    if (!startDate || !endDate) {
-      toast.error("Даты начала и конца нужны, не трынди!")
-      return
-    }
-    if (new Date(endDate) <= new Date(startDate)) {
-      toast.error("Конец турнира должен быть позже начала, б*ять!")
-      return
-    }
-    if (Number(prize) < 0) {
-      toast.error("Призовой фонд не может быть отрицательным, дебил!")
-      return
-    }
-    if (Number(participantsCount) < 0) {
-      toast.error("Участников не может быть меньше нуля, что за херня?")
-      return
-    }
-    if (organizer.trim() && !isValidOrganizer(organizer)) {
-      toast.error(
-        "Организатор должен быть до 50 символов, только буквы, цифры, пробелы, дефисы, подчёркивания, без лишних пробелов, б*ять!"
-      )
-      return
-    }
-    if (coverUrl && !isValidUrl(coverUrl, true)) {
-      toast.error("Ссылка на обложку должна вести на картинку (.jpg, .jpeg, .png, .gif), б*ять!")
-      return
-    }
-    if (bracketUrl && !isValidUrl(bracketUrl)) {
-      toast.error("Ссылка на сетку говно, введи нормальный URL!")
-      return
-    }
-    if (description.trim() && description.length > MAX_DESCRIPTION_LENGTH) {
-      toast.error(`Описание слишком длинное, до ${MAX_DESCRIPTION_LENGTH} символов, б*ять!`)
+
+    if (trimmedLogoUrl && !isValidUrl(trimmedLogoUrl)) {
+      const errorMsg = "URL логотипа некорректен или не ведет на изображение (jpg, png, gif, svg, webp)."
+      setFormError(errorMsg)
+      toast.error(errorMsg)
       return
     }
 
     setLoading(true)
-    const { data, error } = await supabase.from("tournaments").insert([
-      {
-        name: name.trim(),
-        start_date: new Date(startDate).toISOString(),
-        end_date: new Date(endDate).toISOString(),
-        prize: Number(prize) || 0,
-        participants_count: Number(participantsCount) || 0,
-        status,
-        organizer: organizer.trim() || null,
-        cover_url: coverUrl.trim() || null,
-        bracket_url: bracketUrl.trim() || null,
-        description: description.trim() || null,
-      },
-    ]).select()
 
-    if (error || !data || data.length === 0) {
-      toast.error(`Пиздец, не создали турнир: ${error?.message || "Херня какая-то"}`)
-      setLoading(false)
-      return
-    }
+    try {
+      // Отправка данных в Supabase
+      const { error } = await supabase
+        .from("teams") // Указываем таблицу 'teams'
+        .insert([
+          {
+            name: trimmedName,
+            logo_url: trimmedLogoUrl || null, // Сохраняем null, если URL не указан
+            // Добавь сюда другие поля команды, если они есть в таблице 'teams'
+            // например, 'created_by': user_id, 'description': teamDescription, etc.
+          },
+        ])
+        .select() // Можно добавить .select(), если нужно получить созданную запись
 
-    const tournamentId = data[0].id
-    if (selectedTeamIds.length > 0) {
-      const insertData = selectedTeamIds.map((teamId) => ({ tournament_id: tournamentId, team_id: teamId }))
-      const { error: teamError } = await supabase.from("tournament_teams").insert(insertData)
-      if (teamError) {
-        toast.error(`Команды не добавились, пиздец: ${teamError.message}`)
+      if (error) {
+        // Если Supabase вернул ошибку
+        throw error
       }
+
+      // Успешное создание
+      toast.success(`Команда "${trimmedName}" успешно создана!`)
+      onOpenChange(false) // Закрываем диалог
+      if (onTeamCreated) {
+        onTeamCreated() // Вызываем коллбэк
+      }
+    } catch (error: any) {
+      console.error("Ошибка при создании команды:", error)
+      // Пытаемся извлечь сообщение об ошибке
+      const message = error.details || error.message || "Произошла неизвестная ошибка."
+      const displayError = `Не удалось создать команду: ${message}`
+      setFormError(displayError) // Показываем ошибку в форме
+      toast.error(displayError) // Показываем ошибку в уведомлении
+    } finally {
+      setLoading(false) // В любом случае убираем индикатор загрузки
     }
-
-    setLoading(false)
-    onOpenChange(false)
-    onTournamentCreated()
-    toast.success("Турнир создан, как труба новая!")
-    setName("")
-    setStartDate("")
-    setEndDate("")
-    setPrize("")
-    setParticipantsCount("")
-    setStatus("upcoming")
-    setOrganizer("")
-    setCoverUrl("")
-    setBracketUrl("")
-    setDescription("")
-    setSelectedTeamIds([])
   }
 
-  const toggleTeamSelection = (teamId: string) => {
-    setSelectedTeamIds((prev) =>
-      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
-    )
-  }
-
+  // JSX разметка диалога
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Новый турнир</DialogTitle>
+          <DialogTitle>Создать новую команду</DialogTitle>
+          <DialogDescription>
+            Введите информацию о новой команде. Название обязательно.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {/* Поле для названия команды */}
           <div className="space-y-2">
-            <Label>Название</Label>
+            <Label htmlFor="teamName">Название команды <span className="text-red-500">*</span></Label>
             <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Введите название турнира"
+              id="teamName"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder="Например, 'Крутые Бобры'"
+              required
+              disabled={loading}
+              aria-describedby="teamNameError" // Для доступности
             />
+            {formError && formError.includes("Название команды") && (
+                 <p id="teamNameError" className="text-sm text-red-600">{formError}</p>
+             )}
           </div>
+
+          {/* Поле для URL логотипа */}
           <div className="space-y-2">
-            <Label>Дата начала</Label>
+            <Label htmlFor="logoUrl">URL Логотипа (необязательно)</Label>
             <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              id="logoUrl"
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="https://example.com/logo.png"
+              disabled={loading}
+              aria-describedby="logoUrlError logoUrlHelp" // Для доступности
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Дата окончания</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Призовой фонд (₸)</Label>
-            <Input
-              type="number"
-              value={prize}
-              onChange={(e) => setPrize(e.target.value)}
-              min="0"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Количество участников</Label>
-            <Input
-              type="number"
-              value={participantsCount}
-              onChange={(e) => setParticipantsCount(e.target.value)}
-              min="0"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Статус</Label>
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "upcoming" | "ongoing" | "finished")}
-            >
-              <option value="upcoming">Запланирован</option>
-              <option value="ongoing">Идёт</option>
-              <option value="finished">Завершён</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Организатор</Label>
-            <Input
-              value={organizer}
-              onChange={(e) => setOrganizer(e.target.value)}
-              placeholder="Имя или никнейм организатора (буквы, цифры, пробелы, дефисы)"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Ссылка на обложку</Label>
-            <Input
-              value={coverUrl}
-              onChange={(e) => handleCoverUrlChange(e.target.value)}
-              placeholder="https://example.com/cover.jpg"
-              className={coverUrlError ? "border-red-500" : ""}
-            />
-            {coverUrlError && <p className="text-sm text-red-500">{coverUrlError}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label>Ссылка на турнирную сетку</Label>
-            <Input
-              value={bracketUrl}
-              onChange={(e) => setBracketUrl(e.target.value)}
-              placeholder="https://challonge.com/tournament"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Описание</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Опишите турнир"
-              className={description.length > MAX_DESCRIPTION_LENGTH ? "border-red-500" : ""}
-            />
-            <p className={`text-sm ${description.length > MAX_DESCRIPTION_LENGTH ? "text-red-500" : "text-muted-foreground"}`}>
-              {description.length}/{MAX_DESCRIPTION_LENGTH} символов
+            <p id="logoUrlHelp" className="text-xs text-muted-foreground">
+                Прямая ссылка на изображение (jpg, png, gif, svg, webp).
             </p>
+            {formError && formError.includes("URL логотипа") && (
+                 <p id="logoUrlError" className="text-sm text-red-600">{formError}</p>
+             )}
           </div>
-          <div className="space-y-2">
-            <Label>Команды</Label>
-            <div className="flex flex-wrap gap-2">
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  type="button"
-                  className={`px-3 py-1 text-sm rounded border ${
-                    selectedTeamIds.includes(team.id) ? "bg-primary text-white" : "bg-muted"
-                  }`}
-                  onClick={() => toggleTeamSelection(team.id)}
-                >
-                  {team.name}
-                </button>
-              ))}
-            </div>
-          </div>
+
+          {/* Общая ошибка формы, если не связана с конкретным полем */}
+           {formError && !formError.includes("Название команды") && !formError.includes("URL логотипа") &&(
+             <p className="text-sm text-red-600">{formError}</p>
+           )}
+
         </div>
         <DialogFooter>
-          <Button onClick={handleCreate} disabled={loading}>
-            {loading ? "Создаём, б*ять..." : "Создать"}
+          {/* Используем DialogClose для стандартной кнопки отмены */}
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={loading}>
+              Отмена
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={handleCreateTeam} disabled={loading}>
+            {loading ? "Создание..." : "Создать команду"}
           </Button>
         </DialogFooter>
       </DialogContent>
