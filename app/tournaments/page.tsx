@@ -54,22 +54,20 @@ export default function TournamentsPage() {
 
   const ITEMS_PER_PAGE = 15;
 
-  // --- Функции загрузки данных ---
+  // --- Функции загрузки данных (логи очищены) ---
   const fetchTournaments = useCallback(async (page: number, search: string) => {
-    console.log(`WorkspaceTournaments вызван: page=${page}, search="${search}"`); // DEBUG
     setLoadingTournaments(true);
     const start = (page - 1) * ITEMS_PER_PAGE
     const end = start + ITEMS_PER_PAGE - 1
     try {
-        let query = supabase.from("tournaments").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(start, end) // Сортировка по дате создания (новее сверху)
+        let query = supabase.from("tournaments").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(start, end)
         if (search.trim()) { query = query.ilike("name", `%${search.trim()}%`) }
         const { data, error, count } = await query
-        console.log("fetchTournaments данные получены:", data?.length); // DEBUG - логируем количество
         if (error) throw error
         setTournaments(data || [])
         setTournamentsTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE))
     } catch (error: any) {
-        console.error("fetchTournaments Ошибка:", error.message)
+        console.error("fetchTournaments Ошибка:", error.message) // Оставим лог ошибки
         toast.error(`Не удалось загрузить турниры: ${error.message}`)
         setTournaments([])
         setTournamentsTotalPages(1)
@@ -79,7 +77,6 @@ export default function TournamentsPage() {
   }, [ITEMS_PER_PAGE]);
 
   const fetchTeams = useCallback(async (page: number, search: string) => {
-    console.log(`WorkspaceTeams вызван: page=${page}, search="${search}"`); // DEBUG
     setLoadingTeams(true);
     const start = (page - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE - 1;
@@ -87,12 +84,11 @@ export default function TournamentsPage() {
         let query = supabase.from("teams").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(start, end);
         if (search.trim()) { query = query.ilike("name", `%${search.trim()}%`); }
         const { data, error, count } = await query;
-        console.log("fetchTeams данные получены:", data?.length); // DEBUG - логируем количество
         if (error) throw error;
         setTeams(data || []);
         setTeamsTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
     } catch (error: any) {
-        console.error("fetchTeams Ошибка:", error.message);
+        console.error("fetchTeams Ошибка:", error.message); // Оставим лог ошибки
         toast.error(`Не удалось загрузить команды: ${error.message}`);
         setTeams([]);
         setTeamsTotalPages(1);
@@ -102,73 +98,31 @@ export default function TournamentsPage() {
   }, [ITEMS_PER_PAGE]);
 
 
-  // --- useEffect для загрузки данных ---
+  // --- useEffect для загрузки данных (лог очищен) ---
   useEffect(() => {
-    console.log(
-        `useEffect [activeTab, pages, searches] СРАБОТАЛ: ` +
-        `tab=${activeTab}, tPage=${tournamentsCurrentPage}, tSearch=${tournamentSearchQuery}, ` +
-        `tmPage=${teamsCurrentPage}, tmSearch=${teamSearchQuery}`
-    ); // DEBUG
-
-    if (activeTab === "list") {
-      fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery);
-    } else if (activeTab === "calendar") {
-      // Пока что календарь тоже использует пагинацию и поиск списка турниров
-      // В будущем может понадобиться своя логика fetch для календаря
-      fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery);
-    } else if (activeTab === "teams") {
-      fetchTeams(teamsCurrentPage, teamSearchQuery);
-    }
-    // Важно: Все состояния, от которых зависит ВЫБОРКА ДАННЫХ, должны быть здесь.
-    // Функции fetch тоже должны быть здесь, т.к. они обернуты в useCallback.
-  }, [
-      activeTab,
-      tournamentsCurrentPage, tournamentSearchQuery, fetchTournaments,
-      teamsCurrentPage, teamSearchQuery, fetchTeams
-  ]);
+    // console.log(...) // Убрали лог
+    if (activeTab === "list") { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
+    else if (activeTab === "calendar") { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
+    else if (activeTab === "teams") { fetchTeams(teamsCurrentPage, teamSearchQuery); }
+  }, [ activeTab, tournamentsCurrentPage, tournamentSearchQuery, fetchTournaments, teamsCurrentPage, teamSearchQuery, fetchTeams ]);
 
 
   // --- Обработчики событий ---
-
-  // === ИЗМЕНЕННЫЕ ОБРАБОТЧИКИ СОЗДАНИЯ ===
+  // Версия с обновлением стейта и триггером useEffect (логи очищены)
   const handleTournamentCreated = () => {
-      console.log("handleTournamentCreated: Обновляем состояние для перезагрузки..."); // DEBUG
-      setTournamentSearchQuery(""); // Сброс поиска
-      // Устанавливаем первую страницу. Если страница УЖЕ была первой,
-      // это изменение само по себе НЕ вызовет useEffect. Но смена вкладки вызовет.
-      setTournamentsCurrentPage(1);
-      // Переключаемся на вкладку списка (даже если уже на ней), чтобы гарантированно вызвать useEffect
-      if (activeTab !== 'list') {
-          setActiveTab('list');
-      } else {
-          // Если мы УЖЕ на вкладке списка и на ПЕРВОЙ странице, и поиск был ПУСТ,
-          // то изменение currentPage на 1 и searchQuery на "" может НЕ вызвать useEffect.
-          // В этом редком случае вызовем fetch принудительно.
-          if (tournamentsCurrentPage === 1 && tournamentSearchQuery === "") {
-               console.log("Вызов fetchTournaments вручную из handleTournamentCreated (граничный случай)");
-               fetchTournaments(1, "");
-           }
-           // В остальных случаях (смена вкладки, смена страницы, сброс непустого поиска) useEffect должен сработать сам.
-      }
+    // console.log(...) // Убрали лог
+    setTournamentSearchQuery("");
+    setTournamentsCurrentPage(1);
+    if (activeTab !== 'list') { setActiveTab('list'); }
+    else { if (tournamentsCurrentPage === 1 && tournamentSearchQuery === "") { fetchTournaments(1, ""); } }
   }
-
   const handleTeamCreated = () => {
-      console.log("handleTeamCreated: Обновляем состояние для перезагрузки..."); // DEBUG
-      setTeamSearchQuery(""); // Сброс поиска
-      setTeamsCurrentPage(1); // Сброс на 1 страницу
-       // Переключаемся на вкладку команд (даже если уже на ней)
-      if (activeTab !== 'teams') {
-          setActiveTab('teams');
-      } else {
-            // Аналогичный граничный случай для команд
-           if (teamsCurrentPage === 1 && teamSearchQuery === "") {
-                console.log("Вызов fetchTeams вручную из handleTeamCreated (граничный случай)");
-               fetchTeams(1, "");
-           }
-      }
+    // console.log(...) // Убрали лог
+    setTeamSearchQuery("");
+    setTeamsCurrentPage(1);
+    if (activeTab !== 'teams') { setActiveTab('teams'); }
+    else { if (teamsCurrentPage === 1 && teamSearchQuery === "") { fetchTeams(1, ""); } }
   }
-  // === КОНЕЦ ИЗМЕНЕННЫХ ОБРАБОТЧИКОВ ===
-
 
   const handleTournamentPreviousPage = () => { if (tournamentsCurrentPage > 1) setTournamentsCurrentPage((prev) => prev - 1); }
   const handleTournamentNextPage = () => { if (tournamentsCurrentPage < tournamentsTotalPages) setTournamentsCurrentPage((prev) => prev + 1); }
@@ -189,31 +143,27 @@ export default function TournamentsPage() {
       setDeleteLoading(true);
       try {
           const tableName = type === 'tournament' ? 'tournaments' : 'teams';
-          if (type === 'tournament') { // Удаляем связанные записи перед удалением турнира
+          if (type === 'tournament') {
               const { error: relationError } = await supabase.from('tournament_teams').delete().match({ tournament_id: id });
               if (relationError) console.warn(`Не удалось удалить связи команд для турнира ${id}:`, relationError.message);
               const { error: matchesError } = await supabase.from('matches').delete().match({ tournament_id: id });
               if (matchesError) console.warn(`Не удалось удалить матчи для турнира ${id}:`, matchesError.message);
           }
-          const { error } = await supabase.from(tableName).delete().match({ id }); // Удаляем сам турнир/команду
+          const { error } = await supabase.from(tableName).delete().match({ id });
           if (error) throw error;
           toast.success(`${type === 'tournament' ? 'Турнир' : 'Команда'} успешно удален(а).`);
-          // Обновляем текущую страницу активной вкладки
-          if (type === 'tournament' && activeTab === 'list') { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
-          else if (type === 'tournament' && activeTab === 'calendar') { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); } // Обновляем и календарь
+          if (type === 'tournament' && (activeTab === 'list' || activeTab === 'calendar')) { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
           else if (type === 'team' && activeTab === 'teams') { fetchTeams(teamsCurrentPage, teamSearchQuery); }
-          // Если удалили элемент со вкладки, которая не активна, можно ничего не делать или вызвать fetch для нее тоже
-
       } catch (error: any) { toast.error(`Не удалось удалить: ${error.message}`); }
       finally { setIsDeleteConfirmationOpen(false); setItemToDelete(null); setDeleteLoading(false); }
   };
 
-  // --- Функция Генерации Сетки (с исправленной ошибкой nextMatchKey) ---
+  // --- Функция Генерации Сетки (логи оставлены для ее отладки) ---
   const handleGenerateBracket = async (tournamentId: string | null) => {
     if (!tournamentId) { toast.error("Не выбран турнир для генерации сетки."); return; }
     setGeneratingBracket(true);
     toast.info("Начинаем генерацию сетки...");
-    console.log(`Генерация сетки для турнира ${tournamentId}`);
+    console.log(`Генерация сетки для турнира ${tournamentId}`); // DEBUG
 
     try {
       // Шаг 1: Команды
@@ -246,21 +196,25 @@ export default function TournamentsPage() {
 
       // Шаг 5: Генерация структуры матчей
       const matchesToInsert: Omit<Match, 'id' | 'created_at' | 'details' | 'next_match_id'>[] = [];
+      let matchesInPreviousRound = 0; // Initialize for loop logic
+      const tempMatchInfo: { round: number, matchInRound: number, tempId: number }[] = []; // Not used currently
+      let matchIdCounter = 0; // Not used currently
+
       // Раунд 1
-      let matchInRoundCounter = 1;
+      let matchInRoundCounterR1 = 1;
       for (let i = 0; i < bracketSize; i += 2) {
-        const p1 = participants[i]; const p2 = participants[i + 1];
-        const isBye = p1 === null || p2 === null; const winner = p1 === null ? p2 : p1;
-        matchesToInsert.push({ tournament_id: tournamentId, round_number: 1, match_in_round: matchInRoundCounter, participant1_id: p1?.id ?? null, participant2_id: p2?.id ?? null, status: isBye ? 'BYE' : 'READY', score1: null, score2: null, winner_id: isBye ? winner?.id ?? null : null });
-        matchInRoundCounter++;
+         const p1 = participants[i]; const p2 = participants[i + 1];
+         const isBye = p1 === null || p2 === null; const winner = p1 === null ? p2 : p1;
+         matchesToInsert.push({ tournament_id: tournamentId, round_number: 1, match_in_round: matchInRoundCounterR1, participant1_id: p1?.id ?? null, participant2_id: p2?.id ?? null, status: isBye ? 'BYE' : 'READY', score1: null, score2: null, winner_id: isBye ? winner?.id ?? null : null });
+         matchInRoundCounterR1++;
       }
       // Последующие раунды
-      let matchesInPreviousRound = bracketSize / 2;
+      matchesInPreviousRound = bracketSize / 2;
       for (let round = 2; round <= numRounds; round++) {
-        const matchesInCurrentRound = matchesInPreviousRound / 2; matchInRoundCounter = 1;
+        const matchesInCurrentRound = matchesInPreviousRound / 2; let matchInRoundCounterR_N = 1;
         for (let i = 0; i < matchesInCurrentRound; i++) {
-            matchesToInsert.push({ tournament_id: tournamentId, round_number: round, match_in_round: matchInRoundCounter, participant1_id: null, participant2_id: null, status: 'PENDING_PARTICIPANTS', score1: null, score2: null, winner_id: null });
-            matchInRoundCounter++;
+            matchesToInsert.push({ tournament_id: tournamentId, round_number: round, match_in_round: matchInRoundCounterR_N, participant1_id: null, participant2_id: null, status: 'PENDING_PARTICIPANTS', score1: null, score2: null, winner_id: null });
+            matchInRoundCounterR_N++;
         }
         matchesInPreviousRound = matchesInCurrentRound;
       }
@@ -276,53 +230,36 @@ export default function TournamentsPage() {
       // Шаг 7: Обновление next_match_id и продвижение победителей BYE
       console.log("Обновление связей next_match_id и обработка BYE..."); // DEBUG
       const matchIdMap: Record<string, string> = {};
-      insertedMatches.forEach((match: Match) => { matchIdMap[`${match.round_number}-${match.match_in_round}`] = match.id; });
-      const updates: Partial<Match>[] = []; // Массив объектов для обновления
+      insertedMatches.forEach((match: Match) => { matchIdMap[`<span class="math-inline">\{match\.round\_number\}\-</span>{match.match_in_round}`] = match.id; });
+      const updates: Partial<Match & { id: string }>[] = [];
 
       for (const match of insertedMatches as Match[]) {
           let nextMatchId: string | null = null;
-          // Определяем next_match_id для всех, кроме последнего раунда
           if (match.round_number < numRounds) {
               const nextMatchInRound = Math.ceil(match.match_in_round / 2);
-              const nextMatchKey = `${match.round_number + 1}-${nextMatchInRound}`;
+              const nextMatchKey = `<span class="math-inline">\{match\.round\_number \+ 1\}\-</span>{nextMatchInRound}`;
               nextMatchId = matchIdMap[nextMatchKey] ?? null;
-              if (match.next_match_id !== nextMatchId) { // Обновляем только если нужно
-                 updates.push({ id: match.id, next_match_id: nextMatchId });
-              }
+              if (match.next_match_id !== nextMatchId) { updates.push({ id: match.id, next_match_id: nextMatchId }); }
           }
-
-          // Продвигаем победителей BYE из первого раунда
           if (match.round_number === 1 && match.status === 'BYE' && match.winner_id && nextMatchId) {
               const participantSlot = match.match_in_round % 2 !== 0 ? 'participant1_id' : 'participant2_id';
-              // Ищем, есть ли уже апдейт для этого nextMatchId
               let existingUpdate = updates.find(u => u.id === nextMatchId);
               if (existingUpdate) {
                    existingUpdate[participantSlot] = match.winner_id;
-                   // Если оба слота заполнены (второй тоже BYE?), можно поставить READY
-                   if (existingUpdate.participant1_id && existingUpdate.participant2_id) {
-                      existingUpdate.status = 'READY';
-                   }
-              } else {
-                  updates.push({ id: nextMatchId, [participantSlot]: match.winner_id });
-              }
+                   if (existingUpdate.participant1_id && existingUpdate.participant2_id) { existingUpdate.status = 'READY'; }
+              } else { updates.push({ id: nextMatchId, [participantSlot]: match.winner_id, status: 'PENDING_PARTICIPANTS' }); }
           }
       }
 
-      // Выполняем все обновления батчем (если возможно и поддерживается клиентом)
-      // или по одному (более надежно, но больше запросов)
       if (updates.length > 0) {
-          console.log(`Обновление ${updates.length} матчей (next_match_id / BYE продвижение)...`); // DEBUG
-          // Используем upsert, т.к. update([]) может не поддерживаться или работать иначе
+          console.log(`Обновление ${updates.length} матчей...`); // DEBUG
           const { error: upsertError } = await supabase.from('matches').upsert(updates);
-          if (upsertError) {
-              console.warn(`Возникли ошибки при обновлении связей матчей: ${upsertError.message}`);
-              toast.warn(`Не удалось обновить некоторые связи в сетке.`);
-          }
+          if (upsertError) { console.warn(`Ошибки при обновлении связей матчей: ${upsertError.message}`); toast.warn(`Не удалось обновить некоторые связи в сетке.`); }
       }
       console.log("Обновление связей завершено."); // DEBUG
 
       toast.success(`Сетка для турнира успешно сгенерирована!`);
-      // TODO: Обновить UI, чтобы показать сетку (например, перезагрузить данные матчей)
+      // TODO: Обновить UI, чтобы показать сетку
 
     } catch (error: any) {
         console.error("Ошибка генерации сетки:", error);
@@ -334,11 +271,11 @@ export default function TournamentsPage() {
 
   // --- Статистика ---
   const stats: StatCard[] = [
-    { title: "Идёт турниров", value: `${loadingTournaments ? '...' : tournaments.filter((t) => t.status === "ongoing").length}`, description: "На текущей странице", icon: Trophy },
-    { title: "Участники (суммарно)", value: `${loadingTournaments || loadingTeams ? '...' : tournaments.reduce((acc, t) => acc + (t.participants_count || 0), 0)}`, description: "На текущей странице", icon: Users }, // Уточнил зависимость от загрузки
-    { title: "Призовой фонд (суммарно)", value: `₸${loadingTournaments ? '...' : tournaments.reduce((acc, t) => acc + (t.prize || 0), 0).toLocaleString()}`, description: "На текущей странице", icon: Trophy },
-    { title: "Запланировано", value: `${loadingTournaments ? '...' : tournaments.filter((t) => t.status === "upcoming").length}`, description: "На текущей странице", icon: Calendar },
-  ];
+      { title: "Идёт турниров", value: `${loadingTournaments ? '...' : tournaments.filter((t) => t.status === "ongoing").length}`, description: "На текущей странице", icon: Trophy },
+      { title: "Участники (суммарно)", value: `${loadingTournaments || loadingTeams ? '...' : tournaments.reduce((acc, t) => acc + (t.participants_count || 0), 0)}`, description: "На текущей странице", icon: Users },
+      { title: "Призовой фонд (суммарно)", value: `₸${loadingTournaments ? '...' : tournaments.reduce((acc, t) => acc + (t.prize || 0), 0).toLocaleString()}`, description: "На текущей странице", icon: Trophy },
+      { title: "Запланировано", value: `${loadingTournaments ? '...' : tournaments.filter((t) => t.status === "upcoming").length}`, description: "На текущей странице", icon: Calendar },
+    ];
 
   // --- JSX Рендеринг ---
   return (
@@ -348,7 +285,7 @@ export default function TournamentsPage() {
         {/* Заголовок и Кнопки */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
-          <div className="flex gap-2 flex-wrap"> {/* Добавлен flex-wrap кнопкам */}
+          <div className="flex gap-2 flex-wrap">
             <Button variant="secondary" onClick={() => handleGenerateBracket(tournaments[0]?.id)} disabled={generatingBracket || tournaments.length === 0 || loadingTournaments} title="Сгенерировать сетку для первого турнира в списке (перезапишет существующую!)"> {generatingBracket ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cog className="mr-2 h-4 w-4" />} Ген. сетки (Тест) </Button>
             <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}> <Users className="mr-2 h-4 w-4" /> Создать команду </Button>
             <Button onClick={() => setCreateTournamentDialogOpen(true)}> <Plus className="mr-2 h-4 w-4" /> Новый турнир </Button>
@@ -371,7 +308,6 @@ export default function TournamentsPage() {
 
            {/* Вкладка: Календарь */}
            <TabsContent value="calendar" className="space-y-4">
-                {/* Передаем и loading статус */}
                 <TournamentCalendar tournaments={tournaments} loading={loadingTournaments} />
            </TabsContent>
 
