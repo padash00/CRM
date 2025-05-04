@@ -307,4 +307,3 @@ export function CreateTournamentDialog({ open, onOpenChange, onTournamentCreated
     </Dialog>
   )
 }
-```
