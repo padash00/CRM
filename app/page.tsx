@@ -19,7 +19,7 @@ import { DeleteConfirmationDialog } from "./tournaments/delete-confirmation-dial
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // Проверь путь
 import { ClubMap } from "@/components/dashboard/club-map"; // Проверь путь
 // --- ДОБАВЛЕН ИМПОРТ RecentBookings ---
-import { RecentBookings } from "@/components/dashboard/recent-bookings"; // <--- ПРОВЕРЬ ПУТЬ!
+import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // <-- ПРАВИЛЬНЫЙ ПУТЬ // <--- ПРОВЕРЬ ПУТЬ!
 
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
