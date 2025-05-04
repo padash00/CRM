@@ -1,7 +1,7 @@
 // pos/transaction-history.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -60,7 +60,7 @@ const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
   const handlePrintReceipt = useCallback(() => {
     toast({
       title: "Печать чека",
-      description: `Печать чека для транзакции ${transaction.id} будет доступна в следующей версии.`,
+      description: `Печать чека для транзакции ${transaction.id} будет доступно в следующей версии.`,
     });
   }, [transaction.id]);
 
@@ -156,10 +156,10 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
 
       const transformedTransactions = await Promise.all(
         (transactionsData || []).map(async (transaction) => {
-          // Загружаем товары/услуги для каждой транзакции
+          // Получаем элементы транзакции
           const { data: itemsData, error: itemsError } = await supabase
             .from("transaction_items")
-            .select("*, items(name), services(name)")
+            .select("*")
             .eq("transaction_id", transaction.id);
 
           if (itemsError) {
@@ -171,10 +171,38 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
             return null;
           }
 
-          const itemsList = itemsData.map((item) => {
-            const itemName = item.item_type === "product" ? item.items?.name : item.services?.name;
-            return `${itemName} (${item.quantity} шт.)`;
-          }).join(", ");
+          // Для каждой записи в transaction_items определяем, к какой таблице она относится
+          const itemsList = await Promise.all(
+            (itemsData || []).map(async (item) => {
+              let itemName = "Неизвестный элемент";
+              if (item.item_type === "product") {
+                const { data: productData, error: productError } = await supabase
+                  .from("items")
+                  .select("name")
+                  .eq("id", item.item_id)
+                  .single();
+
+                if (productError) {
+                  console.error("Ошибка загрузки товара:", productError.message);
+                } else {
+                  itemName = productData?.name || "Неизвестный товар";
+                }
+              } else if (item.item_type === "service") {
+                const { data: serviceData, error: serviceError } = await supabase
+                  .from("services")
+                  .select("name")
+                  .eq("id", item.item_id)
+                  .single();
+
+                if (serviceError) {
+                  console.error("Ошибка загрузки услуги:", serviceError.message);
+                } else {
+                  itemName = serviceData?.name || "Неизвестная услуга";
+                }
+              }
+              return `${itemName} (${item.quantity} шт.)`;
+            })
+          );
 
           const date = new Date(transaction.transaction_date);
           return {
@@ -182,7 +210,7 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
             date: date.toLocaleDateString("ru-RU"),
             time: date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
             customer: transaction.customers?.name || "Неизвестный клиент",
-            items: itemsList || "Нет товаров",
+            items: itemsList.join(", ") || "Нет товаров",
             total: transaction.amount,
             paymentMethod: transaction.payment_type === "card" ? "card" : "cash",
             operator: "Кассир", // Пока захардкодим

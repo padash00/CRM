@@ -1,16 +1,8 @@
-"use client"
+// app/staff/staff-table.tsx
+"use client";
 
-import { useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -18,162 +10,267 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { MoreHorizontal, Pencil, Trash } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// Типизация сотрудника
-interface Staff {
-  id: string
-  name: string
-  initials: string
-  position: string
-  phone: string
-  email: string
-  status: "active" | "inactive"
-  workingHours: string
+// Типизация оператора
+interface Operator {
+  id: string;
+  name: string;
+  position: string;
+  phone: string;
+  email: string;
+  status: "active" | "inactive";
+  working_hours: string;
+  role: "maindev" | "operator";
+}
+
+interface StaffTableProps {
+  searchQuery: string;
+  operators: Operator[];
+  setOperators: React.Dispatch<React.SetStateAction<Operator[]>>;
+  currentOperator: Operator | null;
 }
 
 // Компонент строки таблицы
-const StaffRow = ({ employee }: { employee: Staff }) => {
-  const handleEdit = useCallback(() => {
-    toast({
-      title: "Редактирование",
-      description: `Редактирование сотрудника ${employee.name} будет доступно в следующей версии.`,
-    })
-  }, [employee.name])
+const StaffRow = ({ operator, onEdit, onDelete, canEdit, canDelete }: { operator: Operator; onEdit: (updatedOperator: Operator) => void; onDelete: (id: string) => void; canEdit: boolean; canDelete: boolean }) => {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [editName, setEditName] = useState<string>(operator.name);
+  const [editRole, setEditRole] = useState<"maindev" | "operator">(operator.role);
 
-  const handleDelete = useCallback(() => {
-    toast({
-      title: "Удаление",
-      description: `Удаление сотрудника ${employee.name} будет доступно в следующей версии.`,
-      variant: "destructive",
-    })
-  }, [employee.name])
+  const handleEdit = () => {
+    if (!canEdit) {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может редактировать операторов",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsEditDialogOpen(true);
+  };
+
+  const saveEdit = () => {
+    onEdit({ ...operator, name: editName, role: editRole });
+    setIsEditDialogOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (!canDelete) {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может удалять операторов",
+        variant: "destructive",
+      });
+      return;
+    }
+    onDelete(operator.id);
+  };
+
+  // Вычисляем инициалы из имени
+  const initials = operator.name
+    .split(" ")
+    .map(word => word.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <TableRow>
-      <TableCell>
-        <Checkbox />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback>{employee.initials}</AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium">{employee.name}</div>
-            <div className="text-sm text-muted-foreground">{employee.id}</div>
+    <>
+      <TableRow>
+        <TableCell>
+          <Checkbox />
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-medium">{operator.name}</div>
+              <div className="text-sm text-muted-foreground">{operator.id}</div>
+            </div>
           </div>
-        </div>
-      </TableCell>
-      <TableCell>{employee.position}</TableCell>
-      <TableCell>
-        <div>{employee.phone}</div>
-        <div className="text-sm text-muted-foreground">{employee.email}</div>
-      </TableCell>
-      <TableCell>
-        <Badge
-          variant={employee.status === "active" ? "default" : "secondary"}
-          className={
-            employee.status === "active"
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
-          }
-        >
-          {employee.status === "active" ? "Активен" : "Неактивен"}
-        </Badge>
-      </TableCell>
-      <TableCell>{employee.workingHours}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Открыть меню</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Действия</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleEdit}>
-              <Pencil className="mr-2 h-4 w-4" /> Редактировать
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-              <Trash className="mr-2 h-4 w-4" /> Удалить
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  )
-}
+        </TableCell>
+        <TableCell>{operator.position}</TableCell>
+        <TableCell>
+          <div>{operator.phone}</div>
+          <div className="text-sm text-muted-foreground">{operator.email}</div>
+        </TableCell>
+        <TableCell>
+          <Badge
+            variant={operator.status === "active" ? "default" : "secondary"}
+            className={
+              operator.status === "active"
+                ? "bg-green-100 text-green-800"
+                : "bg-gray-100 text-gray-800"
+            }
+          >
+            {operator.status === "active" ? "Активен" : "Неактивен"}
+          </Badge>
+        </TableCell>
+        <TableCell>{operator.working_hours}</TableCell>
+        <TableCell>
+          <Badge
+            variant={operator.role === "maindev" ? "default" : "secondary"}
+            className={
+              operator.role === "maindev"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-gray-100 text-gray-800"
+            }
+          >
+            {operator.role === "maindev" ? "Maindev" : "Оператор"}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Открыть меню</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleEdit}>
+                <Pencil className="mr-2 h-4 w-4" /> Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash className="mr-2 h-4 w-4" /> Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
 
-export function StaffTable() {
-  const staff: Staff[] = [
-    {
-      id: "S001",
-      name: "Иван Смирнов",
-      initials: "ИС",
-      position: "Администратор",
-      phone: "+7 (999) 123-45-67",
-      email: "ivan@example.com",
-      status: "active",
-      workingHours: "40 ч/нед",
-    },
-    {
-      id: "S002",
-      name: "Мария Петрова",
-      initials: "МП",
-      position: "Оператор",
-      phone: "+7 (999) 234-56-78",
-      email: "maria@example.com",
-      status: "active",
-      workingHours: "30 ч/нед",
-    },
-    {
-      id: "S003",
-      name: "Анна Козлова",
-      initials: "АК",
-      position: "Бармен",
-      phone: "+7 (999) 345-67-89",
-      email: "anna@example.com",
-      status: "active",
-      workingHours: "20 ч/нед",
-    },
-    {
-      id: "S004",
-      name: "Алексей Новиков",
-      initials: "АН",
-      position: "Техник",
-      phone: "+7 (999) 456-78-90",
-      email: "alexey@example.com",
-      status: "inactive",
-      workingHours: "20 ч/нед",
-    },
-    {
-      id: "S005",
-      name: "Екатерина Соколова",
-      initials: "ЕС",
-      position: "Администратор",
-      phone: "+7 (999) 567-89-01",
-      email: "ekaterina@example.com",
-      status: "active",
-      workingHours: "40 ч/нед",
-    },
-    {
-      id: "S006",
-      name: "Дмитрий Волков",
-      initials: "ДВ",
-      position: "Оператор",
-      phone: "+7 (999) 678-90-12",
-      email: "dmitry@example.com",
-      status: "inactive",
-      workingHours: "30 ч/нед",
-    },
-  ]
+      {/* Диалог редактирования */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать оператора</DialogTitle>
+            <DialogDescription>Измените данные оператора {operator.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editOperatorName">Имя оператора</Label>
+              <Input
+                id="editOperatorName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Введите имя оператора"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editOperatorRole">Роль</Label>
+              <Select
+                value={editRole}
+                onValueChange={(value: "maindev" | "operator") => setEditRole(value)}
+              >
+                <SelectTrigger id="editOperatorRole">
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="operator">Оператор</SelectItem>
+                  <SelectItem value="maindev">Maindev</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={saveEdit}>Сохранить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export function StaffTable({ searchQuery, operators, setOperators, currentOperator }: StaffTableProps) {
+  const filteredOperators = operators.filter((operator) =>
+    operator.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleEditOperator = async (updatedOperator: Operator) => {
+    const { error } = await supabase
+      .from("operators")
+      .update({ name: updatedOperator.name, role: updatedOperator.role })
+      .eq("id", updatedOperator.id);
+
+    if (error) {
+      console.error("Ошибка редактирования оператора:", error);
+      toast({
+        title: "Ошибка редактирования оператора",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setOperators((prev) =>
+      prev.map((op) => (op.id === updatedOperator.id ? updatedOperator : op))
+    );
+    toast({
+      title: "Оператор обновлён",
+      description: "Данные оператора успешно обновлены",
+    });
+  };
+
+  const handleDeleteOperator = async (operatorId: string) => {
+    const { error } = await supabase
+      .from("operators")
+      .delete()
+      .eq("id", operatorId);
+
+    if (error) {
+      console.error("Ошибка удаления оператора:", error);
+      toast({
+        title: "Ошибка удаления оператора",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setOperators((prev) => prev.filter((op) => op.id !== operatorId));
+    toast({
+      title: "Оператор удалён",
+      description: "Оператор успешно удалён",
+    });
+  };
 
   return (
     <div className="rounded-md border shadow-sm">
@@ -183,21 +280,36 @@ export function StaffTable() {
             <TableHead className="w-[50px]">
               <Checkbox />
             </TableHead>
-            <TableHead>Сотрудник</TableHead>
+            <TableHead>Оператор</TableHead>
             <TableHead>Должность</TableHead>
             <TableHead>Контакты</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Рабочее время</TableHead>
+            <TableHead>Роль</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {staff.map((employee) => (
-            <StaffRow key={employee.id} employee={employee} />
-          ))}
+          {filteredOperators.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center">
+                Нет операторов для отображения
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredOperators.map((operator) => (
+              <StaffRow
+                key={operator.id}
+                operator={operator}
+                onEdit={handleEditOperator}
+                onDelete={handleDeleteOperator}
+                canEdit={currentOperator?.role === "maindev"}
+                canDelete={currentOperator?.role === "maindev"}
+              />
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }
-

@@ -1,297 +1,130 @@
-"use client"
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Monitor, Gamepad2, Crown } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-// Типизация статуса компьютера
-type ComputerStatus = "available" | "occupied" | "reserved" | "maintenance"
-
-// Типизация данных компьютера
 interface Computer {
-  id: number
-  name: string
-  status: ComputerStatus
-  zone: "standard" | "vip" | "console"
-  timeLeft?: string
-  customer?: string
+  id: string;
+  name: string;
+  type: "PC" | "PlayStation";
+  status: "available" | "occupied";
+  zone: "standard" | "vip" | "console";
+  position_x: number;
+  position_y: number;
+  timeLeft?: string;
+  customer?: string;
+  created_at: string;
 }
 
-export function ClubMap() {
-  const [computers, setComputers] = useState<Computer[]>([
-    { id: 1, name: "PC-01", status: "occupied", zone: "standard", timeLeft: "1:30", customer: "Алексей К." },
-    { id: 2, name: "PC-02", status: "available", zone: "standard" },
-    { id: 3, name: "PC-03", status: "reserved", zone: "standard", customer: "Михаил С." },
-    { id: 4, name: "PC-04", status: "occupied", zone: "standard", timeLeft: "0:45", customer: "Дмитрий В." },
-    { id: 5, name: "PC-05", status: "available", zone: "standard" },
-    { id: 6, name: "PC-06", status: "maintenance", zone: "standard" },
-    { id: 7, name: "PC-07", status: "occupied", zone: "standard", timeLeft: "2:15", customer: "Иван П." },
-    { id: 8, name: "PC-08", status: "available", zone: "standard" },
-    { id: 9, name: "VIP-01", status: "occupied", zone: "vip", timeLeft: "3:00", customer: "Сергей Л." },
-    { id: 10, name: "VIP-02", status: "available", zone: "vip" },
-    { id: 11, name: "VIP-03", status: "reserved", zone: "vip", customer: "Андрей К." },
-    { id: 12, name: "PS5-01", status: "occupied", zone: "console", timeLeft: "1:15", customer: "Николай Р." },
-    { id: 13, name: "PS5-02", status: "available", zone: "console" },
-    { id: 14, name: "XBOX-01", status: "available", zone: "console" },
-  ])
+interface ClubMapProps {
+  computers: Computer[];
+  setComputers: React.Dispatch<React.SetStateAction<Computer[]>>;
+  onEdit?: (computer: Computer) => void;
+}
 
-  const [selectedComputer, setSelectedComputer] = useState<Computer | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [newStatus, setNewStatus] = useState<ComputerStatus>("available")
-  const [customer, setCustomer] = useState("")
-  const [duration, setDuration] = useState("1")
+export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 600 });
 
-  // Получение цвета статуса
-  const getStatusColor = useCallback((status: ComputerStatus): string => {
-    switch (status) {
-      case "available":
-        return "bg-green-500"
-      case "occupied":
-        return "bg-red-500"
-      case "reserved":
-        return "bg-yellow-500"
-      case "maintenance":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-300"
+  useEffect(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setDimensions({ width: rect.width, height: rect.height });
     }
-  }, [])
+  }, []);
 
-  // Получение иконки зоны
-  const getZoneIcon = useCallback((zone: Computer["zone"]) => {
-    switch (zone) {
-      case "vip":
-        return <Crown className="h-4 w-4" />
-      case "console":
-        return <Gamepad2 className="h-4 w-4" />
-      default:
-        return <Monitor className="h-4 w-4" />
-    }
-  }, [])
+  const handleEditComputer = (computer: Computer) => {
+    if (onEdit) onEdit(computer);
+  };
 
-  // Получение текстового описания статуса
-  const getStatusText = useCallback((status: ComputerStatus): string => {
-    switch (status) {
-      case "available":
-        return "бос"
-      case "occupied":
-        return "бос емес"
-      case "reserved":
-        return "брондалған"
-      case "maintenance":
-        return "қызмет көрсетуде"
-      default:
-        return ""
-    }
-  }, [])
-
-  // Обработчик клика по компьютеру
-  const handleComputerClick = useCallback((computer: Computer) => {
-    setSelectedComputer(computer)
-    setNewStatus(computer.status)
-    setCustomer(computer.customer || "")
-    setDuration(computer.timeLeft ? computer.timeLeft.split(":")[0] : "1")
-    setDialogOpen(true)
-  }, [])
-
-  // Обновление статуса компьютера
-  const updateComputerStatus = useCallback(() => {
-    if (!selectedComputer) return
-
-    if ((newStatus === "occupied" || newStatus === "reserved") && !customer.trim()) {
-      toast({
-        title: "Қате",
-        description: "Клиенттің атын енгізіңіз",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (newStatus === "occupied" && (!duration || Number(duration) <= 0)) {
-      toast({
-        title: "Қате",
-        description: "Жарамды уақытты таңдаңыз",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setComputers((prevComputers) =>
-      prevComputers.map((comp) => {
-        if (comp.id !== selectedComputer.id) return comp
-
-        const updatedComputer: Computer = { ...comp, status: newStatus }
-        if (newStatus === "occupied" || newStatus === "reserved") {
-          updatedComputer.customer = customer
-          if (newStatus === "occupied") {
-            updatedComputer.timeLeft = `${duration}:00`
-          } else {
-            delete updatedComputer.timeLeft
-          }
-        } else {
-          delete updatedComputer.customer
-          delete updatedComputer.timeLeft
-        }
-        return updatedComputer
-      })
-    )
-
-    toast({
-      title: "Күй жаңартылды",
-      description: `${selectedComputer.name} компьютері енді ${getStatusText(newStatus)}`,
-    })
-    setDialogOpen(false)
-  }, [selectedComputer, newStatus, customer, duration, getStatusText])
-
-  // Обновление статуса (заглушка для API)
-  const refreshStatus = useCallback(() => {
-    toast({
-      title: "Күйлер жаңартылды",
-      description: "Компьютерлер туралы ақпарат жаңартылды",
-    })
-  }, [])
+  const standardComputers = computers.filter((comp) => comp.zone === "standard");
+  const vipComputers = computers.filter((comp) => comp.zone === "vip");
+  const consoleComputers = computers.filter((comp) => comp.zone === "console");
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          {(["available", "occupied", "reserved", "maintenance"] as ComputerStatus[]).map((status) => (
-            <div key={status} className="flex items-center space-x-1">
-              <div className={`h-3 w-3 rounded-full ${getStatusColor(status)}`}></div>
-              <span className="text-xs">{getStatusText(status)}</span>
-            </div>
-          ))}
-        </div>
-        <Button variant="outline" size="sm" onClick={refreshStatus}>
-          Күйді жаңарту
-        </Button>
+    <div
+      ref={containerRef}
+      className="relative w-full h-[600px] rounded-lg shadow-lg"
+      style={{
+        background: `linear-gradient(
+          45deg,
+          rgba(0, 30, 60, 0.8),
+          rgba(20, 60, 90, 0.8)
+        ),
+        url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\" fill=\"none\" stroke=\"rgba(255,255,255,0.1)\" stroke-width=\"2\"%3E%3Cpath d=\"M0 0h200v200H0z\"/%3E%3Cpath d=\"M0 20h200M0 40h200M0 60h200M0 80h200M0 100h200M0 120h200M0 140h200M0 160h200M0 180h200M20 0v200M40 0v200M60 0v200M80 0v200M100 0v200M120 0v200M140 0v200M160 0v200M180 0v200\"/%3E%3C/svg%3E')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="absolute top-4 left-4">
+        <h3 className="text-lg font-bold text-white">Крыло Ингбор</h3>
       </div>
+      {standardComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-green-500 hover:bg-green-600" : ""}
+            ${computer.status === "occupied" ? "bg-red-500 hover:bg-red-600 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / dimensions.height) * 100}%`,
+            left: `${(computer.position_x / dimensions.width) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
 
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">Барлығы</TabsTrigger>
-          <TabsTrigger value="standard">Стандартты</TabsTrigger>
-          <TabsTrigger value="vip">VIP</TabsTrigger>
-          <TabsTrigger value="console">Консольдер</TabsTrigger>
-        </TabsList>
+      <div className="absolute top-4 right-4">
+        <h3 className="text-lg font-bold text-white">Гаронин</h3>
+      </div>
+      {vipComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-purple-500 hover:bg-purple-600" : ""}
+            ${computer.status === "occupied" ? "bg-purple-700 hover:bg-purple-800 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / dimensions.height) * 100}%`,
+            left: `${(computer.position_x / dimensions.width) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
 
-        {(["all", "standard", "vip", "console"] as const).map((zone) => (
-          <TabsContent key={zone} value={zone} className="mt-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {computers
-                .filter((computer) => zone === "all" || computer.zone === zone)
-                .map((computer) => (
-                  <Card
-                    key={computer.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors shadow-sm"
-                    onClick={() => handleComputerClick(computer)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {getZoneIcon(computer.zone)}
-                          <span className="font-medium">{computer.name}</span>
-                        </div>
-                        <div className={`h-3 w-3 rounded-full ${getStatusColor(computer.status)}`}></div>
-                      </div>
-                      {computer.status !== "available" && computer.customer && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          {computer.customer}
-                          {computer.timeLeft && ` (${computer.timeLeft})`}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Компьютер күйін өзгерту</DialogTitle>
-            <DialogDescription>
-              {selectedComputer && `Компьютер: ${selectedComputer.name}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Күйі
-              </Label>
-              <Select value={newStatus} onValueChange={(value: ComputerStatus) => setNewStatus(value)}>
-                <SelectTrigger id="status" className="col-span-3 shadow-sm">
-                  <SelectValue placeholder="Күйді таңдаңыз" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Бос</SelectItem>
-                  <SelectItem value="occupied">Бос емес</SelectItem>
-                  <SelectItem value="reserved">Брондалған</SelectItem>
-                  <SelectItem value="maintenance">Қызмет көрсетуде</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {(newStatus === "occupied" || newStatus === "reserved") && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customer" className="text-right">
-                  Клиент
-                </Label>
-                <Input
-                  id="customer"
-                  value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                  placeholder="Клиенттің аты"
-                  className="col-span-3 shadow-sm"
-                />
-              </div>
-            )}
-
-            {newStatus === "occupied" && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="duration" className="text-right">
-                  Уақыт (сағ)
-                </Label>
-                <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger id="duration" className="col-span-3 shadow-sm">
-                    <SelectValue placeholder="Уақытты таңдаңыз" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map((hour) => (
-                      <SelectItem key={hour} value={hour.toString()}>
-                        {hour} сағат
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Болдырмау
-            </Button>
-            <Button onClick={updateComputerStatus}>Сақтау</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="absolute bottom-4 left-4">
+        <h3 className="text-lg font-bold text-white">Соффааб</h3>
+      </div>
+      {consoleComputers.map((computer) => (
+        <Button
+          key={computer.id}
+          variant="outline"
+          className={`
+            absolute w-14 h-14 rounded-lg text-sm font-bold
+            ${computer.status === "available" ? "bg-blue-500 hover:bg-blue-600" : ""}
+            ${computer.status === "occupied" ? "bg-blue-700 hover:bg-blue-800 animate-pulse" : ""}
+            text-white border-none shadow-lg
+          `}
+          style={{
+            top: `${(computer.position_y / dimensions.height) * 100}%`,
+            left: `${(computer.position_x / dimensions.width) * 100}%`,
+            transform: "translate(-50%, -50%)",
+          }}
+          onClick={() => handleEditComputer(computer)}
+        >
+          {computer.name}
+        </Button>
+      ))}
     </div>
-  )
+  );
 }
-

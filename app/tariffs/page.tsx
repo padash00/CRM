@@ -1,354 +1,311 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus } from "lucide-react"
-import { MainNav } from "@/components/main-nav"
-import { TariffList } from "@/components/tariff-list"
-import { LoyaltyProgram } from "@/components/loyalty-program"
-import { toast } from "@/components/ui/use-toast"
-
-// Типизация данных тарифа
-interface TariffForm {
-  name: string
-  type: string
-  price: string
-  description: string
-}
-
-// Типизация данных акции
-interface PromotionForm {
-  name: string
-  discount: string
-  startDate: string
-  endDate: string
-  description: string
-}
+import { useState, useCallback } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { MainNav } from "@/components/main-nav";
+import { LoyaltyProgram } from "./loyalty-program";
+import { useSupabaseData } from "./useSupabaseData";
+import { useTariffHandlers } from "./useTariffHandlers";
+import { TariffsTab } from "./TariffsTab";
+import { PromotionsTab } from "./PromotionsTab";
+import { ZonesTab } from "./ZonesTab";
+import { SessionsTab } from "./SessionsTab";
+import { Dialogs } from "./dialogs";
+import type {
+  TariffForm,
+  PromotionForm,
+  SaleForm,
+  Tariff,
+  Promotion,
+  Customer,
+  Computer,
+  Session
+} from "./types";
 
 export default function TariffsPage() {
+  const [activeTab, setActiveTab] = useState("tariffs");
+
   const [tariffForm, setTariffForm] = useState<TariffForm>({
-    name: "",
-    type: "",
-    price: "",
-    description: "",
-  })
+    name: "", type: "", price: "", description: "", zoneId: ""
+  });
   const [promotionForm, setPromotionForm] = useState<PromotionForm>({
-    name: "",
-    discount: "",
-    startDate: "",
-    endDate: "",
-    description: "",
-  })
-  const [activeTab, setActiveTab] = useState<string>("tariffs")
+    name: "", discount: "", startDate: "", endDate: "", description: ""
+  });
+  const [saleForm, setSaleForm] = useState<SaleForm>({
+    customerId: "", tariffId: "", computerId: "", duration: "1"
+  });
 
-  // Обработчик изменения формы тарифа
-  const handleTariffChange = useCallback(
-    (field: keyof TariffForm, value: string) => {
-      setTariffForm((prev) => ({ ...prev, [field]: value }))
-    },
-    []
-  )
+  const [createTariffDialogOpen, setCreateTariffDialogOpen] = useState(false);
+  const [editTariffDialogOpen, setEditTariffDialogOpen] = useState(false);
+  const [deleteTariffDialogOpen, setDeleteTariffDialogOpen] = useState(false);
+  const [createPromotionDialogOpen, setCreatePromotionDialogOpen] = useState(false);
+  const [editPromotionDialogOpen, setEditPromotionDialogOpen] = useState(false);
+  const [deletePromotionDialogOpen, setDeletePromotionDialogOpen] = useState(false);
+  const [editComputerDialogOpen, setEditComputerDialogOpen] = useState(false);
+  const [deleteComputerDialogOpen, setDeleteComputerDialogOpen] = useState(false);
+  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
 
-  // Обработчик изменения формы акции
-  const handlePromotionChange = useCallback(
-    (field: keyof PromotionForm, value: string) => {
-      setPromotionForm((prev) => ({ ...prev, [field]: value }))
-    },
-    []
-  )
+  const [editTariff, setEditTariff] = useState<Tariff | null>(null);
+  const [editPromotion, setEditPromotion] = useState<Promotion | null>(null);
+  const [editComputer, setEditComputer] = useState<Computer | null>(null);
+  const [deleteTariffId, setDeleteTariffId] = useState<string | null>(null);
+  const [deletePromotionId, setDeletePromotionId] = useState<string | null>(null);
+  const [deleteComputerId, setDeleteComputerId] = useState<string | null>(null);
+  const [endSessionId, setEndSessionId] = useState<string | null>(null);
 
-  // Обработчик создания тарифа
-  const handleCreateTariff = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault()
-      const { name, type, price } = tariffForm
+  const [isCreatingTariff, setIsCreatingTariff] = useState(false);
+  const [isCreatingPromotion, setIsCreatingPromotion] = useState(false);
+  const [isDeletingTariff, setIsDeletingTariff] = useState<string | null>(null);
+  const [isDeletingPromotion, setIsDeletingPromotion] = useState<string | null>(null);
+  const [isDeletingComputer, setIsDeletingComputer] = useState<string | null>(null);
+  const [isSelling, setIsSelling] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState<string | null>(null);
 
-      if (!name || !type || !price || Number(price) <= 0) {
-        toast({
-          title: "Ошибка",
-          description: "Заполните все обязательные поля корректно",
-          variant: "destructive",
-        })
-        return
-      }
+  const [tariffSort, setTariffSort] = useState<"asc" | "desc">("desc");
+  const [promotionFilter, setPromotionFilter] = useState<"all" | "active" | "expired">("all");
+  const [promotionSort, setPromotionSort] = useState<"asc" | "desc">("desc");
 
-      toast({
-        title: "Тариф создан",
-        description: `Тариф "${name}" успешно добавлен в систему.`,
-      })
-      setTariffForm({ name: "", type: "", price: "", description: "" })
-    },
-    [tariffForm]
-  )
+  const [tariffPage, setTariffPage] = useState(1);
+  const [promotionPage, setPromotionPage] = useState(1);
+  const itemsPerPage = 3;
 
-  // Обработчик создания акции
-  const handleCreatePromotion = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault()
-      const { name, discount, startDate, endDate } = promotionForm
+  const {
+    tariffs, promotions, customers, computers, sessions,
+    isLoading, error, fetchData, setComputers
+  } = useSupabaseData(tariffSort, promotionFilter, promotionSort);
 
-      if (!name || !discount || !startDate || !endDate || Number(discount) <= 0) {
-        toast({
-          title: "Ошибка",
-          description: "Заполните все обязательные поля корректно",
-          variant: "destructive",
-        })
-        return
-      }
+  const {
+    handleTariffChange, handlePromotionChange, handleSaleChange,
+    handleCreateTariff, handleEditTariff, handleDeleteTariff,
+    handleCreatePromotion, handleEditPromotion, handleDeletePromotion,
+    handleEditComputer, handleDeleteComputer,
+    handleSellTariff, handleEndSession
+  } = useTariffHandlers(
+    tariffs, promotions, customers, computers,
+    setComputers, setTariffForm, setPromotionForm, setSaleForm,
+    setCreateTariffDialogOpen, setCreatePromotionDialogOpen,
+    setEditTariffDialogOpen, setEditPromotionDialogOpen, setSaleDialogOpen
+  );
 
-      toast({
-        title: "Акция создана",
-        description: `Акция "${name}" успешно добавлена в систему.`,
-      })
-      setPromotionForm({ name: "", discount: "", startDate: "", endDate: "", description: "" })
-    },
-    [promotionForm]
-  )
-
-  // Обработчик изменения вкладки
   const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value)
-  }, [])
+    setActiveTab(value);
+  }, []);
+
+  const handleEditTariffOpen = (tariff: Tariff) => {
+    setEditTariff(tariff);
+    setTariffForm({
+      name: tariff.name,
+      type: tariff.type,
+      price: tariff.price.toString(),
+      description: tariff.description || "",
+      zoneId: tariff.zone_id
+    });
+    setEditTariffDialogOpen(true);
+  };
+
+  const handleEditPromotionOpen = (promotion: Promotion) => {
+    setEditPromotion(promotion);
+    setPromotionForm({
+      name: promotion.name,
+      discount: promotion.discount.toString(),
+      startDate: promotion.start_date,
+      endDate: promotion.end_date,
+      description: promotion.description || ""
+    });
+    setEditPromotionDialogOpen(true);
+  };
+
+  const handleEditComputerOpen = (computer: Computer) => {
+    setEditComputer(computer);
+    setEditComputerDialogOpen(true);
+  };
+
+  const handleDeleteTariffOpen = (id: string) => {
+    setDeleteTariffId(id);
+    setDeleteTariffDialogOpen(true);
+  };
+
+  const handleDeletePromotionOpen = (id: string) => {
+    setDeletePromotionId(id);
+    setDeletePromotionDialogOpen(true);
+  };
+
+  const handleDeleteComputerOpen = (id: string) => {
+    setDeleteComputerId(id);
+    setDeleteComputerDialogOpen(true);
+  };
+
+  const handleSellTariffOpen = () => {
+    setSaleForm({ customerId: "", tariffId: "", computerId: "", duration: "1" });
+    setSaleDialogOpen(true);
+  };
+
+  const paginatedTariffs = tariffs.slice((tariffPage - 1) * itemsPerPage, tariffPage * itemsPerPage);
+  const paginatedPromotions = promotions.slice((promotionPage - 1) * itemsPerPage, promotionPage * itemsPerPage);
+
+  const totalTariffPages = Math.ceil(tariffs.length / itemsPerPage);
+  const totalPromotionPages = Math.ceil(promotions.length / itemsPerPage);
+
+  if (isLoading) return <LoadingState />;
+  if (error) return <ErrorState error={error} retry={fetchData} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <MainNav />
       <main className="flex-1 space-y-6 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Управление тарифами</h2>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Новый тариф
-          </Button>
-        </div>
+        <h2 className="text-3xl font-bold tracking-tight">Управление тарифами</h2>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 bg-background p-1 rounded-md shadow-sm">
+          <TabsList className="grid w-full grid-cols-5 bg-background p-1 rounded-md shadow-sm">
             <TabsTrigger value="tariffs">Тарифы</TabsTrigger>
             <TabsTrigger value="loyalty">Программа лояльности</TabsTrigger>
             <TabsTrigger value="promotions">Акции</TabsTrigger>
+            <TabsTrigger value="zones">Зоны и компы</TabsTrigger>
+            <TabsTrigger value="sessions">Сессии</TabsTrigger>
           </TabsList>
 
-          {/* Вкладка "Тарифы" */}
-          <TabsContent value="tariffs" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Создать тариф</CardTitle>
-                  <CardDescription>Добавьте новый тариф в систему</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="space-y-4" onSubmit={handleCreateTariff}>
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Название тарифа</Label>
-                      <Input
-                        id="name"
-                        placeholder="Введите название"
-                        value={tariffForm.name}
-                        onChange={(e) => handleTariffChange("name", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="type">Тип компьютера</Label>
-                      <Input
-                        id="type"
-                        placeholder="Стандарт, VIP, Консоль и т.д."
-                        value={tariffForm.type}
-                        onChange={(e) => handleTariffChange("type", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Цена (₸/час)</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        min="0"
-                        placeholder="Введите цену"
-                        value={tariffForm.price}
-                        onChange={(e) => handleTariffChange("price", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Описание</Label>
-                      <Input
-                        id="description"
-                        placeholder="Описание тарифа"
-                        value={tariffForm.description}
-                        onChange={(e) => handleTariffChange("description", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <Button className="w-full" type="submit">
-                      Создать тариф
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-              <TariffList />
-            </div>
+          <TabsContent value="tariffs">
+            <TariffsTab
+              tariffs={tariffs}
+              tariffSort={tariffSort}
+              tariffPage={tariffPage}
+              totalTariffPages={totalTariffPages}
+              setTariffSort={setTariffSort}
+              setTariffPage={setTariffPage}
+              handleSellTariffOpen={handleSellTariffOpen}
+              setCreateTariffDialogOpen={setCreateTariffDialogOpen}
+              handleEditTariffOpen={handleEditTariffOpen}
+              handleDeleteTariffOpen={handleDeleteTariffOpen}
+              isDeletingTariff={isDeletingTariff}
+            />
           </TabsContent>
 
-          {/* Вкладка "Программа лояльности" */}
-          <TabsContent value="loyalty" className="space-y-4">
-            <LoyaltyProgram />
+          <TabsContent value="loyalty"><LoyaltyProgram /></TabsContent>
+
+          <TabsContent value="promotions">
+            <PromotionsTab
+              paginatedPromotions={paginatedPromotions}
+              promotionFilter={promotionFilter}
+              promotionSort={promotionSort}
+              promotionPage={promotionPage}
+              totalPromotionPages={totalPromotionPages}
+              setPromotionFilter={setPromotionFilter}
+              setPromotionSort={setPromotionSort}
+              setPromotionPage={setPromotionPage}
+              setCreatePromotionDialogOpen={setCreatePromotionDialogOpen}
+              handleEditPromotionOpen={handleEditPromotionOpen}
+              handleDeletePromotionOpen={handleDeletePromotionOpen}
+              isDeletingPromotion={isDeletingPromotion}
+            />
           </TabsContent>
 
-          {/* Вкладка "Акции" */}
-          <TabsContent value="promotions" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Создать акцию</CardTitle>
-                  <CardDescription>Добавьте новую акцию в систему</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="space-y-4" onSubmit={handleCreatePromotion}>
-                    <div className="space-y-2">
-                      <Label htmlFor="promo-name">Название акции</Label>
-                      <Input
-                        id="promo-name"
-                        placeholder="Введите название"
-                        value={promotionForm.name}
-                        onChange={(e) => handlePromotionChange("name", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="discount">Скидка (%)</Label>
-                      <Input
-                        id="discount"
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="Введите скидку"
-                        value={promotionForm.discount}
-                        onChange={(e) => handlePromotionChange("discount", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="start-date">Дата начала</Label>
-                        <Input
-                          id="start-date"
-                          type="date"
-                          value={promotionForm.startDate}
-                          onChange={(e) => handlePromotionChange("startDate", e.target.value)}
-                          className="shadow-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="end-date">Дата окончания</Label>
-                        <Input
-                          id="end-date"
-                          type="date"
-                          value={promotionForm.endDate}
-                          onChange={(e) => handlePromotionChange("endDate", e.target.value)}
-                          className="shadow-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="promo-description">Описание</Label>
-                      <Input
-                        id="promo-description"
-                        placeholder="Описание акции"
-                        value={promotionForm.description}
-                        onChange={(e) => handlePromotionChange("description", e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </div>
-                    <Button className="w-full" type="submit">
-                      Создать акцию
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+          <TabsContent value="zones">
+            <ZonesTab
+              computers={computers}
+              setComputers={setComputers}
+              handleEditComputerOpen={handleEditComputerOpen}
+            />
+          </TabsContent>
 
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Ночной тариф</CardTitle>
-                  <CardDescription>Скидка 30% с 22:00 до 8:00</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Скидка:</span>
-                      <span>30%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Период:</span>
-                      <span>22:00 - 8:00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Статус:</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-800">
-                        Активна
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm">
-                    Редактировать
-                  </Button>
-                  <Button variant="destructive" size="sm">
-                    Удалить
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Счастливые часы</CardTitle>
-                  <CardDescription>Скидка 20% с 14:00 до 17:00</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Скидка:</span>
-                      <span>20%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Период:</span>
-                      <span>14:00 - 17:00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Статус:</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-800">
-                        Активна
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm">
-                    Редактировать
-                  </Button>
-                  <Button variant="destructive" size="sm">
-                    Удалить
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
+          <TabsContent value="sessions">
+            <SessionsTab
+              sessions={sessions}
+              isEndingSession={isEndingSession}
+              setEndSessionId={setEndSessionId}
+              setEndSessionDialogOpen={setEndSessionDialogOpen}
+            />
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialogs
+        tariffForm={tariffForm}
+        promotionForm={promotionForm}
+        saleForm={saleForm}
+        tariffs={tariffs}
+        promotions={promotions}
+        customers={customers}
+        computers={computers}
+        setComputers={setComputers}
+        sessions={sessions}
+        isCreatingTariff={isCreatingTariff}
+        isCreatingPromotion={isCreatingPromotion}
+        createTariffDialogOpen={createTariffDialogOpen}
+        createPromotionDialogOpen={createPromotionDialogOpen}
+        editTariffDialogOpen={editTariffDialogOpen}
+        editPromotionDialogOpen={editPromotionDialogOpen}
+        editComputerDialogOpen={editComputerDialogOpen}
+        deleteTariffDialogOpen={deleteTariffDialogOpen}
+        deletePromotionDialogOpen={deletePromotionDialogOpen}
+        deleteComputerDialogOpen={deleteComputerDialogOpen}
+        saleDialogOpen={saleDialogOpen}
+        endSessionDialogOpen={endSessionDialogOpen}
+        editTariff={editTariff}
+        editPromotion={editPromotion}
+        editComputer={editComputer}
+        deleteTariffId={deleteTariffId}
+        deletePromotionId={deletePromotionId}
+        deleteComputerId={deleteComputerId}
+        endSessionId={endSessionId}
+        isDeletingTariff={isDeletingTariff}
+        isDeletingPromotion={isDeletingPromotion}
+        isDeletingComputer={isDeletingComputer}
+        isSelling={isSelling}
+        isEndingSession={isEndingSession}
+        handleTariffChange={handleTariffChange}
+        handlePromotionChange={handlePromotionChange}
+        handleSaleChange={handleSaleChange}
+        handleCreateTariff={handleCreateTariff}
+        handleEditTariff={handleEditTariff}
+        handleDeleteTariff={handleDeleteTariff}
+        handleCreatePromotion={handleCreatePromotion}
+        handleEditPromotion={handleEditPromotion}
+        handleDeletePromotion={handleDeletePromotion}
+        handleEditComputer={handleEditComputer}
+        handleDeleteComputer={handleDeleteComputer}
+        handleSellTariff={handleSellTariff}
+        handleEndSession={handleEndSession}
+        setCreateTariffDialogOpen={setCreateTariffDialogOpen}
+        setCreatePromotionDialogOpen={setCreatePromotionDialogOpen}
+        setEditTariffDialogOpen={setEditTariffDialogOpen}
+        setEditPromotionDialogOpen={setEditPromotionDialogOpen}
+        setEditComputerDialogOpen={setEditComputerDialogOpen}
+        setDeleteTariffDialogOpen={setDeleteTariffDialogOpen}
+        setDeletePromotionDialogOpen={setDeletePromotionDialogOpen}
+        setDeleteComputerDialogOpen={setDeleteComputerDialogOpen}
+        setSaleDialogOpen={setSaleDialogOpen}
+        setEndSessionDialogOpen={setEndSessionDialogOpen}
+        setEditComputer={setEditComputer}
+      />
     </div>
-  )
+  );
 }
 
+function LoadingState() {
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <MainNav />
+      <main className="flex-1 flex items-center justify-center p-4 md:p-8 pt-6">
+        <div className="flex items-center space-x-2">
+          <span className="animate-spin">⏳</span>
+          <span>Загрузка данных...</span>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ErrorState({ error, retry }: { error: string; retry: () => void }) {
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <MainNav />
+      <main className="flex-1 flex items-center justify-center p-4 md:p-8 pt-6">
+        <div className="text-center">
+          <p className="text-red-500">{error}</p>
+          <button onClick={retry} className="mt-4 underline text-blue-600">Повторить попытку</button>
+        </div>
+      </main>
+    </div>
+  );
+}

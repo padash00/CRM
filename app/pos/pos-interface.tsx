@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
 
 interface CartItem {
@@ -55,7 +56,7 @@ interface Customer {
 
 export function POSInterface() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerId, setCustomerId] = useState<string>("");
+  const [customerId, setCustomerId] = useState<string>("none"); // Начальное значение "none"
   const [guestName, setGuestName] = useState<string>(""); // Для покупок без аккаунта
   const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
@@ -83,7 +84,7 @@ export function POSInterface() {
 
       const { data: servicesData, error: servicesError } = await supabase
         .from("services")
-        .select("id, name, price, quantity, type"); // Убираем sale_price
+        .select("id, name, price, quantity, type");
 
       if (servicesError) {
         toast({
@@ -190,7 +191,7 @@ export function POSInterface() {
 
   const clearCart = useCallback(() => {
     setCart([]);
-    setCustomerId("");
+    setCustomerId("none");
     setGuestName("");
     toast({
       title: "Корзина очищена",
@@ -242,24 +243,27 @@ export function POSInterface() {
     }
 
     // Создаём транзакцию
+    const transactionDataToInsert = {
+      customer_id: customerId === "none" ? null : customerId,
+      amount: total,
+      transaction_date: new Date().toISOString().replace("Z", ""), // Убираем Z
+      payment_type: paymentMethod,
+      guest_name: customerId === "none" ? (guestName || "Гость") : null,
+    };
+
+    console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
+
     const { data: transactionData, error: transactionError } = await supabase
       .from("transactions")
-      .insert([
-        {
-          customer_id: customerId || null, // Если клиент не выбран, ставим null
-          amount: total,
-          transaction_date: new Date().toISOString(),
-          payment_type: paymentMethod,
-          guest_name: customerId ? null : guestName || "Гость", // Если нет customer_id, сохраняем имя гостя
-        },
-      ])
+      .insert([transactionDataToInsert])
       .select()
       .single();
 
     if (transactionError) {
+      console.error("Ошибка Supabase:", transactionError); // Для отладки
       toast({
         title: "Ошибка создания транзакции",
-        description: transactionError.message,
+        description: transactionError.message || "Не удалось создать транзакцию",
         variant: "destructive",
       });
       return;
@@ -328,7 +332,7 @@ export function POSInterface() {
 
     setPaymentDialogOpen(false);
     setCart([]);
-    setCustomerId("");
+    setCustomerId("none");
     setGuestName("");
     setCashReceived("");
     setPaymentMethod("cash");
@@ -400,13 +404,13 @@ export function POSInterface() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Клиент</label>
+            <Label className="text-sm font-medium">Клиент</Label>
             <Select onValueChange={setCustomerId} value={customerId}>
               <SelectTrigger className="shadow-sm">
                 <SelectValue placeholder="Выберите клиента (или оставьте пустым)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без клиента</SelectItem>
+                <SelectItem value="none">Без клиента</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}
@@ -415,7 +419,7 @@ export function POSInterface() {
               </SelectContent>
             </Select>
           </div>
-          {!customerId && (
+          {customerId === "none" && (
             <div className="space-y-2">
               <Label htmlFor="guestName">Имя гостя (если без аккаунта)</Label>
               <Input
@@ -502,7 +506,7 @@ export function POSInterface() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right font-medium">Способ оплаты</label>
+              <Label className="text-right font-medium">Способ оплаты</Label>
               <div className="col-span-3">
                 <Tabs
                   value={paymentMethod}
@@ -518,7 +522,7 @@ export function POSInterface() {
             </div>
             {paymentMethod === "cash" && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Получено</label>
+                <Label className="text-right font-medium">Получено</Label>
                 <Input
                   type="number"
                   value={cashReceived}
@@ -531,7 +535,7 @@ export function POSInterface() {
             )}
             {paymentMethod === "cash" && cashReceived && Number.parseInt(cashReceived) >= calculateTotal() && (
               <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right font-medium">Сдача</label>
+                <Label className="text-right font-medium">Сдача</Label>
                 <div className="col-span-3 font-medium text-green-600">
                   ₸{Number.parseInt(cashReceived) - calculateTotal()}
                 </div>

@@ -1,15 +1,16 @@
-"use client"
+// app/staff/shift-schedule.tsx
+"use client";
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Calendar } from "@/components/ui/calendar"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+} from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -17,153 +18,186 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { toast } from "@/components/ui/use-toast"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
-// Типизация сотрудника
-interface Staff {
-  name: string
-  initials: string
-  position: string
+// Типизация оператора
+interface Operator {
+  id: string;
+  name: string;
+  position: string;
+  phone: string;
+  email: string;
+  status: "active" | "inactive";
+  working_hours: string;
+  role: "maindev" | "operator";
 }
 
 // Типизация смены
 interface Shift {
-  time: string
-  staff: Staff[]
+  id: string;
+  date: string;
+  time: string;
+  operators: Operator[];
 }
 
-// Типизация данных о сменах
-interface ShiftsByDate {
-  [date: string]: Shift[]
+interface ShiftScheduleProps {
+  operators: Operator[];
+  currentOperator: Operator | null;
 }
 
-export function ShiftSchedule() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [addShiftDialogOpen, setAddShiftDialogOpen] = useState<boolean>(false)
-  const [shiftTime, setShiftTime] = useState<string>("10:00 - 22:00")
-  const [selectedStaff, setSelectedStaff] = useState<string[]>([])
-  const [shiftsByDate, setShiftsByDate] = useState<ShiftsByDate>({
-    "2025-03-30": [
-      {
-        time: "10:00 - 22:00",
-        staff: [
-          { name: "Иван Смирнов", initials: "ИС", position: "Администратор" },
-          { name: "Мария Петрова", initials: "МП", position: "Оператор" },
-          { name: "Анна Козлова", initials: "АК", position: "Бармен" },
-        ],
-      },
-    ],
-    "2025-03-31": [
-      {
-        time: "10:00 - 22:00",
-        staff: [
-          { name: "Екатерина Соколова", initials: "ЕС", position: "Администратор" },
-          { name: "Дмитрий Волков", initials: "ДВ", position: "Оператор" },
-          { name: "Анна Козлова", initials: "АК", position: "Бармен" },
-        ],
-      },
-    ],
-    "2025-04-01": [
-      {
-        time: "10:00 - 22:00",
-        staff: [
-          { name: "Иван Смирнов", initials: "ИС", position: "Администратор" },
-          { name: "Мария Петрова", initials: "МП", position: "Оператор" },
-          { name: "Алексей Новиков", initials: "АН", position: "Техник" },
-        ],
-      },
-    ],
-    "2025-04-02": [
-      {
-        time: "10:00 - 22:00",
-        staff: [
-          { name: "Екатерина Соколова", initials: "ЕС", position: "Администратор" },
-          { name: "Дмитрий Волков", initials: "ДВ", position: "Оператор" },
-          { name: "Анна Козлова", initials: "АК", position: "Бармен" },
-        ],
-      },
-    ],
-  })
-
-  // Список всех сотрудников
-  const allStaff: Staff[] = [
-    { name: "Иван Смирнов", initials: "ИС", position: "Администратор" },
-    { name: "Мария Петрова", initials: "МП", position: "Оператор" },
-    { name: "Анна Козлова", initials: "АК", position: "Бармен" },
-    { name: "Алексей Новиков", initials: "АН", position: "Техник" },
-    { name: "Екатерина Соколова", initials: "ЕС", position: "Администратор" },
-    { name: "Дмитрий Волков", initials: "ДВ", position: "Оператор" },
-  ]
+export function ShiftSchedule({ operators, currentOperator }: ShiftScheduleProps) {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [addShiftDialogOpen, setAddShiftDialogOpen] = useState<boolean>(false);
+  const [shiftTime, setShiftTime] = useState<string>("10:00 - 22:00");
+  const [selectedOperatorIds, setSelectedOperatorIds] = useState<string[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
 
   // Форматирование даты в строку
   const formatDate = useCallback((date: Date): string => {
-    return date.toISOString().split("T")[0]
-  }, [])
+    return date.toISOString().split("T")[0];
+  }, []);
+
+  // Загружаем смены из базы
+  useEffect(() => {
+    const fetchShifts = async () => {
+      const { data: shiftsData, error: shiftsError } = await supabase
+        .from("shifts")
+        .select("id, date, time, shift_operators!inner(operator_id, operators!inner(*))");
+
+      if (shiftsError) {
+        toast({
+          title: "Ошибка загрузки смен",
+          description: shiftsError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedShifts = shiftsData.map((shift: any) => ({
+        id: shift.id,
+        date: shift.date,
+        time: shift.time,
+        operators: shift.shift_operators.map((so: any) => so.operators),
+      }));
+
+      setShifts(formattedShifts);
+    };
+
+    fetchShifts();
+  }, []);
 
   // Получение смен для выбранной даты
   const selectedDateShifts = useCallback(() => {
-    return date ? shiftsByDate[formatDate(date)] || [] : []
-  }, [date, shiftsByDate, formatDate])
+    if (!date) return [];
+    const dateStr = formatDate(date);
+    return shifts.filter((shift) => shift.date === dateStr);
+  }, [date, shifts, formatDate]);
 
   // Обработчик добавления смены
   const handleAddShift = useCallback(() => {
+    if (!currentOperator || currentOperator.role !== "maindev") {
+      toast({
+        title: "Ошибка доступа",
+        description: "Только maindev может добавлять смены",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!date) {
       toast({
         title: "Ошибка",
         description: "Выберите дату для добавления смены",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
-    setSelectedStaff([])
-    setShiftTime("10:00 - 22:00")
-    setAddShiftDialogOpen(true)
-  }, [date])
+    setSelectedOperatorIds([]);
+    setShiftTime("10:00 - 22:00");
+    setAddShiftDialogOpen(true);
+  }, [date, currentOperator]);
 
-  // Обработчик выбора сотрудников
-  const handleStaffSelection = useCallback((staffName: string) => {
-    setSelectedStaff((prev) =>
-      prev.includes(staffName)
-        ? prev.filter((name) => name !== staffName)
-        : [...prev, staffName]
-    )
-  }, [])
+  // Обработчик выбора операторов
+  const handleOperatorSelection = useCallback((operatorId: string) => {
+    setSelectedOperatorIds((prev) =>
+      prev.includes(operatorId)
+        ? prev.filter((id) => id !== operatorId)
+        : [...prev, operatorId]
+    );
+  }, []);
 
   // Сохранение смены
-  const saveShift = useCallback(() => {
-    if (selectedStaff.length === 0) {
+  const saveShift = useCallback(async () => {
+    if (!date) return;
+
+    if (selectedOperatorIds.length === 0) {
       toast({
         title: "Ошибка",
-        description: "Выберите хотя бы одного сотрудника для смены",
+        description: "Выберите хотя бы одного оператора для смены",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    const dateKey = formatDate(date!)
-    const staffForShift = allStaff.filter((staff) => selectedStaff.includes(staff.name))
+    const dateStr = formatDate(date);
 
-    const newShift: Shift = {
-      time: shiftTime,
-      staff: staffForShift,
+    // Создаём новую смену
+    const { data: newShift, error: shiftError } = await supabase
+      .from("shifts")
+      .insert([{ date: dateStr, time: shiftTime }])
+      .select()
+      .single();
+
+    if (shiftError) {
+      toast({
+        title: "Ошибка добавления смены",
+        description: shiftError.message,
+        variant: "destructive",
+      });
+      return;
     }
 
-    setShiftsByDate((prev) => ({
-      ...prev,
-      [dateKey]: [...(prev[dateKey] || []), newShift],
-    }))
+    // Связываем смену с операторами
+    const shiftOperatorEntries = selectedOperatorIds.map((operatorId) => ({
+      shift_id: newShift.id,
+      operator_id: operatorId,
+    }));
+
+    const { error: linkError } = await supabase
+      .from("shift_operators")
+      .insert(shiftOperatorEntries);
+
+    if (linkError) {
+      toast({
+        title: "Ошибка связывания операторов",
+        description: linkError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Обновляем состояние смен
+    const newShiftWithOperators: Shift = {
+      id: newShift.id,
+      date: newShift.date,
+      time: newShift.time,
+      operators: operators.filter((op) => selectedOperatorIds.includes(op.id)),
+    };
+
+    setShifts((prev) => [...prev, newShiftWithOperators]);
 
     toast({
       title: "Смена добавлена",
-      description: `Смена на ${date?.toLocaleDateString("ru-RU")} успешно добавлена`,
-    })
+      description: `Смена на ${date.toLocaleDateString("ru-RU")} успешно добавлена`,
+    });
 
-    setAddShiftDialogOpen(false)
-  }, [date, shiftTime, selectedStaff, allStaff, formatDate])
+    setAddShiftDialogOpen(false);
+  }, [date, shiftTime, selectedOperatorIds, operators, formatDate]);
 
   return (
     <div className="flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
@@ -181,8 +215,8 @@ export function ShiftSchedule() {
               className="rounded-md border shadow-sm"
               components={{
                 DayContent: (props) => {
-                  const dateStr = formatDate(props.date)
-                  const hasShifts = shiftsByDate[dateStr]?.length > 0
+                  const dateStr = formatDate(props.date);
+                  const hasShifts = shifts.some((shift) => shift.date === dateStr);
                   return (
                     <div className="relative flex items-center justify-center">
                       <div>{props.date.getDate()}</div>
@@ -190,7 +224,7 @@ export function ShiftSchedule() {
                         <div className="absolute bottom-0 h-1 w-1 rounded-full bg-primary" />
                       )}
                     </div>
-                  )
+                  );
                 },
               }}
             />
@@ -212,22 +246,29 @@ export function ShiftSchedule() {
           <CardContent>
             {selectedDateShifts().length > 0 ? (
               <div className="space-y-4">
-                {selectedDateShifts().map((shift, index) => (
+                {selectedDateShifts().map((shift) => (
                   <div
-                    key={index}
+                    key={shift.id}
                     className="rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow"
                   >
                     <div className="mb-2 font-medium">{shift.time}</div>
                     <div className="space-y-3">
-                      {shift.staff.map((employee) => (
-                        <div key={employee.name} className="flex items-center gap-2">
+                      {shift.operators.map((operator) => (
+                        <div key={operator.id} className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarFallback>{employee.initials}</AvatarFallback>
+                            <AvatarFallback>
+                              {operator.name
+                                .split(" ")
+                                .map((word) => word.charAt(0))
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">{employee.name}</div>
+                            <div className="font-medium">{operator.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {employee.position}
+                              {operator.position}
                             </div>
                           </div>
                         </div>
@@ -269,23 +310,30 @@ export function ShiftSchedule() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Выберите сотрудников</Label>
+              <Label>Выберите операторов</Label>
               <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 shadow-sm">
-                {allStaff.map((staff) => (
-                  <div key={staff.name} className="flex items-center space-x-2 py-1">
+                {operators.map((operator) => (
+                  <div key={operator.id} className="flex items-center space-x-2 py-1">
                     <Checkbox
-                      id={`staff-${staff.name}`}
-                      checked={selectedStaff.includes(staff.name)}
-                      onCheckedChange={() => handleStaffSelection(staff.name)}
+                      id={`operator-${operator.id}`}
+                      checked={selectedOperatorIds.includes(operator.id)}
+                      onCheckedChange={() => handleOperatorSelection(operator.id)}
                     />
                     <label
-                      htmlFor={`staff-${staff.name}`}
+                      htmlFor={`operator-${operator.id}`}
                       className="text-sm font-medium flex items-center w-full cursor-pointer"
                     >
                       <Avatar className="h-6 w-6 mr-2">
-                        <AvatarFallback className="text-xs">{staff.initials}</AvatarFallback>
+                        <AvatarFallback className="text-xs">
+                          {operator.name
+                            .split(" ")
+                            .map((word) => word.charAt(0))
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
-                      <span>{staff.name} ({staff.position})</span>
+                      <span>{operator.name} ({operator.position})</span>
                     </label>
                   </div>
                 ))}
@@ -301,6 +349,5 @@ export function ShiftSchedule() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-
