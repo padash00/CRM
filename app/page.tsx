@@ -19,7 +19,7 @@ import { EditTournamentDialog } from "./tournaments/edit-tournament-dialog"; // 
 import { EditTeamDialog } from "./tournaments/edit-team-dialog"; // Исправлен путь
 import { DeleteConfirmationDialog } from "./tournaments/delete-confirmation-dialog"; // Исправлен путь
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // ПРОВЕРЬ ЭТОТ ПУТЬ!
-import { ClubMap } from "@/components/dashboard/club-map"; // ПРОВЕРЬ ЭТОТ ПУТЬ!
+import { ClubMap } from "@/components/club-map"; // 
 
 import { supabase } from "@/lib/supabaseClient"; // Проверь путь
 import { toast } from "sonner";
