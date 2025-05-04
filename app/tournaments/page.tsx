@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
@@ -57,11 +56,17 @@ export default function TournamentsPage() {
     const start = (page - 1) * tournamentsPerPage
     const end = start + tournamentsPerPage - 1
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("tournaments")
       .select("*", { count: "exact" })
       .order("start_date", { ascending: true })
       .range(start, end)
+
+    if (searchQuery.trim()) {
+      query = query.ilike("name", `%${searchQuery.trim()}%`)
+    }
+
+    const { data, error, count } = await query
 
     if (error) {
       console.error("Ошибка загрузки турниров:", error.message)
@@ -74,7 +79,7 @@ export default function TournamentsPage() {
 
   useEffect(() => {
     fetchTournaments(currentPage)
-  }, [currentPage])
+  }, [currentPage, searchQuery])
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
