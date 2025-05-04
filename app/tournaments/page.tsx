@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
@@ -15,7 +16,7 @@ import { MainNav } from "@/components/main-nav"
 import { TournamentList } from "./tournament-list"
 import { TournamentCalendar } from "./tournament-calendar"
 import { CreateTournamentDialog } from "./create-tournament-dialog"
-// import { CreateTeamDialog } from "./create-team-dialog.tsx" // Временно закомментировано
+import { CreateTeamDialog } from "./create-team-dialog.tsx"
 
 import { supabase } from "@/lib/supabaseClient"
 import { toast } from "sonner"
@@ -47,7 +48,7 @@ export default function TournamentsPage() {
   const [activeTab, setActiveTab] = useState<string>("list")
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  // const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false) // Временно закомментировано
+  const [createTeamDialogOpen, setCreateTeamDialogOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const tournamentsPerPage = 20
@@ -132,10 +133,9 @@ export default function TournamentsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
           <div className="flex gap-2">
-            {/* Временно закомментировано для деплоя */}
-            {/* <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
+            <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}>
               <Users className="mr-2 h-4 w-4" /> Создать команду
-            </Button> */}
+            </Button>
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Новый турнир
             </Button>
@@ -214,14 +214,13 @@ export default function TournamentsPage() {
       <CreateTournamentDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onTournamentCreated={fetchTournaments}
+        onTournamentCreated={() => fetchTournaments(currentPage)}
       />
 
-      {/* Временно закомментировано для деплоя */}
-      {/* <CreateTeamDialog
+      <CreateTeamDialog
         open={createTeamDialogOpen}
         onOpenChange={setCreateTeamDialogOpen}
-      /> */}
+      />
     </div>
   )
 }
