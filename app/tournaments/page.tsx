@@ -22,8 +22,7 @@ import { CreateTeamDialog } from "./create-team-dialog" // Проверь пут
 import { TeamList } from "./team-list" // Убедись, что путь './team-list' верный
 import { EditTournamentDialog } from "./edit-tournament-dialog" // Убедись, что путь './edit-tournament-dialog' верный
 import { EditTeamDialog } from "./edit-team-dialog" // Убедись, что путь './edit-team-dialog' верный
-import { DeleteConfirmationDialog } from "@/components/shared/delete-confirmation-dialog" // Пример пути, исправь при необходимости
-// --- Конец раскомментированных импортов ---
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"; // Правильный путь 
 
 
 import { supabase } from "@/lib/supabaseClient" // Проверь путь
