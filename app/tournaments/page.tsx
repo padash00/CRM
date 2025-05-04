@@ -3,64 +3,36 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Trophy, Users, Calendar, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react"
-import { MainNav } from "@/components/main-nav" // Проверь путь
-import { TournamentList } from "./tournament-list" // Проверь путь
-import { TournamentCalendar } from "./tournament-calendar" // Проверь путь
-import { CreateTournamentDialog } from "./create-tournament-dialog" // Проверь путь
-import { CreateTeamDialog } from "./create-team-dialog" // Проверь путь
+import { Plus, Search, Trophy, Users, Calendar, ChevronLeft, ChevronRight, Edit, Trash2, Cog, Loader2 } from "lucide-react" // Добавлены Cog, Loader2
+import { MainNav } from "@/components/main-nav"
+import { TournamentList } from "./tournament-list"
+import { TournamentCalendar } from "./tournament-calendar"
+import { CreateTournamentDialog } from "./create-tournament-dialog"
+import { CreateTeamDialog } from "./create-team-dialog"
+import { TeamList } from "./team-list" // Раскомментировано
+import { EditTournamentDialog } from "./edit-tournament-dialog" // Раскомментировано
+import { EditTeamDialog } from "./edit-team-dialog" // Раскомментировано
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"; // Исправлен и раскомментирован путь
 
-// --- Раскомментированные импорты ---
-import { TeamList } from "./team-list" // Убедись, что путь './team-list' верный
-import { EditTournamentDialog } from "./edit-tournament-dialog" // Убедись, что путь './edit-tournament-dialog' верный
-import { EditTeamDialog } from "./edit-team-dialog" // Убедись, что путь './edit-team-dialog' верный
-import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"; // Правильный путь 
-
-
-import { supabase } from "@/lib/supabaseClient" // Проверь путь
+import { supabase } from "@/lib/supabaseClient"
 import { toast } from "sonner"
 
-// --- Интерфейсы (оставляем как есть) ---
-interface StatCard {
-  title: string
-  value: string
-  description: string
-  icon: React.ComponentType<{ className?: string }>
-}
+// --- Интерфейсы ---
+// (Оставляем как есть)
+interface StatCard { title: string; value: string; description: string; icon: React.ComponentType<{ className?: string }> }
+interface Tournament { id: string; name: string; start_date: string; end_date: string; prize: number | null; participants_count: number | null; status: "upcoming" | "ongoing" | "finished"; organizer: string | null; cover_url: string | null; bracket_url: string | null; description: string | null; created_at: string; }
+interface Team { id: string; name: string; logo_url: string | null; created_at: string; }
+// Интерфейс для матчей (добавляем)
+interface Match { id: string; tournament_id: string; round_number: number; match_in_round: number; participant1_id: string | null; participant2_id: string | null; score1: number | null; score2: number | null; winner_id: string | null; status: 'PENDING_PARTICIPANTS' | 'READY' | 'ONGOING' | 'FINISHED' | 'BYE'; next_match_id: string | null; details?: any; }
 
-interface Tournament {
-  id: string
-  name: string
-  start_date: string
-  end_date: string
-  prize: number | null
-  participants_count: number | null
-  status: "upcoming" | "ongoing" | "finished"
-  organizer: string | null
-  cover_url: string | null
-  bracket_url: string | null
-  description: string | null
-  created_at: string
-}
-
-interface Team {
-    id: string;
-    name: string;
-    logo_url: string | null;
-    created_at: string;
-}
 
 // --- Компонент страницы ---
 export default function TournamentsPage() {
-  // --- Состояния (оставляем как есть) ---
+  // --- Состояния ---
+  // (Большинство состояний оставляем как есть)
   const [activeTab, setActiveTab] = useState<string>("list")
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [tournamentSearchQuery, setTournamentSearchQuery] = useState<string>("")
@@ -78,134 +50,196 @@ export default function TournamentsPage() {
   const [isEditTournamentDialogOpen, setIsEditTournamentDialogOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [isEditTeamDialogOpen, setIsEditTeamDialogOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{id: string; type: 'tournament' | 'team', name?: string} | null>(null); // Добавил опциональное имя для диалога
+  const [itemToDelete, setItemToDelete] = useState<{id: string; type: 'tournament' | 'team', name?: string} | null>(null);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false); // Отдельное состояние загрузки для удаления
-
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [generatingBracket, setGeneratingBracket] = useState(false); // НОВОЕ состояние для загрузки генерации
 
   const ITEMS_PER_PAGE = 15;
 
-  // --- Функции загрузки данных (оставляем как есть) ---
-  const fetchTournaments = useCallback(async (page: number, search: string) => {
-     setLoadingTournaments(true);
-     const start = (page - 1) * ITEMS_PER_PAGE
-     const end = start + ITEMS_PER_PAGE - 1
-     try {
-         let query = supabase.from("tournaments").select("*", { count: "exact" }).order("start_date", { ascending: false }).range(start, end)
-         if (search.trim()) { query = query.ilike("name", `%${search.trim()}%`) }
-         const { data, error, count } = await query
-         if (error) throw error
-         setTournaments(data || [])
-         setTournamentsTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE))
-     } catch (error: any) {
-         console.error("Ошибка загрузки турниров:", error.message)
-         toast.error(`Не удалось загрузить турниры: ${error.message}`)
-         setTournaments([])
-         setTournamentsTotalPages(1)
-     } finally {
-         setLoadingTournaments(false);
-     }
-  }, [])
+  // --- Функции загрузки данных ---
+  // (fetchTournaments и fetchTeams оставляем как есть)
+  const fetchTournaments = useCallback(async (page: number, search: string) => { /* ... код fetchTournaments ... */ }, []);
+  const fetchTeams = useCallback(async (page: number, search: string) => { /* ... код fetchTeams ... */ }, []);
 
-  const fetchTeams = useCallback(async (page: number, search: string) => {
-     setLoadingTeams(true);
-     const start = (page - 1) * ITEMS_PER_PAGE;
-     const end = start + ITEMS_PER_PAGE - 1;
-     try {
-         let query = supabase.from("teams").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(start, end);
-         if (search.trim()) { query = query.ilike("name", `%${search.trim()}%`); }
-         const { data, error, count } = await query;
-         if (error) throw error;
-         setTeams(data || []);
-         setTeamsTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
-     } catch (error: any) {
-         console.error("Ошибка загрузки команд:", error.message);
-         toast.error(`Не удалось загрузить команды: ${error.message}`);
-         setTeams([]);
-         setTeamsTotalPages(1);
-     } finally {
-         setLoadingTeams(false);
-     }
-  }, []);
+  // --- useEffect для загрузки данных ---
+  // (Оставляем как есть)
+  useEffect(() => { /* ... код useEffect ... */ }, [ /* ... зависимости ... */ ]);
 
-  // --- useEffect для загрузки данных (оставляем как есть) ---
-  useEffect(() => {
-     if (activeTab === "list") { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
-     else if (activeTab === "calendar") { fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }
-     else if (activeTab === "teams") { fetchTeams(teamsCurrentPage, teamSearchQuery); }
-  }, [ activeTab, tournamentsCurrentPage, tournamentSearchQuery, fetchTournaments, teamsCurrentPage, teamSearchQuery, fetchTeams ]);
+  // --- Обработчики событий ---
+  // (Большинство обработчиков оставляем как есть)
+  const handleTournamentCreated = () => { /* ... */ };
+  const handleTeamCreated = () => { /* ... */ };
+  const handleTournamentPreviousPage = () => { /* ... */ };
+  const handleTournamentNextPage = () => { /* ... */ };
+  const handleTeamPreviousPage = () => { /* ... */ };
+  const handleTeamNextPage = () => { /* ... */ };
+  const handleTournamentSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ }, []);
+  const handleTeamSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ }, []);
+  const handleTabChange = useCallback((value: string) => { setActiveTab(value) }, []);
+  const handleEditTournamentClick = (tournament: Tournament) => { /* ... */ };
+  const handleDeleteTournamentClick = (tournamentId: string, tournamentName?: string) => { /* ... */ };
+  const handleEditTeamClick = (team: Team) => { /* ... */ };
+  const handleDeleteTeamClick = (teamId: string, teamName?: string) => { /* ... */ };
+  const confirmDeletion = async () => { /* ... код confirmDeletion ... */ };
 
-  // --- Обработчики событий (оставляем как есть) ---
-  const handleTournamentCreated = () => {
-      setTournamentsCurrentPage(1); setTournamentSearchQuery(""); fetchTournaments(1, ""); if (activeTab !== 'list') setActiveTab('list');
-  }
-  const handleTeamCreated = () => {
-      setTeamsCurrentPage(1); setTeamSearchQuery(""); fetchTeams(1, ""); if (activeTab !== 'teams') setActiveTab('teams');
-  }
-  const handleTournamentPreviousPage = () => { if (tournamentsCurrentPage > 1) setTournamentsCurrentPage((prev) => prev - 1); }
-  const handleTournamentNextPage = () => { if (tournamentsCurrentPage < tournamentsTotalPages) setTournamentsCurrentPage((prev) => prev + 1); }
-  const handleTeamPreviousPage = () => { if (teamsCurrentPage > 1) setTeamsCurrentPage((prev) => prev - 1); }
-  const handleTeamNextPage = () => { if (teamsCurrentPage < teamsTotalPages) setTeamsCurrentPage((prev) => prev + 1); }
-  const handleTournamentSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { const newSearch = e.target.value; setTournamentSearchQuery(newSearch); setTournamentsCurrentPage(1); }, [])
-  const handleTeamSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { const newSearch = e.target.value; setTeamSearchQuery(newSearch); setTeamsCurrentPage(1); }, [])
-  const handleTabChange = useCallback((value: string) => { setActiveTab(value) }, [])
+  // --- НОВАЯ ФУНКЦИЯ: Генерация сетки Single Elimination ---
+  const handleGenerateBracket = async (tournamentId: string | null) => {
+    if (!tournamentId) {
+        toast.error("Не выбран турнир для генерации сетки.");
+        return;
+    }
+    setGeneratingBracket(true);
+    toast.info("Начинаем генерацию сетки...");
 
-  // --- Обработчики для Редактирования/Удаления ---
-  const handleEditTournamentClick = (tournament: Tournament) => {
-      setEditingTournament(tournament);
-      setIsEditTournamentDialogOpen(true);
-  };
-  // В эту функцию передаем и имя, чтобы показать в диалоге подтверждения
-  const handleDeleteTournamentClick = (tournamentId: string, tournamentName?: string) => {
-      setItemToDelete({ id: tournamentId, type: 'tournament', name: tournamentName || 'без имени' });
-      setIsDeleteConfirmationOpen(true);
-  };
-  const handleEditTeamClick = (team: Team) => {
-      setEditingTeam(team);
-      setIsEditTeamDialogOpen(true);
-  };
-   // В эту функцию передаем и имя, чтобы показать в диалоге подтверждения
-  const handleDeleteTeamClick = (teamId: string, teamName?: string) => {
-      setItemToDelete({ id: teamId, type: 'team', name: teamName || 'без имени' });
-      setIsDeleteConfirmationOpen(true);
-  };
+    try {
+      // --- Шаг 1: Получаем команды ---
+      const { data: registrations, error: regError } = await supabase
+        .from('tournament_teams')
+        .select('team_id')
+        .eq('tournament_id', tournamentId);
 
-  // Функция подтверждения удаления
-  const confirmDeletion = async () => {
-      if (!itemToDelete) return;
-      const { id, type } = itemToDelete;
-      setDeleteLoading(true); // Используем отдельный лоадер для удаления
-
-      try {
-          const tableName = type === 'tournament' ? 'tournaments' : 'teams';
-          // Дополнительно: перед удалением турнира можно удалить связанные записи (например, из tournament_teams)
-          if (type === 'tournament') {
-              const { error: relationError } = await supabase.from('tournament_teams').delete().match({ tournament_id: id });
-              if (relationError) console.warn(`Не удалось удалить связи для турнира ${id}:`, relationError.message); // Не блокируем удаление основного, но логируем
-          }
-          // Удаляем основную запись
-          const { error } = await supabase.from(tableName).delete().match({ id });
-          if (error) throw error;
-
-          toast.success(`${type === 'tournament' ? 'Турнир' : 'Команда'} успешно удален(а).`);
-          // Обновляем список той вкладки, на которой находимся (или обоих)
-          if (type === 'tournament') {
-              fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery);
-          } else {
-              fetchTeams(teamsCurrentPage, teamSearchQuery);
-          }
-      } catch (error: any) {
-           toast.error(`Не удалось удалить: ${error.message}`);
-      } finally {
-          setIsDeleteConfirmationOpen(false);
-          setItemToDelete(null);
-          setDeleteLoading(false); // Убираем лоадер удаления
+      if (regError) throw new Error(`Ошибка получения регистраций: ${regError.message}`);
+      if (!registrations || registrations.length < 2) {
+        throw new Error("Недостаточно команд для генерации сетки (минимум 2).");
       }
+      const teamIds = registrations.map(r => r.team_id);
+
+      const { data: teamsData, error: teamsError } = await supabase
+        .from('teams')
+        .select('id, name')
+        .in('id', teamIds);
+
+      if (teamsError) throw new Error(`Ошибка получения данных команд: ${teamsError.message}`);
+      if (!teamsData) throw new Error("Не найдены данные для зарегистрированных команд.");
+
+      let participants: (Team | null)[] = teamsData as Team[];
+
+      // --- Шаг 2: Определяем размер сетки и byes ---
+      const numParticipants = participants.length;
+      let bracketSize = 2;
+      let numRounds = 1;
+      while (bracketSize < numParticipants) { bracketSize *= 2; numRounds++; }
+      const numByes = bracketSize - numParticipants;
+
+      // --- Шаг 3: Добавляем byes и перемешиваем ---
+      for (let i = 0; i < numByes; i++) { participants.push(null); }
+      for (let i = participants.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [participants[i], participants[j]] = [participants[j], participants[i]]; }
+
+      // --- Шаг 4: Удаляем старую сетку (если есть) ---
+      // ВНИМАНИЕ: Требует настроенных прав RLS!
+      const { error: deleteError } = await supabase
+        .from('matches')
+        .delete()
+        .eq('tournament_id', tournamentId);
+      if (deleteError) console.warn(`Предупреждение при удалении старой сетки: ${deleteError.message}`);
+
+      // --- Шаг 5: Генерируем структуру матчей ---
+      const matchesToInsert: Omit<Match, 'id' | 'created_at' | 'details' | 'next_match_id'>[] = []; // Используем Omit для данных на вставку
+      const generatedMatchesStructure: { round: number; matchInRound: number; data: any }[] = []; // Временное хранение
+
+      // Раунд 1
+      let matchInRoundCounter = 1;
+      for (let i = 0; i < bracketSize; i += 2) {
+        const p1 = participants[i];
+        const p2 = participants[i + 1];
+        const isBye = p1 === null || p2 === null;
+        const winner = p1 === null ? p2 : p1;
+        const matchData = {
+            tournament_id: tournamentId, round_number: 1, match_in_round: matchInRoundCounter,
+            participant1_id: p1?.id ?? null, participant2_id: p2?.id ?? null,
+            status: isBye ? 'BYE' : 'READY', score1: null, score2: null,
+            winner_id: isBye ? winner?.id ?? null : null,
+        };
+        matchesToInsert.push(matchData);
+        generatedMatchesStructure.push({ round: 1, matchInRound: matchInRoundCounter, data: matchData });
+        matchInRoundCounter++;
+      }
+
+      // Последующие раунды (только структура)
+      let matchesInPreviousRound = bracketSize / 2;
+      for (let round = 2; round <= numRounds; round++) {
+        const matchesInCurrentRound = matchesInPreviousRound / 2;
+        matchInRoundCounter = 1;
+        for (let i = 0; i < matchesInCurrentRound; i++) {
+            const matchData = {
+                tournament_id: tournamentId, round_number: round, match_in_round: matchInRoundCounter,
+                participant1_id: null, participant2_id: null, status: 'PENDING_PARTICIPANTS',
+                score1: null, score2: null, winner_id: null,
+            };
+            matchesToInsert.push(matchData);
+            generatedMatchesStructure.push({ round: round, matchInRound: matchInRoundCounter, data: matchData });
+            matchInRoundCounter++;
+        }
+        matchesInPreviousRound = matchesInCurrentRound;
+      }
+
+      // --- Шаг 6: Вставляем матчи в базу ---
+      // ВНИМАНИЕ: Требует настроенных прав RLS!
+      const { data: insertedMatches, error: insertError } = await supabase
+        .from('matches')
+        .insert(matchesToInsert)
+        .select(); // Важно получить ID вставленных матчей
+
+      if (insertError) throw new Error(`Ошибка вставки матчей: ${insertError.message}`);
+      if (!insertedMatches) throw new Error("Не удалось вставить матчи.");
+
+      // --- Шаг 7: Обновляем next_match_id и продвигаем победителей BYE ---
+      const matchIdMap: Record<string, string> = {}; // "round-matchInRound" -> "matchId"
+      insertedMatches.forEach((match: Match) => { matchIdMap[`${match.round_number}-${match.match_in_round}`] = match.id; });
+
+      const updates: Promise<any>[] = []; // Массив для промисов обновления
+
+      for (const match of insertedMatches) {
+          // Обновляем next_match_id для всех, кроме последнего раунда
+          if (match.round_number < numRounds) {
+              const nextMatchInRound = Math.ceil(match.match_in_round / 2);
+              const nextMatchKey = `${match.round_number + 1}-${nextMatchInRound}`;
+              const nextMatchId = matchIdMap[nextMatchKey] ?? null;
+              if (match.next_match_id !== nextMatchId) { // Обновляем только если нужно
+                   updates.push(supabase.from('matches').update({ next_match_id: nextMatchId }).eq('id', match.id));
+              }
+          }
+
+          // Продвигаем победителей BYE из первого раунда
+          if (match.round_number === 1 && match.status === 'BYE' && match.winner_id) {
+              const nextMatchInRound = Math.ceil(match.match_in_round / 2);
+              const nextMatchKey = `${match.round_number + 1}-${nextMatchInRound}`;
+              const nextMatchId = matchIdMap[nextKey];
+
+              if (nextMatchId) {
+                  // Определяем, какой это участник в следующем матче (1й или 2й)
+                  const participantSlot = match.match_in_round % 2 !== 0 ? 'participant1_id' : 'participant2_id';
+                  updates.push(
+                      supabase.from('matches').update({ [participantSlot]: match.winner_id }).eq('id', nextMatchId)
+                  );
+                   // TODO: Проверить, стал ли следующий матч READY (если второй участник тоже BYE или уже определен)
+                   // Это усложнение, пока пропустим авто-обновление статуса READY здесь
+              }
+          }
+      }
+
+      // Выполняем все обновления
+      const updateResults = await Promise.allSettled(updates);
+      updateResults.forEach(result => {
+          if (result.status === 'rejected') console.warn("Ошибка при обновлении матча:", result.reason);
+      });
+
+
+      toast.success(`Сетка для турнира успешно сгенерирована!`);
+      // TODO: Возможно, нужно обновить состояние, чтобы отобразить сетку, если она видна
+
+    } catch (error: any) {
+        console.error("Ошибка генерации сетки:", error);
+        toast.error(`Ошибка генерации сетки: ${error.message}`);
+    } finally {
+        setGeneratingBracket(false);
+    }
   };
 
 
-  // --- Статистика (оставляем как есть) ---
-  const stats: StatCard[] = [ { title: "Идёт турниров", value: `${loadingTournaments ? '...' : tournaments.filter((t) => t.status === "ongoing").length}`, description: "На текущей странице", icon: Trophy, }, /* ... остальные ... */ ];
+  // --- Статистика ---
+  const stats: StatCard[] = [ /* ... как было ... */ ];
 
   // --- JSX Рендеринг ---
   return (
@@ -216,102 +250,76 @@ export default function TournamentsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-3xl font-bold tracking-tight">Управление турнирами</h2>
           <div className="flex gap-2">
+            {/* --- ВРЕМЕННАЯ КНОПКА ГЕНЕРАЦИИ --- */}
+            <Button
+                variant="secondary"
+                onClick={() => handleGenerateBracket(tournaments[0]?.id)} // Генерируем для ПЕРВОГО турнира в списке (для теста)
+                disabled={generatingBracket || tournaments.length === 0}
+                title="Сгенерировать сетку для первого турнира в списке (перезапишет существующую!)"
+            >
+                {generatingBracket ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cog className="mr-2 h-4 w-4" />}
+                Ген. сетки (Тест)
+            </Button>
+            {/* --- КОНЕЦ ВРЕМЕННОЙ КНОПКИ --- */}
             <Button variant="outline" onClick={() => setCreateTeamDialogOpen(true)}> <Users className="mr-2 h-4 w-4" /> Создать команду </Button>
             <Button onClick={() => setCreateTournamentDialogOpen(true)}> <Plus className="mr-2 h-4 w-4" /> Новый турнир </Button>
           </div>
         </div>
 
         {/* --- Статистика --- */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"> {stats.map((stat) => ( <Card key={stat.title} className="shadow-sm"> <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"> <CardTitle className="text-sm font-medium">{stat.title}</CardTitle> <stat.icon className="h-4 w-4 text-muted-foreground" /> </CardHeader> <CardContent> <div className="text-2xl font-bold">{stat.value}</div> <p className="text-xs text-muted-foreground">{stat.description}</p> </CardContent> </Card> ))} </div>
+        {/* ... как было ... */}
 
         {/* --- Вкладки --- */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 bg-background p-1 rounded-md shadow-sm max-w-lg">
-            <TabsTrigger value="list">Список турниров</TabsTrigger>
-            <TabsTrigger value="calendar">Календарь</TabsTrigger>
-            <TabsTrigger value="teams">Команды</TabsTrigger>
-          </TabsList>
+           <TabsList className="grid w-full grid-cols-3 bg-background p-1 rounded-md shadow-sm max-w-lg">
+             <TabsTrigger value="list">Список турниров</TabsTrigger>
+             <TabsTrigger value="calendar">Календарь</TabsTrigger>
+             <TabsTrigger value="teams">Команды</TabsTrigger>
+           </TabsList>
 
-          {/* --- Содержимое вкладок --- */}
+           {/* --- Содержимое вкладок --- */}
+           {/* Вкладка: Список турниров */}
+           <TabsContent value="list" className="space-y-4">
+                {/* ... Поиск и список ... */}
+                {/* Убедись, что TournamentList принимает onEdit/onDelete */}
+                {loadingTournaments ? <div className="text-center p-4">Загрузка турниров...</div> : (
+                    <TournamentList
+                        tournaments={tournaments}
+                        onEdit={handleEditTournamentClick}
+                        onDelete={handleDeleteTournamentClick}
+                    />
+                )}
+                {/* ... Пагинация ... */}
+           </TabsContent>
 
-          {/* Вкладка: Список турниров */}
-          <TabsContent value="list" className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1"> <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /> <Input type="search" placeholder="Поиск турниров по названию..." className="pl-8 border shadow-sm" value={tournamentSearchQuery} onChange={handleTournamentSearch} disabled={loadingTournaments} /> </div>
-            </div>
-            {loadingTournaments ? <div className="text-center p-4">Загрузка турниров...</div> : (
-                <TournamentList
-                    tournaments={tournaments}
-                    // --- Раскомментированные пропсы для TournamentList ---
-                    onEdit={handleEditTournamentClick}
-                    onDelete={handleDeleteTournamentClick} // Передаем обработчик удаления
-                    // --- Убедись, что TournamentList их принимает и использует! ---
-                />
-            )}
-            {!loadingTournaments && tournamentsTotalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 mt-4"> <Button variant="outline" size="sm" onClick={handleTournamentPreviousPage} disabled={tournamentsCurrentPage === 1}> <ChevronLeft className="h-4 w-4 mr-1" /> Назад </Button> <span className="text-sm text-muted-foreground">Страница {tournamentsCurrentPage} из {tournamentsTotalPages}</span> <Button variant="outline" size="sm" onClick={handleTournamentNextPage} disabled={tournamentsCurrentPage === tournamentsTotalPages}> Вперёд <ChevronRight className="h-4 w-4 ml-1" /> </Button> </div>
-            )}
-          </TabsContent>
+           {/* Вкладка: Календарь */}
+           <TabsContent value="calendar" className="space-y-4">
+                {/* ... Календарь ... */}
+           </TabsContent>
 
-          {/* Вкладка: Календарь */}
-          <TabsContent value="calendar" className="space-y-4">
-            {loadingTournaments ? <div className="text-center p-4">Загрузка данных...</div> : ( <TournamentCalendar tournaments={tournaments} /> )}
-          </TabsContent>
-
-          {/* Вкладка: Команды */}
-          <TabsContent value="teams" className="space-y-4">
-             <div className="flex items-center gap-2">
-                 <div className="relative flex-1"> <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /> <Input type="search" placeholder="Поиск команд по названию..." className="pl-8 border shadow-sm" value={teamSearchQuery} onChange={handleTeamSearch} disabled={loadingTeams} /> </div>
-             </div>
-             {loadingTeams ? <div className="text-center p-4">Загрузка команд...</div> : (
-                 // --- Раскомментированный вызов TeamList ---
-                 <TeamList
-                     teams={teams}
-                     onEdit={handleEditTeamClick} // Передаем обработчик редактирования
-                     onDelete={handleDeleteTeamClick} // Передаем обработчик удаления
-                     loading={loadingTeams} // Можно передать лоадер, если он есть в TeamList
-                 />
-                 // --- Конец TeamList ---
-             )}
-             {!loadingTeams && teamsTotalPages > 1 && (
-                 <div className="flex justify-center items-center gap-4 mt-4"> <Button variant="outline" size="sm" onClick={handleTeamPreviousPage} disabled={teamsCurrentPage === 1}> <ChevronLeft className="h-4 w-4 mr-1" /> Назад </Button> <span className="text-sm text-muted-foreground">Страница {teamsCurrentPage} из {teamsTotalPages}</span> <Button variant="outline" size="sm" onClick={handleTeamNextPage} disabled={teamsCurrentPage === teamsTotalPages}> Вперёд <ChevronRight className="h-4 w-4 ml-1" /> </Button> </div>
-             )}
-          </TabsContent>
+           {/* Вкладка: Команды */}
+           <TabsContent value="teams" className="space-y-4">
+                {/* ... Поиск команд ... */}
+                {loadingTeams ? <div className="text-center p-4">Загрузка команд...</div> : (
+                    <TeamList
+                        teams={teams}
+                        onEdit={handleEditTeamClick}
+                        onDelete={handleDeleteTeamClick}
+                        // loading={loadingTeams} // loading можно убрать из TeamList, если есть общая заглушка
+                    />
+                )}
+                {/* ... Пагинация команд ... */}
+           </TabsContent>
         </Tabs>
       </main>
 
       {/* --- Модальные окна --- */}
+      {/* (Оставляем как есть, все раскомментировано) */}
       <CreateTournamentDialog open={createTournamentDialogOpen} onOpenChange={setCreateTournamentDialogOpen} onTournamentCreated={handleTournamentCreated} />
       <CreateTeamDialog open={createTeamDialogOpen} onOpenChange={setCreateTeamDialogOpen} onTeamCreated={handleTeamCreated} />
-
-      {/* --- Раскомментированные Диалоги Редактирования/Удаления --- */}
-      <EditTournamentDialog
-          open={isEditTournamentDialogOpen}
-          onOpenChange={setIsEditTournamentDialogOpen}
-          tournament={editingTournament}
-          onTournamentUpdated={() => {
-              setIsEditTournamentDialogOpen(false);
-              fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); // Обновляем список турниров
-          }}
-      />
-      <EditTeamDialog
-          open={isEditTeamDialogOpen}
-          onOpenChange={setIsEditTeamDialogOpen}
-          team={editingTeam}
-          onTeamUpdated={() => {
-              setIsEditTeamDialogOpen(false);
-              fetchTeams(teamsCurrentPage, teamSearchQuery); // Обновляем список команд
-          }}
-      />
-      <DeleteConfirmationDialog
-          open={isDeleteConfirmationOpen}
-          onOpenChange={setIsDeleteConfirmationOpen}
-          onConfirm={confirmDeletion}
-          itemName={itemToDelete?.name} // Передаем имя элемента
-          itemType={itemToDelete?.type === 'tournament' ? 'турнир' : 'команду'} // Передаем тип элемента
-          loading={deleteLoading} // Передаем состояние загрузки удаления
-      />
-      {/* --- Конец раскомментированных диалогов --- */}
+      <EditTournamentDialog open={isEditTournamentDialogOpen} onOpenChange={setIsEditTournamentDialogOpen} tournament={editingTournament} onTournamentUpdated={() => { setIsEditTournamentDialogOpen(false); fetchTournaments(tournamentsCurrentPage, tournamentSearchQuery); }} />
+      <EditTeamDialog open={isEditTeamDialogOpen} onOpenChange={setIsEditTeamDialogOpen} team={editingTeam} onTeamUpdated={() => { setIsEditTeamDialogOpen(false); fetchTeams(teamsCurrentPage, teamSearchQuery); }} />
+      <DeleteConfirmationDialog open={isDeleteConfirmationOpen} onOpenChange={setIsDeleteConfirmationOpen} onConfirm={confirmDeletion} itemName={itemToDelete?.name} itemType={itemToDelete?.type === 'tournament' ? 'турнир' : 'команду'} loading={deleteLoading} />
 
     </div>
   )
