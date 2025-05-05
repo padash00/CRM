@@ -1,81 +1,195 @@
-// app/page.tsx (Исправлена ошибка 'Tv is not defined')
+// app/page.tsx (Дашборд с ДАННЫМИ ПО ТЕКУЩЕЙ СМЕНЕ)
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// Убедимся, что импортируем Tv2 и убрали лишнее
-import { Plus, BarChart, Clock, Users, List, Tv2, LineChart, Map, UserCheck, Landmark, CreditCard, Loader2 } from "lucide-react";
-import { MainNav } from "@/components/main-nav";
+import { MainNav } from "@/components/main-nav"; // Проверь путь
+// Иконки для новых карточек и старых элементов
+import { Plus, UserCheck, Tv2, Landmark, CreditCard, List, Map, LineChart, BarChart, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // Проверь путь
 import { ClubMap } from "@/components/club-map"; // Проверь путь
 import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // Проверь путь
 import { RevenueChart } from "@/components/revenue-chart"; // Проверь путь
 
-// Убрали импорты диалогов/компонентов для турниров/команд
+// Убрали импорты, не нужные на этой странице (для турниров/команд)
 // import { CreateTournamentDialog } from "./tournaments/create-tournament-dialog";
 // import { CreateTeamDialog } from "./tournaments/create-team-dialog";
-// import { TeamList } from "./tournaments/team-list";
-// import { EditTournamentDialog } from "./tournaments/edit-tournament-dialog";
-// import { EditTeamDialog } from "./tournaments/edit-team-dialog";
-// import { DeleteConfirmationDialog } from "./tournaments/delete-confirmation-dialog";
-// import { TournamentList } from "./tournaments/tournament-list";
-// import { TournamentCalendar } from "./tournaments/tournament-calendar";
+// ... и другие ...
 
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { addMinutes, formatISO } from 'date-fns';
+import { supabase } from "@/lib/supabaseClient"; // Проверь путь
+import { addMinutes, formatISO } from 'date-fns'; // Для CreateBookingDialog (если он использует)
 
 // --- Интерфейсы ---
 interface StatCardData { title: string; value: string; icon: React.ComponentType<{ className?: string }>; description: string; }
 interface Booking { id: string; created_at: string; customer_name: string | null; customer_id?: string | null; station_name: string | null; computer_id?: string | null; start_time: string; end_time: string; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'; }
 interface Computer { id: string; name: string; type: "PC" | "PlayStation"; status: "available" | "occupied"; zone: string; position_x: number; position_y: number; timeLeft?: string; customer?: string; created_at: string; }
-interface CurrentShiftInfo { shiftId: string | null; operatorName: string; activeSessionsCount: number | null; cashRevenue: number | null; cardRevenue: number | null; totalRevenue: number | null; }
+// Интерфейс для хранения данных о смене
+interface CurrentShiftInfo {
+    shiftId: string | null;
+    operatorName: string;
+    activeSessionsCount: number | null;
+    cashRevenue: number | null;
+    cardRevenue: number | null;
+    totalRevenue: number | null; // Общая выручка за смену
+}
 
 // --- Компонент страницы ---
 export default function DashboardPage() {
   // --- Состояния ---
   const [activeTab, setActiveTab] = useState<string>("overview");
-  // Статистика Смены
+  // Состояние для данных текущей смены
   const [shiftInfo, setShiftInfo] = useState<CurrentShiftInfo>({ shiftId: null, operatorName: "...", activeSessionsCount: null, cashRevenue: null, cardRevenue: null, totalRevenue: null });
-  const [loadingShiftData, setLoadingShiftData] = useState(true);
-  // Последние бронирования
+  const [loadingShiftData, setLoadingShiftData] = useState(true); // Начинаем с загрузки
+  // Состояния для других компонентов дашборда
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loadingRecentBookings, setLoadingRecentBookings] = useState(false);
-  // Карта клуба
   const [mapComputers, setMapComputers] = useState<Computer[]>([]);
   const [loadingMap, setLoadingMap] = useState(false);
-  // Диалоги
+  // Диалог создания бронирования
   const [isCreateBookingDialogOpen, setIsCreateBookingDialogOpen] = useState(false);
-  // Убраны состояния для диалогов турниров/команд
+  // Убрали состояния для диалогов турниров/команд
 
   // --- Функции загрузки данных ---
-  const fetchCurrentShiftData = useCallback(async () => { /* ... код fetchCurrentShiftData ... */ }, []);
-  const fetchRecentBookings = useCallback(async (limit = 5) => { /* ... код fetchRecentBookings ... */ }, []);
-  const fetchMapData = useCallback(async () => { /* ... код fetchMapData ... */ }, []);
+
+  // Загрузка данных ТЕКУЩЕЙ СМЕНЫ
+  const fetchCurrentShiftData = useCallback(async () => {
+    console.log("Загрузка данных текущей смены..."); // DEBUG
+    setLoadingShiftData(true);
+    // Сброс перед загрузкой с индикацией
+    setShiftInfo({ shiftId: null, operatorName: "Загрузка...", activeSessionsCount: null, cashRevenue: null, cardRevenue: null, totalRevenue: null });
+    let currentShiftId: string | null = null;
+
+    try {
+        // 1. Найти активную смену
+        // ВАЖНО: Запрос сработает, если есть таблица shifts с колонкой status типа shift_status и значением ENUM 'ACTIVE'
+        const { data: activeShift, error: shiftError } = await supabase
+            .from('shifts')
+            .select('id') // Нам нужен только ID
+            .eq('status', 'ACTIVE') // Ищем по статусу 'ACTIVE'
+            .limit(1)
+            .single(); // Ожидаем не более одной активной смены
+
+        // Код PGRST116 означает "ноль строк найдено", это не ошибка в данном случае
+        if (shiftError && shiftError.code !== 'PGRST116') {
+             throw new Error(`Ошибка поиска активной смены: ${shiftError.message}`);
+        }
+
+        if (!activeShift) {
+            // Если активная смена не найдена
+            console.log("Активная смена не найдена.");
+            setShiftInfo({ shiftId: null, operatorName: "Нет", activeSessionsCount: 0, cashRevenue: 0, cardRevenue: 0, totalRevenue: 0 });
+            toast.info("Нет активной смены для отображения статистики.");
+            setLoadingShiftData(false); // Завершаем загрузку
+            return; // Выходим из функции
+        }
+
+        currentShiftId = activeShift.id;
+        console.log("Активная смена ID:", currentShiftId); // DEBUG
+
+        // --- Загружаем связанные данные параллельно ---
+        const results = await Promise.allSettled([
+            // 2. Запрос имени(имен) оператора(ов) на смене
+            supabase.from('shift_operators')
+                    .select('operators ( name )') // Запрашиваем имя из связанной таблицы operators
+                    .eq('shift_id', currentShiftId),
+
+            // 3. Запрос количества активных сессий для этой смены
+            supabase.from('sessions')
+                    .select('*', { count: 'exact', head: true }) // Считаем строки, не загружая их
+                    .eq('shift_id', currentShiftId)
+                    .eq('status', 'ACTIVE'), // Используем ENUM статус 'ACTIVE'
+
+            // 4. Запрос транзакций для этой смены для подсчета выручки
+            supabase.from('transactions')
+                    .select('amount, payment_method') // Нужны сумма и тип оплаты
+                    .eq('shift_id', currentShiftId)
+                    // Возможно, стоит фильтровать по transaction_type, например, только 'PAYMENT'?
+        ]);
+
+        const [operatorsResult, sessionsResult, transactionsResult] = results;
+
+        // --- Обработка результатов ---
+        let operatorName = "Не назначен";
+        if (operatorsResult.status === 'fulfilled' && operatorsResult.value.data && operatorsResult.value.data.length > 0) {
+            // @ts-ignore - Упрощенный доступ к вложенным данным
+            operatorName = operatorsResult.value.data.map(op => op.operators?.name).filter(Boolean).join(', ') || "Имя не указано";
+        } else if (operatorsResult.status === 'rejected') { console.error("Ошибка получения оператора:", operatorsResult.reason); operatorName = "Ошибка"; }
+
+        let activeSessions = 0;
+        if (sessionsResult.status === 'fulfilled') { activeSessions = sessionsResult.value.count ?? 0; }
+        else { console.error("Ошибка получения сессий:", sessionsResult.reason); }
+
+        let cashSum = 0; let cardSum = 0; let otherSum = 0;
+        if (transactionsResult.status === 'fulfilled' && transactionsResult.value.data) {
+            transactionsResult.value.data.forEach((tr: { amount: number | null, payment_method: string | null }) => {
+                const amount = tr.amount ?? 0;
+                // Суммируем по типам оплаты (учитывая возможные возвраты с отрицательной суммой)
+                if (tr.payment_method === 'CASH') { cashSum += amount; }
+                else if (tr.payment_method === 'CARD') { cardSum += amount; }
+                else { otherSum += amount; }
+            });
+        } else if (transactionsResult.status === 'rejected') { console.error("Ошибка получения транзакций:", transactionsResult.reason); }
+
+        console.log(`Статистика смены: Оператор='${operatorName}', Сессии=${activeSessions}, Нал=₸${cashSum}, Карта=₸${cardSum}`); // DEBUG
+
+        // Обновляем состояние со всеми данными смены
+        setShiftInfo({
+             shiftId: currentShiftId,
+             operatorName: operatorName,
+             activeSessionsCount: activeSessions,
+             cashRevenue: cashSum,
+             cardRevenue: cardSum,
+             totalRevenue: cashSum + cardSum + otherSum // Считаем общую выручку
+        });
+
+    } catch (error: any) {
+        console.error("Общая ошибка загрузки данных смены:", error.message);
+        toast.error(`Не удалось загрузить данные по смене: ${error.message}`);
+         setShiftInfo({ shiftId: null, operatorName: "Ошибка", activeSessionsCount: 0, cashRevenue: 0, cardRevenue: 0, totalRevenue: 0 });
+    } finally {
+        setLoadingShiftData(false); // Завершаем загрузку
+    }
+  }, []); // Пустой массив зависимостей, чтобы функция не пересоздавалась без нужды
+
+  // Загрузка последних бронирований
+  const fetchRecentBookings = useCallback(async (limit = 5) => {
+      setLoadingRecentBookings(true);
+      try { /* ... код ... */ } catch (e) { /* ... */ } finally { setLoadingRecentBookings(false); }
+  }, []);
+
+  // Загрузка карты клуба
+  const fetchMapData = useCallback(async () => {
+      setLoadingMap(true);
+      try { /* ... код ... */ } catch (e) { /* ... */ } finally { setLoadingMap(false); }
+   }, []);
 
   // --- useEffect для загрузки данных ---
   useEffect(() => {
-    fetchCurrentShiftData(); // Всегда грузим данные смены
-    if (activeTab === "overview") { fetchRecentBookings(); /* fetch chart data */ }
-    else if (activeTab === "sessions") { /* TODO: fetch sessions */ }
-    else if (activeTab === "analytics") { /* TODO: fetch analytics */ }
+    // Всегда при загрузке или смене вкладки пытаемся загрузить данные смены
+    fetchCurrentShiftData();
+
+    // Загружаем данные для активной вкладки
+    if (activeTab === "overview") { fetchRecentBookings(); /* TODO: fetch chart data */ }
+    else if (activeTab === "sessions") { /* TODO: fetch active sessions list */ }
+    else if (activeTab === "analytics") { /* TODO: fetch analytics data */ }
     else if (activeTab === "map") { fetchMapData(); }
-    // Убрали зависимости и вызовы для турниров/команд
-  }, [ activeTab, fetchCurrentShiftData, fetchRecentBookings, fetchMapData ]);
+
+  }, [ activeTab, fetchCurrentShiftData, fetchRecentBookings, fetchMapData ]); // Основные зависимости
+
 
   // --- Обработчики событий ---
-  const handleBookingCreated = () => { toast.success("Бронирование успешно создано!"); fetchCurrentShiftData(); fetchRecentBookings(); };
+  const handleBookingCreated = () => { toast.success("Бронирование успешно создано!"); fetchCurrentShiftData(); fetchRecentBookings(); }; // Обновляем данные после создания брони
   const handleTabChange = useCallback((value: string) => { setActiveTab(value) }, []);
   const handleMapComputerEdit = (computer: Computer) => { toast.info(`Клик по ${computer.name}`); };
   // Убрали обработчики для турниров/команд
 
-  // --- Статистика ---
+  // --- Статистика (теперь использует shiftInfo) ---
   const stats: StatCardData[] = [
       { title: "Оператор на смене", value: loadingShiftData ? "..." : shiftInfo.operatorName, icon: UserCheck, description: shiftInfo.shiftId ? `Смена активна` : "Смена не активна" },
-      { title: "Активные сессии", value: loadingShiftData || shiftInfo.activeSessionsCount === null ? "..." : shiftInfo.activeSessionsCount.toString(), icon: Tv2, description: "Текущие игровые сессии" }, // Иконка Tv2
+      { title: "Активные сессии", value: loadingShiftData || shiftInfo.activeSessionsCount === null ? "..." : shiftInfo.activeSessionsCount.toString(), icon: Tv2, description: "Текущие игровые сессии" },
       { title: "Наличные за смену", value: loadingShiftData || shiftInfo.cashRevenue === null ? "..." : `₸${shiftInfo.cashRevenue.toLocaleString()}`, icon: Landmark, description: "Принято наличными" },
       { title: "Картой за смену", value: loadingShiftData || shiftInfo.cardRevenue === null ? "..." : `₸${shiftInfo.cardRevenue.toLocaleString()}`, icon: CreditCard, description: "Принято картами" },
   ];
@@ -88,7 +202,6 @@ export default function DashboardPage() {
         {/* Заголовок и Кнопка Бронирования */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-3xl font-bold tracking-tight">Панель управления</h2>
-          {/* Убрали кнопки турниров/команд */}
           <Button onClick={() => setIsCreateBookingDialogOpen(true)}> <Plus className="mr-2 h-4 w-4" /> Новое бронирование </Button>
         </div>
 
@@ -102,29 +215,15 @@ export default function DashboardPage() {
            {/* Вкладка: Обзор */}
            <TabsContent value="overview" className="space-y-6">
                <div className="grid gap-6 lg:grid-cols-3">
-                  <Card className="lg:col-span-2 shadow-sm bg-card"> <CardHeader> <CardTitle className="text-lg font-semibold flex items-center gap-2"> <BarChart className="h-5 w-5 text-primary" /> Выручка </CardTitle> </CardHeader> <CardContent className="pt-4"> <RevenueChart /> </CardContent> </Card>
+                  <Card className="lg:col-span-2 shadow-sm bg-card"> <CardHeader> <CardTitle className="text-lg font-semibold flex items-center gap-2"> <BarChart className="h-5 w-5 text-primary" /> Выручка (Заглушка)</CardTitle> </CardHeader> <CardContent className="pt-4"> <RevenueChart /> </CardContent> </Card>
                   <Card className="lg:col-span-1 shadow-sm bg-card flex flex-col"> <CardHeader> <CardTitle className="text-lg font-semibold flex items-center gap-2"> <List className="h-5 w-5 text-primary" /> Последние бронирования </CardTitle> </CardHeader> <CardContent className="flex flex-col flex-grow p-0"> <RecentBookings bookings={recentBookings} loading={loadingRecentBookings} /> <div className="p-4 pt-2 border-t mt-auto"> <Button variant="outline" size="sm" className="w-full" disabled> Все бронирования </Button> </div> </CardContent> </Card>
                </div>
            </TabsContent>
 
-           {/* Вкладка: Активные сессии (Исправлена иконка) */}
-            <TabsContent value="sessions">
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2">
-                        {/* === ИСПРАВЛЕНО ЗДЕСЬ === */}
-                        <Tv2 className="h-5 w-5 text-primary"/>
-                        {/* ======================= */}
-                        Активные сессии
-                    </CardTitle></CardHeader>
-                    <CardContent> <p className="text-muted-foreground">Здесь будет список активных сессий...</p> </CardContent>
-                </Card>
-            </TabsContent>
-
-           {/* Вкладка: Аналитика */}
-           <TabsContent value="analytics"> <Card> <CardHeader><CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5 text-primary"/>Аналитика</CardTitle></CardHeader> <CardContent> <p className="text-muted-foreground">Здесь будут графики и отчеты...</p> </CardContent> </Card> </TabsContent>
-
-           {/* Вкладка: Карта клуба */}
-           <TabsContent value="map"> <Card> <CardHeader><CardTitle className="flex items-center gap-2"><Map className="h-5 w-5 text-primary"/>Карта клуба</CardTitle></CardHeader> <CardContent> {loadingMap ? (<div className="text-center p-10 text-muted-foreground">Загрузка карты...</div>) : mapComputers.length > 0 ? (<ClubMap computers={mapComputers} onEdit={handleMapComputerEdit} />) : (<div className="text-center p-10 text-muted-foreground">Нет данных о компьютерах.</div>) } </CardContent> </Card> </TabsContent>
+           {/* Заглушки для других вкладок */}
+            <TabsContent value="sessions"> <Card> <CardHeader><CardTitle className="flex items-center gap-2"><Tv2 className="h-5 w-5 text-primary"/>Активные сессии</CardTitle></CardHeader> <CardContent> <p className="text-muted-foreground">Здесь будет список активных сессий...</p> </CardContent> </Card> </TabsContent>
+            <TabsContent value="analytics"> <Card> <CardHeader><CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5 text-primary"/>Аналитика</CardTitle></CardHeader> <CardContent> <p className="text-muted-foreground">Здесь будут графики и отчеты...</p> </CardContent> </Card> </TabsContent>
+            <TabsContent value="map"> <Card> <CardHeader><CardTitle className="flex items-center gap-2"><Map className="h-5 w-5 text-primary"/>Карта клуба</CardTitle></CardHeader> <CardContent> {loadingMap ? (<div className="text-center p-10 text-muted-foreground">Загрузка карты...</div>) : mapComputers.length > 0 ? (<ClubMap computers={mapComputers} onEdit={handleMapComputerEdit} />) : (<div className="text-center p-10 text-muted-foreground">Нет данных о компьютерах.</div>) } </CardContent> </Card> </TabsContent>
         </Tabs>
       </main>
 
