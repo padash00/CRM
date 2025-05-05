@@ -11,7 +11,7 @@ import { Plus, UserCheck, Tv2, Landmark, CreditCard, List, Map, LineChart, BarCh
 import { toast } from "sonner";
 // Диалоги
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // Проверь путь
-import { StartShiftDialog } from "@/components/dialogs/start-shift-dialog"; // <-- ДОБАВЛЕН ИМПОРТ (Проверь путь!)
+import { StartShiftDialog } from "@/app/components/dialogs/start-shift-dialog"; // <-- ДОБАВЛЕН ИМПОРТ (Проверь путь!)
 // Компоненты для вкладок
 import { ClubMap } from "@/components/club-map"; // Проверь путь
 import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // Проверь путь
