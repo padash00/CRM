@@ -10,10 +10,11 @@ import { MainNav } from "@/components/main-nav"; // Проверь путь
 import { Plus, UserCheck, Tv2, Landmark, CreditCard, List, Map, LineChart, BarChart } from "lucide-react";
 import { toast } from "sonner";
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // Проверь путь
-import { ClubMap } from "@/components/club-map"; // Проверь путь
-import { RecentBookings } from "@/components/recent-bookings"; // Проверь путь
-import { RevenueChart } from "@/components/revenue-chart"; // Проверь путь
-
+// --- ПРАВИЛЬНЫЕ ПУТИ ---
+import { ClubMap } from "@/components/club-map";
+import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // Внутри app!
+import { RevenueChart } from "@/components/revenue-chart";
+// --- ---
 import { supabase } from "@/lib/supabaseClient"; // Проверь путь
 
 // --- Интерфейсы ---
