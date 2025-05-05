@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, UserCheck, Tv2, Landmark, CreditCard, List, Map, LineChart, BarChart, Loader2, UserPlus } from "lucide-react"; // Добавили UserPlus
 import { MainNav } from "@/components/main-nav";
 import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"; // Проверь путь
-import { StartShiftDialog } from "@/components/dialogs/start-shift-dialog"; // Проверь путь
+import { StartShiftDialog } from "@/app/components/dialogs/start-shift-dialog"; // Проверь путь
 import { ClubMap } from "@/components/club-map"; // Проверь путь
 import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // Проверь путь
 import { RevenueChart } from "@/components/revenue-chart"; // Проверь путь
