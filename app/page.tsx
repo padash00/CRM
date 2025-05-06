@@ -12,7 +12,7 @@ import { CreateBookingDialog } from "@/components/dialogs/create-booking-dialog"
 import { StartShiftDialog } from "@/app/components/dialogs/start-shift-dialog"; // ИСПРАВИЛ ПРЕДПОЛАГАЕМЫЙ ПУТЬ
 import { EndShiftDialog } from "@/app/components/dialogs/end-shift-dialog"; // ИСПРАВИЛ ПРЕДПОЛАГАЕМЫЙ ПУТЬ
 import { ClubMap } from "@/components/club-map";
-import { RecentBookings } from "@/components/dashboard/recent-bookings"; // ИСПРАВИЛ ПРЕДПОЛАГАЕМЫЙ ПУТЬ
+import { RecentBookings } from "@/app/components/dashboard/recent-bookings"; // ИСПРАВИЛ ПРЕДПОЛАГАЕМЫЙ ПУТЬ
 import { RevenueChart } from "@/components/revenue-chart";
 
 // Диалоги для турниров/команд не нужны здесь
