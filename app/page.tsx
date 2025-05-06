@@ -175,16 +175,15 @@ export default function DashboardPage() {
       {/* --- Модальные окна --- */}
       <CreateBookingDialog open={isCreateBookingDialogOpen} onOpenChange={setIsCreateBookingDialogOpen} onBookingCreated={handleBookingCreated} />
       <StartShiftDialog open={isStartShiftDialogOpen} onOpenChange={setIsStartShiftDialogOpen} onShiftStarted={handleShiftStarted} />
-      {/* --- ДОБАВЛЕН ВЫЗОВ ДИАЛОГА ЗАВЕРШЕНИЯ СМЕНЫ --- */}
+      {/* --- ДОБАВЛЕН ВЫЗОВ ДИАЛОГА ЗАВЕРШЕНИЯ СМЕНЫ
+      
       <EndShiftDialog
          open={isEndShiftDialogOpen}
          onOpenChange={setIsEndShiftDialogOpen}
          shiftInfo={shiftInfo} // Передаем данные текущей смены
          // Перезагружаем данные дашборда после успешного завершения
          onShiftEnded={fetchCurrentShiftData}
-       />
-      {/* --- КОНЕЦ ДИАЛОГА ЗАВЕРШЕНИЯ СМЕНЫ --- */}
-
+       /> КОНЕЦ ДИАЛОГА ЗАВЕРШЕНИЯ СМЕНЫ --- */}
     </div>
   )
 }
