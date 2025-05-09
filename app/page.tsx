@@ -14,7 +14,7 @@ import { ClubMap } from "@/components/club-map";
 import { RecentBookings } from "@/app/components/dashboard/recent-bookings";
 import { RevenueChart } from "@/components/revenue-chart";
 // --- ДОБАВЛЕН ИМПОРТ СПИСКА АКТИВНЫХ СЕССИЙ ---
-import { ActiveSessionsList, SessionData } from "@/components/dashboard/active-sessions-list"; // <-- ПРОВЕРЬ ПУТЬ!
+import { ActiveSessionsList, SessionData } from "@/app/components/dashboard/active-sessions-list"; // <-- ПРОВЕРЬ ПУТЬ!
 
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
