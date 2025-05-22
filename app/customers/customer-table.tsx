@@ -60,6 +60,54 @@ interface CustomerTableProps {
 type SortKey = keyof Pick<Customer, "name" | "visits" | "lastVisit" | "totalSpent">;
 type SortOrder = "asc" | "desc";
 
+
+
+
+
+
+
+const handleCreateCustomer = async () => {
+  const { error } = await supabase.from("customers").insert([
+    {
+      name: "Асан",
+      phone: "8707...",
+      email: "asan@example.com",
+      username: "asan123",
+      password: "123456",
+      status: "active",
+      vip: false,
+    },
+  ]);
+
+  if (error) {
+    toast({
+      title: "Ошибка при создании клиента",
+      description: error.message,
+      variant: "destructive",
+    });
+  } else {
+    toast({
+      title: "Успешно",
+      description: "Клиент создан.",
+    });
+  }
+};
+
+<div className="flex justify-end p-4">
+  <Button onClick={handleCreateCustomer}>Создать клиента</Button>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
 const CustomerRow = ({
   customer,
   onDelete,
