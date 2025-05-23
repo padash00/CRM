@@ -210,55 +210,66 @@ export default function CustomersPage() {
   }, [refreshTable]);
 
   const handleDialogSubmit = async () => {
-    const loginRegex = /^[a-zA-Z0-9_]+$/;
-    const passwordRegex = /^\d{6}$/;
+  if (!newCustomer.name || !newCustomer.phone || !newCustomer.username || !newCustomer.password) {
+    toast({
+      title: "Ошибка",
+      description: "Заполните все обязательные поля.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (!loginRegex.test(newCustomer.username)) {
-      toast({
-        title: "Неверный логин",
-        description: "Логин должен содержать только латиницу и цифры",
-      });
-      return;
-    }
+  const { data: existingUser } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("username", newCustomer.username)
+    .single();
 
-    if (!passwordRegex.test(newCustomer.password)) {
-      toast({ title: "Неверный пароль", description: "Пароль должен состоять из 6 цифр" });
-      return;
-    }
+  if (existingUser) {
+    toast({
+      title: "Ошибка",
+      description: "Пользователь с таким логином уже существует.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    const today = new Date().toISOString().split("T")[0];
+  const { data, error } = await supabase.from("customers").insert([
+    {
+      ...newCustomer,
+      visits: 0,
+      lastVisit: new Date().toISOString().split("T")[0],
+      status: "active",
+      vip: false,
+    },
+  ]);
 
-    const { error } = await supabase.from("customers").insert([
-      {
-        name: newCustomer.name,
-        phone: newCustomer.phone,
-        email: newCustomer.email,
-        username: newCustomer.username,
-        password: newCustomer.password,
-        visits: 0,
-        lastVisit: today,
-        status: "active",
-        vip: false,
-      },
-    ]);
+  if (error) {
+    console.error("Ошибка при добавлении клиента:", error);
+    toast({
+      title: "Ошибка",
+      description: `Не удалось добавить клиента: ${error.message}`,
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (error) {
-      if (error.message.includes("duplicate key value")) {
-        toast({
-          title: "Логин уже занят",
-          description: "Выберите другой логин",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Ошибка", description: error.message, variant: "destructive" });
-      }
-    } else {
-      toast({ title: "Клиент добавлен", description: "Новый клиент успешно создан" });
-      setOpenDialog(false);
-      setNewCustomer({ name: "", phone: "", email: "", username: "", password: "" });
-      setRefreshTable((prev) => prev + 1);
-    }
-  };
+  toast({
+    title: "Клиент добавлен",
+    description: `Клиент ${newCustomer.name} успешно добавлен.`,
+  });
+
+  setDialogOpen(false);
+  setRefreshTable(true);
+  setNewCustomer({
+    name: "",
+    phone: "",
+    email: "",
+    username: "",
+    password: "",
+  });
+};
+
 
   const handleVisitSubmit = async () => {
     if (!newVisit.customerId) {
