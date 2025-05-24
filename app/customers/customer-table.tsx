@@ -94,16 +94,9 @@ const CustomerRow = ({
         </div>
       </TableCell>
       <TableCell>{customer.visits ?? 0}</TableCell>
-      
-
-      const visits = customer.visitDates ?? [];
-
       <TableCell>
-        {visits.length > 0 ? visits.join(", ") : "-"}
+        {(customer.visitDates ?? []).length > 0 ? customer.visitDates.join(", ") : "-"}
       </TableCell>
-
-      
-      
       <TableCell>{customer.totalSpent ? `₸${customer.totalSpent}` : "-"}</TableCell>
       <TableCell>{customer.lastVisit || "-"}</TableCell>
       <TableCell>
