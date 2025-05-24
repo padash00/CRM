@@ -138,6 +138,44 @@ const CustomerRow = ({
   );
 };
 
+const registerVisit = async (customerId: string, duration: number) => {
+  // 1. Добавляем запись о посещении (если используешь отдельную таблицу)
+  const { error: visitError } = await supabase
+    .from("visit_dates")
+    .insert([{ customer_id: customerId, duration, visited_at: new Date() }]);
+
+  if (visitError) {
+    toast({ title: "Ошибка", description: visitError.message, variant: "destructive" });
+    return;
+  }
+
+  // 2. Увеличиваем visits на 1 в таблице customers
+  const { data, error: fetchError } = await supabase
+    .from("customers")
+    .select("visits")
+    .eq("id", customerId)
+    .single();
+
+  if (fetchError) {
+    toast({ title: "Ошибка", description: fetchError.message, variant: "destructive" });
+    return;
+  }
+
+  const currentVisits = data.visits || 0;
+
+  const { error: updateError } = await supabase
+    .from("customers")
+    .update({ visits: currentVisits + 1 })
+    .eq("id", customerId);
+
+  if (updateError) {
+    toast({ title: "Ошибка обновления", description: updateError.message, variant: "destructive" });
+  } else {
+    toast({ title: "Успешно", description: "Посещение зафиксировано." });
+  }
+};
+
+
 export function CustomerTable({
   filterActive,
   filterVip,
