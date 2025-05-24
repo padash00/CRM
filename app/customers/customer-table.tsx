@@ -297,8 +297,11 @@ export function CustomerTable({
       toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" });
     } else {
       setCustomers((prev) =>
-        prev.map((c) => (c.id === customerToEdit.id ? { ...c, ...customerToEdit } : c))
+        prev.map((c) =>
+          c.id === customerToEdit.id ? { ...c, ...customerToEdit } : c
+        )
       );
+      
       toast({ title: "Обновлено", description: `Клиент ${customerToEdit.name} обновлён.` });
     }
     setEditDialogOpen(false);
