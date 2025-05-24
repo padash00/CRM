@@ -290,6 +290,8 @@ export function CustomerTable({
     if (!customerToEdit) return;
 
     const { id, name, phone, status } = customerToEdit; // Только нужные поля
+
+    console.log("Отправляем в Supabase:", customerToEdit);
     
     const { error } = await supabase
       .from("customers")
