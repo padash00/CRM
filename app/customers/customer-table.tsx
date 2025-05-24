@@ -288,14 +288,21 @@ export function CustomerTable({
 
   const confirmEdit = async () => {
     if (!customerToEdit) return;
-
-    const { id, name, phone, status } = customerToEdit; // Только нужные поля
-
+    
     console.log("Отправляем в Supabase:", customerToEdit);
+
+    // Удаляем все поля с пустыми массивами
+    const cleaned = Object.fromEntries(
+      Object.entries(customerToEdit).filter(
+        ([_, value]) => !(Array.isArray(value) && value.length === 0)
+      )
+    );
+    
+    console.log("Очищенные данные для Supabase:", cleaned);
     
     const { error } = await supabase
       .from("customers")
-      .update(customerToEdit)
+      .update(cleaned)
       .eq("id", customerToEdit.id);
     if (error) {
       toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" });
