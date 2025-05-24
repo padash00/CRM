@@ -259,8 +259,8 @@ export default function CustomersPage() {
     description: `Клиент ${newCustomer.name} успешно добавлен.`,
   });
 
-  setDialogOpen(false);
-  setRefreshTable(true);
+  setOpenDialog(false);
+  setRefreshTable((prev) => prev + 1);
   setNewCustomer({
     name: "",
     phone: "",
