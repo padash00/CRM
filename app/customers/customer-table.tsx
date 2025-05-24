@@ -289,6 +289,8 @@ export function CustomerTable({
   const confirmEdit = async () => {
     if (!customerToEdit) return;
 
+    const { id, name, phone, status } = customerToEdit; // Только нужные поля
+    
     const { error } = await supabase
       .from("customers")
       .update(customerToEdit)
