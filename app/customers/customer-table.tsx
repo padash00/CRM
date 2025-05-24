@@ -274,6 +274,7 @@ export function CustomerTable({
     if (error) {
       toast({ title: "Ошибка удаления", description: error.message, variant: "destructive" });
     } else {
+      setCustomers((prev) => prev.filter((c) => c.id !== customerToDelete.id));
       toast({ title: "Удалено", description: `Клиент ${customerToDelete.name} удалён.` });
     }
     setDeleteDialogOpen(false);
@@ -295,6 +296,9 @@ export function CustomerTable({
     if (error) {
       toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" });
     } else {
+      setCustomers((prev) =>
+    prev.map((c) => (c.id === customerToEdit.id ? { ...c, ...customerToEdit } : c))
+  );
       toast({ title: "Обновлено", description: `Клиент ${customerToEdit.name} обновлён.` });
     }
     setEditDialogOpen(false);
