@@ -131,10 +131,25 @@ export default function CustomersPage() {
         return;
       }
 
+      
+      const isValidUsername = /^[a-zA-Z0-9_]+$/.test(newCustomer.username);
+      const isValidPassword = /^\d{6}$/.test(newCustomer.password);
+
+      if (!isValidUsername) {
+        toast({ title: "Ошибка", description: "Логин должен содержать только латиницу и цифры." });
+        return;
+      }
+      if (!isValidPassword) {
+        toast({ title: "Ошибка", description: "Пароль должен содержать 6 цифр." });
+        return;
+      }
+
+
+      
       // Считаем общий доход клуба
       const totalRevenue =
         ordersData && ordersData.length > 0
-          ? ordersData.reduce((sum, order) => sum + order.amount, 0).toFixed(0)
+          ? ordersData.reduce((sum, order) => sum + (order.amount || 0), 0)
           : "0";
 
       // Обрабатываем данные для графика посещений по месяцам
@@ -218,6 +233,20 @@ export default function CustomersPage() {
     });
     return;
   }
+
+  const fetchCustomers = async () => {
+      const { data, error } = await supabase.from("customers").select("id, name");
+      if (error) {
+        toast({
+          title: "Ошибка загрузки клиентов",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setCustomers(data || []);
+      }
+    };
+    
 
   const { data: existingUser } = await supabase
     .from("customers")
