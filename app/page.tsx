@@ -70,10 +70,10 @@ export default function DashboardPage() {
     setShiftInfo(prev => ({ ...prev, operatorName: "Загрузка...", activeSessionsCount: null, cashRevenue: null, cardRevenue: null, totalRevenue: null }));
     let currentShiftId: string | null = null;
     try {
-        const { data: activeShiftIdResult, error: rpcError } = await supabase.rpc('get_active_shift_id');
+        const { data: activeShiftId, error: shiftError } = await supabase.rpc("get_active_shift_id");
         if (rpcError) throw new Error(`Ошибка RPC get_active_shift_id: ${rpcError.message}`);
         currentShiftId = activeShiftIdResult;
-
+        
         if (!currentShiftId) {
             console.log("Активная смена не найдена (RPC).");
             setShiftInfo({ shiftId: null, operatorName: "Нет", activeSessionsCount: 0, cashRevenue: 0, cardRevenue: 0, totalRevenue: 0 });
@@ -81,6 +81,34 @@ export default function DashboardPage() {
         }
         console.log("Найдена активная смена ID (RPC):", currentShiftId);
 
+        const { data: shiftTransactions, error: transactionsError } = await supabase
+          .from("transactions")
+          .select("amount, transaction_date")
+          .eq("shift_id", activeShiftId);
+        
+        const groupedByHour = {};
+
+            shiftTransactions?.forEach((txn) => {
+              const date = new Date(txn.transaction_date);
+              const hour = date.getHours();
+
+              if (!groupedByHour[hour]) groupedByHour[hour] = 0;
+              groupedByHour[hour] += txn.amount;
+            });
+
+            const chartData = Object.entries(groupedByHour).map(([hour, amount]) => ({
+              hour: `${hour}:00`,
+              amount,
+            }));
+
+            <LineChart data={chartData}>
+              <XAxis dataKey="hour" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="amount" stroke="#8884d8" />
+            </LineChart>
+
+        
         const results = await Promise.allSettled([
             supabase.from('shift_operators').select('operators ( name )').eq('shift_id', currentShiftId),
             supabase.from('sessions').select('*', { count: 'exact', head: true }).eq('shift_id', currentShiftId).eq('status', 'ACTIVE'),
