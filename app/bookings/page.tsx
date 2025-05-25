@@ -57,7 +57,7 @@ export default function BookingsPage() {
     
     const { error } = await supabase.from("bookings").insert([
       {
-        customer: selectedCustomerId,
+        customer: customer,
         station,
         start_time,
         end_time,
