@@ -43,7 +43,18 @@ export function BookingTable() {
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null)
 
   const fetchBookings = async () => {
-    const { data, error } = await supabase.from("bookings").select("*")
+    const { data, error } = await supabase.from("bookings").select(`
+  id,
+  start_time,
+  end_time,
+  status,
+  duration,
+  station,
+  customer:customers (
+    id,
+    name
+  )
+  `)
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
     } else {
