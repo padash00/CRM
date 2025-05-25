@@ -45,7 +45,16 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
   await supabase.from("computers").update({ status }).eq("id", id);
   fetchComputers(); // обновить карту
 };
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newComputer, setNewComputer] = useState({
+    name: "",
+    type: "PC",
+    status: "FREE",
+    position_x: 100,
+    position_y: 100,
+  });
 
+  
   const getColorByStatus = (status: Computer["status"]) => {
   switch (status) {
     case "FREE":
@@ -200,6 +209,70 @@ const rebootComputer = async (id: string) => {
     </Button>
   </div>
 )}
+
+  {showAddDialog && (
+  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="bg-white rounded-xl shadow-xl p-6 w-[300px] space-y-4">
+      <h2 className="text-lg font-bold">Добавить компьютер</h2>
+      <input
+        type="text"
+        placeholder="Имя"
+        className="w-full border px-3 py-2 rounded"
+        value={newComputer.name}
+        onChange={(e) => setNewComputer({ ...newComputer, name: e.target.value })}
+      />
+      <select
+        className="w-full border px-3 py-2 rounded"
+        value={newComputer.type}
+        onChange={(e) => setNewComputer({ ...newComputer, type: e.target.value as "PC" | "PlayStation" })}
+      >
+        <option value="PC">PC</option>
+        <option value="PlayStation">PlayStation</option>
+      </select>
+      {/* позже можно вставить dropdown с зонами */}
+      <div className="flex justify-between gap-2">
+        <Button
+          className="w-1/2"
+          onClick={async () => {
+            // TODO: отправить в Supabase
+            const { data, error } = await supabase.from("computers").insert({
+              name: newComputer.name,
+              type: newComputer.type,
+              status: "FREE",
+              position_x: newComputer.position_x,
+              position_y: newComputer.position_y,
+              zone_id: "..." // <-- вручную или через выбор
+            });
+            if (error) {
+              console.error("Ошибка добавления:", error.message);
+            } else {
+              setShowAddDialog(false);
+              setNewComputer({ name: "", type: "PC", status: "FREE", position_x: 100, position_y: 100 });
+              // обновим список компьютеров
+              setComputers((prev) => [...prev, data?.[0]]);
+            }
+          }}
+        >
+          Сохранить
+        </Button>
+        <Button variant="ghost" className="w-1/2" onClick={() => setShowAddDialog(false)}>
+          Отмена
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
+  
+  <div className="absolute bottom-4 right-4 z-50">
+  <Button
+    className="bg-white text-black hover:bg-gray-100"
+    onClick={() => setShowAddDialog(true)}
+  >
+    ➕ Добавить ПК
+  </Button>
+</div>
+
 
   );
 }
