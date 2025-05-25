@@ -49,12 +49,19 @@ export default function BookingsPage() {
       status: "ACTIVE",
     })
 
+    // duration — это строка, переводим в число
+    const durationHours = parseInt(duration, 10)
+
+    // создаём end_time
+    const end_time = new Date(start_time.getTime() + durationHours * 60 * 60 * 1000)
+    
     const { error } = await supabase.from("bookings").insert([
       {
         customer,
         station,
         start_time,
-        duration: Number(duration),
+        end_time,
+        duration: durationHours,
         status: "ACTIVE",
       },
     ])
