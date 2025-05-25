@@ -242,6 +242,7 @@ export function POSInterface() {
       }
     }
 
+    const { data: activeShiftId } = await supabase.rpc("get_active_shift_id");
     // Создаём транзакцию
     const transactionDataToInsert = {
       customer_id: customerId === "none" ? null : customerId,
@@ -250,6 +251,7 @@ export function POSInterface() {
       payment_type: paymentMethod,
       guest_name: customerId === "none" ? (guestName || "Гость") : null,
       transaction_type: 'PAYMENT',
+      shift_id: activeShiftId,
     };
 
     console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
