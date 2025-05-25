@@ -68,7 +68,7 @@ export function BookingTable() {
       customer: b.customer, // { id, name }
       station: b.station,
       duration: b.duration,
-      status: (b.status || "booked") as Booking["status"],
+      status: (b.status?.toLowerCase?.() || "booked") as Booking["status"],
       date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
       time: 
         b.start_time && b.end_time
