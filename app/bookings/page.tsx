@@ -47,7 +47,7 @@ export default function BookingsPage() {
         date,
         time,
         duration,
-        status: "confirmed",
+        status: "ACTIVE",
       },
     ])
 
