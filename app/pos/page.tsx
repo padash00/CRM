@@ -221,10 +221,10 @@ export default function POSPage() {
 
       const totalSales = transactionsData.reduce((sum, tx) => sum + tx.amount, 0);
       const totalCash = transactionsData
-        .filter((tx) => tx.payment_type === "cash")
+        .filter((tx) => tx.payment_type === "CASH")
         .reduce((sum, tx) => sum + tx.amount, 0);
       const totalCard = transactionsData
-        .filter((tx) => tx.payment_type === "card")
+        .filter((tx) => tx.payment_type === "CARD")
         .reduce((sum, tx) => sum + tx.amount, 0);
 
       return {
