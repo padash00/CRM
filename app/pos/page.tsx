@@ -68,7 +68,7 @@ interface Filters {
   amountMin: string;
   amountMax: string;
 }
-
+type PaymentMethod = 'CARD' | 'CASH' | 'TRANSFER' | 'OTHER';
 interface NewTransaction {
   customerId: string;
   amount: string;
@@ -112,7 +112,7 @@ export default function POSPage() {
   const [newTransaction, setNewTransaction] = useState<NewTransaction>({
     customerId: "",
     amount: "",
-    paymentType: PaymentMethod,
+    paymentType: cash,
   });
   const [inventoryAction, setInventoryAction] = useState<InventoryAction>({
     itemType: "product",
