@@ -279,6 +279,13 @@ const handleAddCashOperation = async () => {
     };
 
     console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
+    const transactionDataToInsert = {
+    customer_id,
+    amount,
+    payment_method,
+    // другие поля...
+    shift_id: currentShift?.id, // ← вот это добавь
+    };
 
     const { data: transactionData, error: transactionError } = await supabase
       .from("transactions")
