@@ -41,14 +41,21 @@ export default function BookingsPage() {
     const { customer, station, date, time, duration } = formData
 
     const start_time = new Date(`${date}T${time}`).toISOString()
-    
+    console.log("Формируем бронирование:", {
+      customer,
+      station,
+      start_time,
+      duration: Number(duration),
+      status: "ACTIVE",
+    })
+
     const { error } = await supabase.from("bookings").insert([
       {
         customer,
         station,
         date,
         time,
-        duration,
+        duration: Number(duration),
         status: "ACTIVE",
       },
     ])
