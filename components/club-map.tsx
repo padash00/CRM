@@ -64,8 +64,24 @@ const rebootComputer = async (id: string) => {
   console.log("Rebooting", id);
 };
 
+// 1. Выбор ПК
+const [selectedComputer, setSelectedComputer] = useState<Computer | null>(null);
 
-return (
+const handleEditComputer = (computer: Computer) => {
+  setSelectedComputer(computer);
+};
+
+// 2. Панель действий
+{selectedComputer && (
+  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-xl p-4 shadow-lg flex gap-2 z-50">
+    <Button onClick={() => startTariff(selectedComputer)}>Включить по тарифу</Button>
+    <Button onClick={() => rebootComputer(selectedComputer)}>Перезагрузить</Button>
+    <Button onClick={() => markMaintenance(selectedComputer)}>В обслуживание</Button>
+    <Button variant="ghost" onClick={() => setSelectedComputer(null)}>Закрыть</Button>
+  </div>
+)}
+
+  
 <div
 ref={containerRef}
 className="relative w-full h-[600px] rounded-lg shadow-lg"
@@ -81,7 +97,7 @@ backgroundPosition: "center",
 }}
 >
 <div className="absolute top-4 left-4">
-<h3 className="text-lg font-bold text-white">Крыло Ингбор</h3>
+<h3 className="text-lg font-bold text-white"></h3>
 </div>
 {standardComputers.map((computer) => (
 <Button
@@ -107,7 +123,7 @@ onClick={() => handleEditComputer(computer)}
 
 
 <div className="absolute top-4 right-4">
-<h3 className="text-lg font-bold text-white">Гаронин</h3>
+<h3 className="text-lg font-bold text-white"></h3>
 </div>
 {vipComputers.map((computer) => (
 <Button
@@ -131,7 +147,7 @@ onClick={() => handleEditComputer(computer)}
 ))}
 
 <div className="absolute bottom-4 left-4">
-<h3 className="text-lg font-bold text-white">Соффааб</h3>
+<h3 className="text-lg font-bold text-white"></h3>
 </div>
 {consoleComputers.map((computer) => (
 <Button
@@ -153,10 +169,22 @@ onClick={() => handleEditComputer(computer)}
 {computer.name}
 </Button>
 ))}
-      <Button onClick={() => startSession(computer.id)}>Включить по тарифу</Button>
-      <Button onClick={() => rebootComputer(computer.id)}>Перезагрузить</Button>
-      <Button onClick={() => changeStatus(computer.id, "MAINTENANCE")}>В обслуживание</Button>
-
 </div>
+  <Button
+  className="absolute top-4 right-4 z-50"
+  onClick={() => setAddDialogOpen(true)}
+>
+  + ПК
+</Button>
+<Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+  <DialogContent>
+    <DialogHeader>Добавить новый ПК</DialogHeader>
+    <form onSubmit={handleAddComputer}>
+      {/* поля: name, type, zone, pos_x, pos_y */}
+      <Button type="submit">Сохранить</Button>
+    </form>
+  </DialogContent>
+</Dialog>
+
 );
 }
