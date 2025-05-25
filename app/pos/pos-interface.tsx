@@ -242,6 +242,30 @@ export function POSInterface() {
       }
     }
 
+const handleAddCashOperation = async () => {
+  const { data: activeShiftId, error: shiftError } = await supabase.rpc("get_active_shift_id");
+
+  if (shiftError || !activeShiftId) {
+    console.error("Не удалось получить активную смену:", shiftError);
+    return;
+  }
+
+  const { error } = await supabase.from("cash_operations").insert({
+    amount: Number(amount),
+    type,
+    note,
+    shift_id: activeShiftId, // ← вот тут shift_id подставляется
+  });
+
+  if (error) {
+    console.error("Ошибка при добавлении операции:", error);
+  } else {
+    console.log("Операция успешно добавлена");
+    // Очистка формы, обновление списка и т.д.
+  }
+};
+
+    
     const { data: activeShiftId } = await supabase.rpc("get_active_shift_id");
     // Создаём транзакцию
     const transactionDataToInsert = {
