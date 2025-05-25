@@ -63,6 +63,8 @@ export default function BookingsPage() {
       duration: durationHours,
       status: "ACTIVE",
     });
+    console.log("Тип customer:", typeof customer, "Значение:", customer)
+
     const { error } = await supabase.from("bookings").insert([
       {
         customer: customer || null,
