@@ -114,7 +114,7 @@ export default function POSPage() {
   const [newTransaction, setNewTransaction] = useState<NewTransaction>({
     customerId: "",
     amount: "",
-    paymentType: "cash",
+    paymentType: PaymentMethod,
   });
   const [inventoryAction, setInventoryAction] = useState<InventoryAction>({
     itemType: "product",
