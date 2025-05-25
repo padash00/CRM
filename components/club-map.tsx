@@ -6,7 +6,7 @@ interface Computer {
   name: string;
   type: "PC" | "PlayStation";
   status: "available" | "occupied";
-  zone: "standard" | "vip" | "console";
+  zone: "FREE" | "BOOKED" | "MAINTENANCE";
   position_x: number;
   position_y: number;
   timeLeft?: string;
@@ -30,7 +30,7 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
       setDimensions({ width: rect.width, height: rect.height });
     }
   }, []);
-
+  
   const handleEditComputer = (computer: Computer) => {
     if (onEdit) onEdit(computer);
   };
@@ -38,6 +38,30 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
   const standardComputers = computers.filter((comp) => comp.zone === "standard");
   const vipComputers = computers.filter((comp) => comp.zone === "vip");
   const consoleComputers = computers.filter((comp) => comp.zone === "console");
+  const changeStatus = async (id: string, status: ComputerStatus) => {
+  await supabase.from("computers").update({ status }).eq("id", id);
+  fetchComputers(); // обновить карту
+};
+
+  const getColorByStatus = (status: Computer["status"]) => {
+  switch (status) {
+    case "FREE":
+      return "bg-green-500 hover:bg-green-600";
+    case "BOOKED":
+      return "bg-yellow-500 hover:bg-yellow-600 animate-pulse";
+    case "MAINTENANCE":
+      return "bg-red-500 hover:bg-red-600";
+    default:
+      return "bg-gray-500";
+  }
+};
+
+
+const rebootComputer = async (id: string) => {
+  // если есть API управления, делай fetch или отправь WebSocket
+  console.log("Rebooting", id);
+};
+
 
   return (
     <div
@@ -63,8 +87,7 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
           variant="outline"
           className={`
             absolute w-14 h-14 rounded-lg text-sm font-bold
-            ${computer.status === "available" ? "bg-green-500 hover:bg-green-600" : ""}
-            ${computer.status === "occupied" ? "bg-red-500 hover:bg-red-600 animate-pulse" : ""}
+            ${getColorByStatus(computer.status)}
             text-white border-none shadow-lg
           `}
           style={{
@@ -77,6 +100,7 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
           {computer.name}
         </Button>
       ))}
+
 
       <div className="absolute top-4 right-4">
         <h3 className="text-lg font-bold text-white">Гаронин</h3>
@@ -125,6 +149,10 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
           {computer.name}
         </Button>
       ))}
+      <Button onClick={() => startSession(computer.id)}>Включить по тарифу</Button>
+      <Button onClick={() => rebootComputer(computer.id)}>Перезагрузить</Button>
+      <Button onClick={() => changeStatus(computer.id, "MAINTENANCE")}>В обслуживание</Button>
+
     </div>
   );
 }
