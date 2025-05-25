@@ -111,14 +111,12 @@ export function BookingTable() {
   }
 
   const handleEditClick = useCallback((id: string) => {
-    toast({
-      title: language === "ru" ? "Редактирование бронирования" : "Брондауды өңдеу",
-      description:
-        language === "ru"
-          ? `Редактирование бронирования ${id} будет доступно в следующей версии.`
-          : `Брондау ${id} өңдеу келесі нұсқада қол жетімді болады.`,
-    })
-  }, [language])
+  const booking = bookings.find((b) => b.id === id)
+  if (booking) {
+    setEditingBooking(booking)
+    setEditDialogOpen(true)
+  }
+}, [bookings])
 
   const handleDeleteClick = useCallback((id: string) => {
     setBookingToDelete(id)
@@ -152,6 +150,10 @@ export function BookingTable() {
     setBookingToDelete(null)
   }, [bookingToDelete, language])
 
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
+
+  
   const BookingRow = ({
     booking,
     onEdit,
@@ -238,6 +240,75 @@ export function BookingTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>{language === "ru" ? "Редактировать бронирование" : "Брондауды өңдеу"}</DialogTitle>
+      <DialogDescription>
+        {language === "ru" ? "Измените данные и сохраните." : "Мәліметтерді өзгертіп, сақтаңыз."}
+      </DialogDescription>
+    </DialogHeader>
+
+    {editingBooking && (
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+
+          const formData = new FormData(e.currentTarget)
+          const status = formData.get("status") as string
+          const duration = formData.get("duration") as string
+
+          const { error } = await supabase
+            .from("bookings")
+            .update({ status, duration })
+            .eq("id", editingBooking.id)
+
+          if (error) {
+            toast({
+              title: "Ошибка",
+              description: error.message,
+              variant: "destructive",
+            })
+          } else {
+            toast({ title: "Сохранено", description: "Бронирование обновлено." })
+            await fetchBookings()
+            setEditDialogOpen(false)
+          }
+        }}
+        className="space-y-4"
+      >
+        <div>
+          <label className="block text-sm mb-1">Статус</label>
+          <select
+            name="status"
+            defaultValue={editingBooking.status}
+            className="w-full border px-3 py-2 rounded-md"
+          >
+            <option value="booked">Забронировано</option>
+            <option value="active">Активно</option>
+            <option value="upcoming">Ожидает</option>
+            <option value="completed">Завершено</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1">Длительность (в минутах)</label>
+          <input
+            type="text"
+            name="duration"
+            defaultValue={editingBooking.duration}
+            className="w-full border px-3 py-2 rounded-md"
+          />
+        </div>
+
+        <DialogFooter>
+          <Button type="submit">{language === "ru" ? "Сохранить" : "Сақтау"}</Button>
+        </DialogFooter>
+      </form>
+    )}
+  </DialogContent>
+</Dialog>
+
     </>
   )
 }
