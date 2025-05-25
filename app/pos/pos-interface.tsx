@@ -249,6 +249,7 @@ export function POSInterface() {
       transaction_date: new Date().toISOString().replace("Z", ""), // Убираем Z
       payment_type: paymentMethod,
       guest_name: customerId === "none" ? (guestName || "Гость") : null,
+      transaction_type: 'PAYMENT',
     };
 
     console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
