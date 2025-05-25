@@ -80,10 +80,10 @@ const TransactionRow = ({ transaction }: { transaction: Transaction }) => {
       <TableCell>₸{transaction.total.toLocaleString()}</TableCell>
       <TableCell>
         <Badge
-          variant={transaction.paymentMethod === "card" ? "outline" : "secondary"}
-          className={transaction.paymentMethod === "card" ? "bg-blue-100 text-blue-800" : ""}
+          variant={transaction.paymentMethod === "CARD" ? "outline" : "secondary"}
+          className={transaction.paymentMethod === "CARD" ? "bg-blue-100 text-blue-800" : ""}
         >
-          {transaction.paymentMethod === "card" ? "Карта" : "Наличные"}
+          {transaction.paymentMethod === "CARD" ? "Карта" : "Наличные"}
         </Badge>
       </TableCell>
       <TableCell>{transaction.operator}</TableCell>
