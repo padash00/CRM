@@ -167,21 +167,20 @@ const rebootComputer = async (id: string) => {
         </Button>
       ))}
     </div>
-  <div
-    className="absolute z-50 bg-white rounded-xl shadow-xl p-3 space-y-2 w-48"
+    
+  <div className="absolute z-50 bg-white rounded-xl shadow-xl p-3 space-y-2 w-48"
     style={{
       top: `${(selectedComputer.position_y / dimensions.height) * 100}%`,
       left: `${(selectedComputer.position_x / dimensions.width) * 100}%`,
       transform: "translate(-50%, -110%)",
     }}
   >
+    
     <div className="font-semibold text-gray-800 text-center">
       {selectedComputer.name}
     </div>
-    <Button
-      className="w-full text-left"
-      variant="outline"
-      onClick={() => {
+    
+    <Button className="w-full text-left" variant="outline" onClick={() => {
         console.log("Включить по тарифу", selectedComputer.id);
         // TODO: вызвать модалку/функцию тарифа
         setSelectedComputer(null);
@@ -189,10 +188,8 @@ const rebootComputer = async (id: string) => {
     >
       ▶ Включить по тарифу
     </Button>
-    <Button
-      className="w-full text-left"
-      variant="outline"
-      onClick={() => {
+    
+    <Button className="w-full text-left" variant="outline" onClick={() => {
         console.log("Перезагрузить", selectedComputer.id);
         // TODO: добавить вызов Supabase/локальную логику
         setSelectedComputer(null);
@@ -200,10 +197,8 @@ const rebootComputer = async (id: string) => {
     >
       🔄 Перезагрузить
     </Button>
-    <Button
-      className="w-full text-left text-red-600"
-      variant="outline"
-      onClick={() => {
+    
+    <Button className="w-full text-left text-red-600" variant="outline" onClick={() => {
         console.log("Перевести в обслуживание", selectedComputer.id);
         // TODO: обновить статус через Supabase
         setSelectedComputer(null);
@@ -211,10 +206,10 @@ const rebootComputer = async (id: string) => {
     >
       🛠 В обслуживание
     </Button>
+    
   </div>
 )}
 
-  {showAddDialog && (
   <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
     <div className="bg-white rounded-xl shadow-xl p-6 w-[300px] space-y-4">
       <h2 className="text-lg font-bold">Добавить компьютер</h2>
