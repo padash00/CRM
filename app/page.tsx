@@ -46,6 +46,23 @@ export default function DashboardPage() {
   const [isStartShiftDialogOpen, setIsStartShiftDialogOpen] = useState(false);
   const [isEndShiftDialogOpen, setIsEndShiftDialogOpen] = useState(false);
 
+  const [customers, setCustomers] = useState([]);
+  const [stations, setStations] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+        const { data: customerData } = await supabase.from('customers').select('id, name');
+        const { data: stationData } = await supabase.from('stations').select('id, name');
+
+        if (customerData) setCustomers(customerData);
+        if (stationData) setStations(stationData);
+    };
+
+  fetchData();
+}, []);
+
+    
+    
   // --- Функции загрузки данных ---
   const fetchCurrentShiftData = useCallback(async () => {
     console.log("Загрузка данных текущей смены (RPC)...");
