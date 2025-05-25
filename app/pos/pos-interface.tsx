@@ -275,7 +275,6 @@ const handleAddCashOperation = async () => {
       payment_type: paymentMethod,
       guest_name: customerId === "none" ? (guestName || "Гость") : null,
       transaction_type: 'PAYMENT',
-      shift_id: currentShift?.id,
     };
 
     console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
