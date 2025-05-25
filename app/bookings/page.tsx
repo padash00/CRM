@@ -55,7 +55,14 @@ export default function BookingsPage() {
     // создаём end_time
     const end_time = new Date(start_time.getTime() + durationHours * 60 * 60 * 1000)
     console.log("DEBUG: customer =", customer)
-
+    console.log("DEBUG insert payload:", {
+      customer,
+      station,
+      start_time,
+      end_time,
+      duration: durationHours,
+      status: "ACTIVE",
+    });
     const { error } = await supabase.from("bookings").insert([
       {
         customer: customer,
