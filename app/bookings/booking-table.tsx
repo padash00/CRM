@@ -241,10 +241,10 @@ export function BookingTable() {
         </DialogContent>
       </Dialog>
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-  <DialogContent>
+  <DialogContent className="bg-black text-white space-y-4">
     <DialogHeader>
       <DialogTitle>{language === "ru" ? "Редактировать бронирование" : "Брондауды өңдеу"}</DialogTitle>
-      <DialogDescription>
+      <DialogDescription className="text-gray-400">
         {language === "ru" ? "Измените данные и сохраните." : "Мәліметтерді өзгертіп, сақтаңыз."}
       </DialogDescription>
     </DialogHeader>
@@ -277,12 +277,12 @@ export function BookingTable() {
         }}
         className="space-y-4"
       >
-        <div>
-          <label className="block text-sm mb-1">Статус</label>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-white">Статус</label>
           <select
             name="status"
             defaultValue={editingBooking.status}
-            className="w-full border px-3 py-2 rounded-md"
+            className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white"
           >
             <option value="booked">Забронировано</option>
             <option value="active">Активно</option>
@@ -291,13 +291,13 @@ export function BookingTable() {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Длительность (в минутах)</label>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-white">Длительность (мин)</label>
           <input
             type="text"
             name="duration"
             defaultValue={editingBooking.duration}
-            className="w-full border px-3 py-2 rounded-md"
+            className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-white"
           />
         </div>
 
@@ -308,6 +308,8 @@ export function BookingTable() {
     )}
   </DialogContent>
 </Dialog>
+
+
 
     </>
   )
