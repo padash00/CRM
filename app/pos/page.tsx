@@ -1033,8 +1033,8 @@ export default function POSPage() {
                   <SelectValue placeholder="Выберите тип оплаты" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Наличные</SelectItem>
-                  <SelectItem value="card">Карта</SelectItem>
+                  <SelectItem value="CASH">Наличные</SelectItem>
+                  <SelectItem value="CARD">Карта</SelectItem>
                 </SelectContent>
               </Select>
             </div>
