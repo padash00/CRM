@@ -53,27 +53,30 @@ export function BookingTable() {
   status,
   duration,
   station,
-  customer:customer (
+  customer(
     id,
     name
   )
   `)
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
-    } else {
-      setBookings(
-        (data || []).map((b) => ({
-          id: b.id,
-          customer: b.customer,
-          station: b.station,
-          duration: b.duration,
-          status: b.status,
-          date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
-          time: b.start_time && b.end_time
-            ? `${new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-            : "",
-        }))
-      )
+      return
+    }
+
+    if (!data) return
+
+    const formatted = data.map((b: any) => ({
+      id: b.id,
+      customer: b.customer, // { id, name }
+      station: b.station,
+      duration: b.duration,
+      status: b.status || "active",
+      date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
+      time: b.start_time && b.end_time
+        ? `${new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        : "",
+    }))
+       setBookings(formatted)
     }
   }
 
