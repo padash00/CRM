@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase"; // или актуальный путь
+
+type Zone = "standard" | "vip" | "console";
+type ComputerStatus = "FREE" | "BOOKED" | "MAINTENANCE";
 
 interface Computer {
   id: string;
   name: string;
   type: "PC" | "PlayStation";
-  status: "available" | "occupied";
-  zone: "FREE" | "BOOKED" | "MAINTENANCE";
+  status: ComputerStatus;
+  zone: Zone;
   position_x: number;
   position_y: number;
   timeLeft?: string;
@@ -52,6 +56,7 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
     status: "FREE",
     position_x: 100,
     position_y: 100,
+    zone: "standard" | "vip" | "console",
   });
 
   
