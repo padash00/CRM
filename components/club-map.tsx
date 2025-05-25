@@ -168,14 +168,14 @@ onClick={() => handleEditComputer(computer)}
 >
 {computer.name}
 </Button>
-))}
-</div>
-  <Button
+   <Button
   className="absolute top-4 right-4 z-50"
   onClick={() => setAddDialogOpen(true)}
 >
   + ПК
 </Button>
+))}
+</div>
 <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
   <DialogContent>
     <DialogHeader>Добавить новый ПК</DialogHeader>
