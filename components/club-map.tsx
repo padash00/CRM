@@ -30,8 +30,11 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
       setDimensions({ width: rect.width, height: rect.height });
     }
   }, []);
-  
+
+  const [selectedComputer, setSelectedComputer] = useState<Computer | null>(null);
+
   const handleEditComputer = (computer: Computer) => {
+    setSelectedComputer(computer);
     if (onEdit) onEdit(computer);
   };
 
@@ -149,10 +152,54 @@ const rebootComputer = async (id: string) => {
           {computer.name}
         </Button>
       ))}
-      <Button onClick={() => startSession(computer.id)}>Включить по тарифу</Button>
-      <Button onClick={() => rebootComputer(computer.id)}>Перезагрузить</Button>
-      <Button onClick={() => changeStatus(computer.id, "MAINTENANCE")}>В обслуживание</Button>
-
     </div>
+    {selectedComputer && (
+  <div
+    className="absolute z-50 bg-white rounded-xl shadow-xl p-3 space-y-2 w-48"
+    style={{
+      top: `${(selectedComputer.position_y / dimensions.height) * 100}%`,
+      left: `${(selectedComputer.position_x / dimensions.width) * 100}%`,
+      transform: "translate(-50%, -110%)",
+    }}
+  >
+    <div className="font-semibold text-gray-800 text-center">
+      {selectedComputer.name}
+    </div>
+    <Button
+      className="w-full text-left"
+      variant="outline"
+      onClick={() => {
+        console.log("Включить по тарифу", selectedComputer.id);
+        // TODO: вызвать модалку/функцию тарифа
+        setSelectedComputer(null);
+      }}
+    >
+      ▶ Включить по тарифу
+    </Button>
+    <Button
+      className="w-full text-left"
+      variant="outline"
+      onClick={() => {
+        console.log("Перезагрузить", selectedComputer.id);
+        // TODO: добавить вызов Supabase/локальную логику
+        setSelectedComputer(null);
+      }}
+    >
+      🔄 Перезагрузить
+    </Button>
+    <Button
+      className="w-full text-left text-red-600"
+      variant="outline"
+      onClick={() => {
+        console.log("Перевести в обслуживание", selectedComputer.id);
+        // TODO: обновить статус через Supabase
+        setSelectedComputer(null);
+      }}
+    >
+      🛠 В обслуживание
+    </Button>
+  </div>
+)}
+
   );
 }
