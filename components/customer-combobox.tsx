@@ -48,7 +48,7 @@ export function CustomerCombobox({ value, onChange }: Props) {
 
   return (
     <div>
-      
+      <Label>Клиент</Label>
       <Combobox value={value} onChange={onChange}>
         <div className="relative">
           <div className="relative w-full cursor-default overflow-hidden rounded-md border bg-background text-left shadow-sm">
