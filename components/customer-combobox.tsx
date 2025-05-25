@@ -55,7 +55,10 @@ export function CustomerCombobox({ value, onChange }: Props) {
             <Combobox.Input
               className="w-full border-none bg-transparent px-3 py-2 outline-none"
               onChange={(event) => setQuery(event.target.value)}
-              displayValue={(val: string) => val}
+              displayValue={(val: string) => {
+                const customer = customers.find((c) => c.id === val)
+                return customer?.name || ""
+              }}
               placeholder="Введите имя или выберите..."
               onClick={() => setOpen(true)}
             />
@@ -73,7 +76,7 @@ export function CustomerCombobox({ value, onChange }: Props) {
                 filtered.map((customer) => (
                   <Combobox.Option
                     key={customer.id}
-                    value={customer.name}
+                    value={customer.id}
                     className={({ active }) =>
                       cn(
                         "relative cursor-pointer select-none px-4 py-2",
