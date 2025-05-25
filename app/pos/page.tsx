@@ -69,10 +69,12 @@ interface Filters {
   amountMax: string;
 }
 
+type PaymentMethod = 'CARD' | 'CASH' | 'TRANSFER' | 'OTHER';
+
 interface NewTransaction {
   customerId: string;
   amount: string;
-  paymentType: string;
+  paymentType: PaymentMethod;
 }
 
 interface InventoryAction {
