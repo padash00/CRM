@@ -40,6 +40,8 @@ export default function BookingsPage() {
 
     const { customer, station, date, time, duration } = formData
 
+    const start_time = new Date(`${date}T${time}`).toISOString()
+    
     const { error } = await supabase.from("bookings").insert([
       {
         customer,
