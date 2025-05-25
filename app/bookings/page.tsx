@@ -40,7 +40,7 @@ export default function BookingsPage() {
 
     const { customer, station, date, time, duration } = formData
 
-    const start_time = new Date(`${date}T${time}`).toISOString()
+    const start_time = new Date(`${date}T${time}:00`)
     console.log("Формируем бронирование:", {
       customer,
       station,
@@ -53,8 +53,7 @@ export default function BookingsPage() {
       {
         customer,
         station,
-        date,
-        time,
+        start_time,
         duration: Number(duration),
         status: "ACTIVE",
       },
