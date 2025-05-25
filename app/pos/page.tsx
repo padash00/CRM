@@ -533,7 +533,7 @@ export default function POSPage() {
         description: `Транзакция на сумму ${amount} ₸ успешно создана`,
       });
       setOpenSaleDialog(false);
-      setNewTransaction({ customerId: "", amount: "", paymentType: "cash" });
+      setNewTransaction({ customerId: "", amount: "", paymentType: PaymentMethod });
     }
   };
 
