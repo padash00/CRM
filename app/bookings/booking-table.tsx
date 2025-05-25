@@ -50,7 +50,7 @@ export function BookingTable() {
   status,
   duration,
   station,
-  customer:customers (
+  customer:customer (
     id,
     name
   )
