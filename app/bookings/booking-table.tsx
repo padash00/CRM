@@ -140,7 +140,7 @@ export function BookingTable() {
   }) => (
     <TableRow>
       <TableCell><Checkbox /></TableCell>
-      <TableCell>{booking.id}</TableCell>
+      
       <TableCell>{booking.customer}</TableCell>
       <TableCell>{booking.station}</TableCell>
       <TableCell>{booking.date}</TableCell>
