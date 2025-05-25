@@ -514,8 +514,8 @@ export function POSInterface() {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 shadow-sm">
-                    <TabsTrigger value="cash">Наличные</TabsTrigger>
-                    <TabsTrigger value="card">Карта</TabsTrigger>
+                    <TabsTrigger value="CASH">Наличные</TabsTrigger>
+                    <TabsTrigger value="CARD">Карта</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
