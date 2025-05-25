@@ -76,7 +76,6 @@ export function BookingTable() {
     }))
        setBookings(formatted)
     }
-  }
 
   useEffect(() => {
     fetchBookings()
@@ -157,7 +156,7 @@ export function BookingTable() {
     <TableRow>
       <TableCell><Checkbox /></TableCell>
       
-      <TableCell>{booking.customer}</TableCell>
+      <TableCell>{booking.customer?.name ?? "—"}</TableCell>
       <TableCell>{booking.station}</TableCell>
       <TableCell>{booking.date}</TableCell>
       <TableCell>{booking.time}</TableCell>
