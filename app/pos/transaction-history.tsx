@@ -32,7 +32,7 @@ interface Transaction {
   customer: string;
   items: string;
   total: number;
-  paymentMethod: "card" | "cash";
+  paymentMethod: "CARD" | "CASH";
   operator: string;
 }
 
@@ -212,7 +212,7 @@ export function TransactionHistory({ searchQuery, filters }: TransactionHistoryP
             customer: transaction.customers?.name || "Неизвестный клиент",
             items: itemsList.join(", ") || "Нет товаров",
             total: transaction.amount,
-            paymentMethod: transaction.payment_type === "card" ? "card" : "cash",
+            paymentMethod: transaction.payment_type === "CARD" ? "CARD" : "CASH",
             operator: "Кассир", // Пока захардкодим
           };
         })
