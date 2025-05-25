@@ -28,10 +28,7 @@ import { useLanguage } from "@/contexts/language-context"
 
 interface Booking {
   id: string
-  customer: {
-    id: string
-    name: string
-  } | null
+  customer: { id: string; name: string } | null
   station: string
   date: string
   time: string
@@ -53,11 +50,12 @@ export function BookingTable() {
   status,
   duration,
   station,
-  customer(
+  customer (
     id,
     name
   )
   `)
+    
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
       return
@@ -70,7 +68,7 @@ export function BookingTable() {
       customer: b.customer, // { id, name }
       station: b.station,
       duration: b.duration,
-      status: b.status || "active",
+      status: (b.status || "active") as Booking["status"],
       date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
       time: b.start_time && b.end_time
         ? `${new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
