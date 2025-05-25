@@ -54,7 +54,8 @@ export default function BookingsPage() {
 
     // создаём end_time
     const end_time = new Date(start_time.getTime() + durationHours * 60 * 60 * 1000)
-    
+    console.log("DEBUG: customer =", customer)
+
     const { error } = await supabase.from("bookings").insert([
       {
         customer: customer,
