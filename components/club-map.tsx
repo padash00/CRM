@@ -167,7 +167,6 @@ const rebootComputer = async (id: string) => {
         </Button>
       ))}
     </div>
-    {selectedComputer && (
   <div
     className="absolute z-50 bg-white rounded-xl shadow-xl p-3 space-y-2 w-48"
     style={{
