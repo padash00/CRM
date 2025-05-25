@@ -33,7 +33,7 @@ interface Booking {
   date: string
   time: string
   duration: string
-  status: "active" | "upcoming" | "completed"
+  status: "booked" | "active" | "upcoming" | "completed"
 }
 
 export function BookingTable() {
@@ -68,7 +68,7 @@ export function BookingTable() {
       customer: b.customer, // { id, name }
       station: b.station,
       duration: b.duration,
-      status: (b.status || "active") as Booking["status"],
+      status: (b.status || "booked") as Booking["status"],
       date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
       time: 
         b.start_time && b.end_time
@@ -102,6 +102,7 @@ export function BookingTable() {
 
   const getStatusBadge = (status: Booking["status"]) => {
     const variants = {
+      booked: <Badge variant="secondary">{language === "ru" ? "Забронировано" : "Брондалған"}</Badge>,
       active: <Badge>{language === "ru" ? "Активно" : "Белсенді"}</Badge>,
       upcoming: <Badge variant="outline">{language === "ru" ? "Ожидает" : "Күтілуде"}</Badge>,
       completed: <Badge variant="secondary">{language === "ru" ? "Завершено" : "Аяқталған"}</Badge>,
