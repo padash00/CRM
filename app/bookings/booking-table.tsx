@@ -28,7 +28,10 @@ import { useLanguage } from "@/contexts/language-context"
 
 interface Booking {
   id: string
-  customer: string
+  customer: {
+    id: string
+    name: string
+  } | null
   station: string
   date: string
   time: string
@@ -58,7 +61,19 @@ export function BookingTable() {
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" })
     } else {
-      setBookings(data || [])
+      setBookings(
+        (data || []).map((b) => ({
+          id: b.id,
+          customer: b.customer,
+          station: b.station,
+          duration: b.duration,
+          status: b.status,
+          date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
+          time: b.start_time && b.end_time
+            ? `${new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            : "",
+        }))
+      )
     }
   }
 
@@ -141,7 +156,7 @@ export function BookingTable() {
     <TableRow>
       <TableCell><Checkbox /></TableCell>
       
-      <TableCell>{booking.customer}</TableCell>
+      <TableCell>{booking.customer?.name || "-"}</TableCell>
       <TableCell>{booking.station}</TableCell>
       <TableCell>{booking.date}</TableCell>
       <TableCell>{booking.time}</TableCell>
