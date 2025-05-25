@@ -59,7 +59,7 @@ export function POSInterface() {
   const [customerId, setCustomerId] = useState<string>("none"); // Начальное значение "none"
   const [guestName, setGuestName] = useState<string>(""); // Для покупок без аккаунта
   const [paymentDialogOpen, setPaymentDialogOpen] = useState<boolean>(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">("CASH");
   const [cashReceived, setCashReceived] = useState<string>("");
   const [products, setProducts] = useState<Item[]>([]);
   const [services, setServices] = useState<Item[]>([]);
@@ -228,7 +228,7 @@ export function POSInterface() {
     const total = calculateTotal();
     let change = 0;
 
-    if (paymentMethod === "cash") {
+    if (paymentMethod === "CASH") {
       const received = Number.parseInt(cashReceived) || 0;
       change = received - total;
 
@@ -335,7 +335,7 @@ export function POSInterface() {
     setCustomerId("none");
     setGuestName("");
     setCashReceived("");
-    setPaymentMethod("cash");
+    setPaymentMethod("CASH");
 
     // Обновляем данные о товарах и услугах
     const { data: updatedProducts } = await supabase.from("items").select("*").eq("type", "product");
@@ -510,7 +510,7 @@ export function POSInterface() {
               <div className="col-span-3">
                 <Tabs
                   value={paymentMethod}
-                  onValueChange={(value) => setPaymentMethod(value as "cash" | "card")}
+                  onValueChange={(value) => setPaymentMethod(value as "CASH" | "CARD")}
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 shadow-sm">
@@ -520,7 +520,7 @@ export function POSInterface() {
                 </Tabs>
               </div>
             </div>
-            {paymentMethod === "cash" && (
+            {paymentMethod === "CASH" && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right font-medium">Получено</Label>
                 <Input
@@ -533,7 +533,7 @@ export function POSInterface() {
                 />
               </div>
             )}
-            {paymentMethod === "cash" && cashReceived && Number.parseInt(cashReceived) >= calculateTotal() && (
+            {paymentMethod === "CASH" && cashReceived && Number.parseInt(cashReceived) >= calculateTotal() && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right font-medium">Сдача</Label>
                 <div className="col-span-3 font-medium text-green-600">
@@ -546,7 +546,7 @@ export function POSInterface() {
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
               Отмена
             </Button>
-            <Button onClick={processPayment} disabled={paymentMethod === "cash" && !cashReceived}>
+            <Button onClick={processPayment} disabled={paymentMethod === "CASH" && !cashReceived}>
               Подтвердить оплату
             </Button>
           </DialogFooter>
