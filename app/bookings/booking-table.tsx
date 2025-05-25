@@ -177,7 +177,7 @@ export function BookingTable() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]"><Checkbox /></TableHead>
-              <TableHead>ID</TableHead>
+              
               <TableHead>{language === "ru" ? "Клиент" : "Клиент"}</TableHead>
               <TableHead>{language === "ru" ? "Станция" : "Станция"}</TableHead>
               <TableHead>{language === "ru" ? "Дата" : "Күні"}</TableHead>
