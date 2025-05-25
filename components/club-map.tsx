@@ -173,4 +173,6 @@ onClick={() => handleEditComputer(computer)} >
     </form>
   </DialogContent>
 </Dialog>
-</div>;
+</div>
+)
+}
