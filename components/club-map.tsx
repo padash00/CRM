@@ -17,7 +17,7 @@ interface Computer {
   customer?: string;
   created_at: string;
 }
-
+ 
 interface ClubMapProps {
   computers: Computer[];
   setComputers: React.Dispatch<React.SetStateAction<Computer[]>>;
@@ -53,10 +53,10 @@ export function ClubMap({ computers = [], setComputers, onEdit }: ClubMapProps) 
   const [newComputer, setNewComputer] = useState({
     name: "",
     type: "PC",
-    status: "FREE",
+    status: "FREE" as ComputerStatus,
     position_x: 100,
     position_y: 100,
-    zone: "standard" | "vip" | "console",
+    zone: "standard" as Zone,
   });
 
   
