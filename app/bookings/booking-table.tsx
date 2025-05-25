@@ -70,8 +70,15 @@ export function BookingTable() {
       duration: b.duration,
       status: (b.status || "active") as Booking["status"],
       date: b.start_time ? new Date(b.start_time).toLocaleDateString() : "",
-      time: b.start_time && b.end_time
-        ? `${new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+      time: 
+        b.start_time && b.end_time
+        ? `${new Date(b.start_time).toLocaleTimeString([], { 
+          hour: "2-digit", 
+          minute: "2-digit" 
+        })} - ${new Date(b.end_time).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })}`
         : "",
     }))
        setBookings(formatted)
