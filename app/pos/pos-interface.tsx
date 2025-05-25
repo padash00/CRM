@@ -275,18 +275,10 @@ const handleAddCashOperation = async () => {
       payment_type: paymentMethod,
       guest_name: customerId === "none" ? (guestName || "Гость") : null,
       transaction_type: 'PAYMENT',
-      shift_id: activeShiftId,
+      shift_id: currentShift?.id,
     };
 
     console.log("Данные для вставки в transactions:", transactionDataToInsert); // Для отладки
-    const transactionDataToInsert = {
-    customer_id,
-    amount,
-    payment_method,
-    // другие поля...
-    shift_id: currentShift?.id, // ← вот это добавь
-    };
-
     const { data: transactionData, error: transactionError } = await supabase
       .from("transactions")
       .insert([transactionDataToInsert])
