@@ -190,7 +190,7 @@ export default function DashboardPage() {
            <TabsContent value="overview" className="space-y-6">
                <div className="grid grid-cols-1 gap-6"> {/* График теперь занимает всю ширину */}
                   <Card className="shadow-sm bg-card">
-                    <CardHeader> <CardTitle className="text-lg font-semibold flex items-center gap-2"> <BarChart className="h-5 w-5 text-primary" /> Выручка (7 дней)</CardTitle> </CardHeader>
+                    <CardHeader> <CardTitle className="text-lg font-semibold flex items-center gap-2"> <BarChart className="h-5 w-5 text-primary" /> Выручка (за смену)</CardTitle> </CardHeader>
                     <CardContent className="pt-4">
                       <RevenueChart data={revenueData} loading={loadingRevenueChart} />
                     </CardContent>
